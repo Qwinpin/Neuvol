@@ -15,6 +15,8 @@ from keras.utils import multi_gpu_model, to_categorical
 
 import faker
 
+from config import logger
+
 
 FLOAT32 = np.float32
 
@@ -64,9 +66,9 @@ class Layer():
     Single layer class with compability checking
     """
     def __init__(self, layer_type, previous_layer=None, next_layer=None, classes=None):
-        self.type = layer_type
-        self.classes = classes
+        self._classes = classes
         self.config = {}
+        self.type = layer_type
 
         self._init_parameters_()
         self._check_compability_(previous_layer, next_layer)
@@ -106,7 +108,9 @@ class Layer():
                 self.config['return_sequences'] = False
 
         elif self.type == 'last_dense':
-            self.config['units'] = self.classes
+            self.config['units'] = self._classes
+
+
     
 
 class Individ():
@@ -120,20 +124,18 @@ class Individ():
         Create individ randomly or with its parents
         parents: set of two individ objects
         """
-        self.layers_number = 0
-        self.data_type = data_type
-        self.task_type = task_type
-        self.name = fake.name().replace(' ', '_') + '_' + str(stage)
-        self.classes = classes
-        self.stage = stage
-        self.history = [Event('Init', stage)]
-        self.architecture = []
-        self.parents = parents
+        self._layers_number = 0
+        self._data_type = data_type
+        self._task_type = task_type
+        self._history = [Event('Init', stage)]
+        self._classes = classes
+        self._name = fake.name().replace(' ', '_') + '_' + str(stage)
+        self._stage = stage
+        self._architecture = []
+        self._parents = parents
 
-        if self.parents is None:
+        if self._parents is None:
             self._random_init_()
-            self.training = self._random_init_training_()
-            self.data = self._random_init_data_processing()
         else:
             self._init_with_crossing_()
 
@@ -195,9 +197,9 @@ class Individ():
         At first, we set probabilities pool and the we change 
         this uniform distribution according to previous layer
         """
-        if self.architecture:
-            self.architecture = []
-        self.layers_number = np.random.randint(1, 10)
+        if self._architecture:
+            self._architecture = []
+        self._layers_number = np.random.randint(1, 10)
 
         probabilities_pool = np.full((POOL_SIZE), 1 / POOL_SIZE)
         pool_index = {i: name for i, name in enumerate(LAYERS_POOL.keys())}
@@ -206,14 +208,14 @@ class Individ():
         tmp_architecture = []
 
         # Create structure
-        for i in range(self.layers_number):
+        for i in range(self._layers_number):
             tmp_layer = np.random.choice(list(pool_index.keys()), p=probabilities_pool)
             tmp_architecture.append(tmp_layer)
             probabilities_pool[tmp_layer] *= 2
             probabilities_pool /= probabilities_pool.sum()
 
         # tmp_architecture = [np.random.choice(list(pool_index.keys()), 
-        # p=probabilities_pool) for i in range(self.layers_number)]
+        # p=probabilities_pool) for i in range(self._layers_number)]
 
         for i, name in enumerate(tmp_architecture):
             if i != 0:
@@ -224,21 +226,26 @@ class Individ():
                 next_layer = 'last_dense'
                 
             layer = Layer(pool_index[name], previous_layer, next_layer)
-            self.architecture.append(layer)
+            self._architecture.append(layer)
 
-        if self.data_type == 'text':
+        if self._data_type == 'text':
             # Push embedding for texts
             layer = Layer('embedding')
-            self.architecture.insert(0, layer)
+            self._architecture.insert(0, layer)
         else:
+            logger.error('Unsupported data type')
             raise Exception('Unsupported data type')
 
-        if self.task_type == 'classification':
+        if self._task_type == 'classification':
             #Add last layer
-            layer = Layer('last_dense', classes=self.classes)
-            self.architecture.append(layer)
+            layer = Layer('last_dense', classes=self._classes)
+            self._architecture.append(layer)
         else:
+            logger.error('Unsupported task type')
             raise Exception('Unsupported task type')
+
+        self._training = self._random_init_training_()
+        self._data = self._random_init_data_processing()
 
 
     def _init_with_crossing_(self):
@@ -246,37 +253,37 @@ class Individ():
         New individ parameters according its parents (only 2 now, classic)
         TODO: add compability checker after all crossing
         """
-        father = self.parents[0]
-        mother = self.parents[1]
+        father = self._parents[0]
+        mother = self._parents[1]
         # father_architecture - chose architecture from first individ and text and train from second
         # father_training - only training config from first one
         # father_arch_layers - select overlapping layers and replace parameters from the first architecture 
         # with parameters from the second
   
         pairing_type = np.random.choice(['father_architecture', 'father_training', 'father_architecture_layers', 'father_architecture_parameter', 'father_data_processing'])
-        self.history.append(Event('Birth', self.stage))
+        self._history.append(Event('Birth', self._stage))
         
         if pairing_type == 'father_architecture':
             # Father's architecture and mother's training and data
-            self.architecture = father.architecture
-            self.training = mother.training
-            self.data = mother.data
+            self._architecture = father.architecture
+            self._training = mother.training
+            self._data = mother.data
 
         elif pairing_type == 'father_training':
             # Father's training and mother's architecture and data
-            self.architecture = mother.architecture
-            self.training = father.training
-            self.data = mother.data
+            self._architecture = mother.architecture
+            self._training = father.training
+            self._data = mother.data
 
         elif pairing_type == 'father_architecture_layers':
             # Select father's architecture and replace random layer with mother's layer
-            self.architecture = father.architecture
-            changes_layer = np.random.choice([i for i in range(1, len(self.architecture) - 1)])
+            self._architecture = father.architecture
+            changes_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
             alter_layer = np.random.choice([i for i in range(1, len(mother.architecture) - 1)])
 
-            self.architecture[changes_layer] = mother.architecture[alter_layer]
-            self.training = father.training
-            self.data = father.data
+            self._architecture[changes_layer] = mother.architecture[alter_layer]
+            self._training = father.training
+            self._data = father.data
 
         elif pairing_type == 'father_architecture_parameter':
             # Select father's architecture and change layer parameters with mother's layer
@@ -285,7 +292,7 @@ class Individ():
             # select common layer
             intersections = set(list(father.architecture[1:-1])) & set(list(mother.architecture[1:-1]))
             intersected_layer = np.random.choice(intersections)
-            self.architecture = father.architecture
+            self._architecture = father.architecture
             
             def find(lst, key, value):
                 """
@@ -300,25 +307,25 @@ class Individ():
             changes_layer = find(father.architecture, 'name', intersected_layer)
             alter_layer = find(mother.architecture, 'name', intersected_layer)
 
-            self.architecture[changes_layer] = mother.architecture[alter_layer]
-            self.training = father.training
-            self.data = father.data
+            self._architecture[changes_layer] = mother.architecture[alter_layer]
+            self._training = father.training
+            self._data = father.data
 
         elif pairing_type == 'father_data_processing':
             # Select father's data processing and mother's architecture and training
             # change mother's embedding to avoid mismatchs in dimensions
-            self.architecture = mother.architecture
-            self.training = mother.training
-            self.data = father.data
+            self._architecture = mother.architecture
+            self._training = mother.training
+            self._data = father.data
             
-            self.architecture[0] = father.architecture[0]
+            self._architecture[0] = father.architecture[0]
 
 
     def _random_init_training_(self):
         """
         Initialize training parameters
         """
-        if not self.architecture:
+        if not self._architecture:
             raise Exception('Not initialized yet')
         
         variables = list(TRAINING)
@@ -332,14 +339,14 @@ class Individ():
         """
         Initialize data processing parameters
         """
-        if not self.architecture:
+        if not self._architecture:
             raise Exception('Not initialized yet')
 
-        if self.data_type == 'text':
+        if self._data_type == 'text':
             data_tmp = {}
-            data_tmp['vocabular'] = self.architecture[0].config['vocabular']
-            data_tmp['sentences_length'] = self.architecture[0].config['sentences_length']
-            data_tmp['classes'] = self.classes
+            data_tmp['vocabular'] = self._architecture[0].config['vocabular']
+            data_tmp['sentences_length'] = self._architecture[0].config['sentences_length']
+            data_tmp['classes'] = self._classes
 
         return data_tmp
 
@@ -348,7 +355,7 @@ class Individ():
         """
         Return network schema
         """
-        schema = [(i.type, i.config) for i in self.architecture]
+        schema = [(i.type, i.config) for i in self._architecture]
 
         return schema
 
@@ -356,38 +363,45 @@ class Individ():
         """
         Return data processing parameters
         """
-        return self.data
+        return self._data
+
+
+    def get_training_parameters(self):
+        """
+        Return training parameters
+        """
+        return self._training
 
 
     def init_tf_graph(self):
         """
         Return tensorflow graph from individ architecture
         """
-        if not self.architecture:
+        if not self._architecture:
             raise Exception('Non initialized net')
 
         network_graph = Sequential()
         # TODO: add different hacks to solve shape conflicts
         previous_shape = None
 
-        for layer in self.architecture:
+        for layer in self._architecture:
             if layer.type == 'last_dense':
                 if len(previous_shape) == 3:
                     network_graph.add(Flatten())
             network_graph.add(self._init_layer_(layer))
             previous_shape = network_graph.output.shape
         
-        if self.training['optimizer'] == 'adam':
+        if self._training['optimizer'] == 'adam':
             optimizer = adam(
-                lr=self.training['optimizer_lr'],
-                decay=self.training['optimizer_decay'])
+                lr=self._training['optimizer_lr'],
+                decay=self._training['optimizer_decay'])
         else:
             optimizer = RMSprop(
-                lr=self.training['optimizer_lr'], 
-                decay=self.training['optimizer_decay'])
+                lr=self._training['optimizer_lr'], 
+                decay=self._training['optimizer_decay'])
 
-        if self.task_type == 'classification':
-            if self.classes == 2:
+        if self._task_type == 'classification':
+            if self._classes == 2:
                 loss = 'binary_crossentropy'
             else:
                 loss = 'categorical_crossentropy'
@@ -402,7 +416,7 @@ class Individ():
         Darwin was right. Change some part of individ with some probability
         """
         mutation_type = np.random.choice(['architecture', 'train', 'all'], p=(0.45, 0.45, 0.1))
-        self.history.append(Event('Mutation', stage))
+        self._history.append(Event('Mutation', stage))
         
         if mutation_type == 'architecture':
             # all - change the whole net
@@ -411,28 +425,28 @@ class Individ():
             if mutation_size == 'all':
                 # If some parts of the architecture change, the processing of data must also change
                 self._random_init_()
-                self.data = self._random_init_data_processing()
+                self._data = self._random_init_data_processing()
 
             elif mutation_size == 'part':
                 # select layer except the first and the last one - embedding and dense(*)
-                mutation_layer = np.random.choice([i for i in range(1, len(self.architecture) - 1)])
+                mutation_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
                 
                 # find next layer to avoid incopabilities in neural architecture
-                next_layer = self.architecture[mutation_layer + 1]
+                next_layer = self._architecture[mutation_layer + 1]
                 new_layer = np.random.choice(list(LAYERS_POOL.keys()))
                 layer = Layer(new_layer, next_layer=next_layer)
 
-                self.architecture[mutation_layer] = layer
+                self._architecture[mutation_layer] = layer
 
             elif mutation_size == 'parameters':
                 # select layer except the first and the last one - embedding and dense(3)
-                mutation_layer = np.random.choice([i for i in range(1, len(self.architecture) - 1)])
+                mutation_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
 
                 # find next layer to avoid incopabilities in neural architecture
-                next_layer = self.architecture[mutation_layer + 1]
-                new_layer = self.architecture[mutation_layer].type
+                next_layer = self._architecture[mutation_layer + 1]
+                new_layer = self._architecture[mutation_layer].type
 
-                self.architecture[mutation_layer] = Layer(new_layer, next_layer=next_layer)
+                self._architecture[mutation_layer] = Layer(new_layer, next_layer=next_layer)
         
         # TODO: decide that to do with that
         # elif mutation_type == 'text':
@@ -451,19 +465,19 @@ class Individ():
             mutation_size = np.random.choice(['all', 'part'], p=(0.3, 0.7))
 
             if mutation_size == 'all':
-                self.training = self._random_init_training_()
+                self._training = self._random_init_training_()
 
             elif mutation_size == 'part':
                 mutation_parameter = np.random.choice(list(TRAINING))
                 new_training = self._random_init_training_()
-                self.training[mutation_parameter] = new_training[mutation_parameter]
+                self._training[mutation_parameter] = new_training[mutation_parameter]
 
         elif mutation_type == 'all':
             # change the whole individ - similar to death and rebirth
             self._random_init_()
-            self.training = self._random_init_training_()
-            self.data = self._random_init_data_processing()
-            
+            self._training = self._random_init_training_()
+            self._data = self._random_init_data_processing()
+
     
     def crossing(self, other, stage):
         """
@@ -472,3 +486,37 @@ class Individ():
         new_individ = Individ(stage=stage, classes=2, parents=(self, other))
         return new_individ
         
+    def get_layer_number(self):
+        return self._layers_number
+
+
+    def get_data_type(self):
+        return self._data_type
+
+    
+    def get_task_type(self):
+        return self._task_type
+
+    
+    def get_history(self):
+        return self._history
+
+    
+    def get_classes(self):
+        return self._classes
+
+    
+    def get_name(self):
+        return self._name
+
+    
+    def get_stage(self):
+        return self._stage
+
+    
+    def get_architecture(self):
+        return self._architecture
+
+
+    def get_parents(self):
+        return self._parents

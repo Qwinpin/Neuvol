@@ -12,12 +12,10 @@ def main():
 
     # Create objects
     ind = architecture.Individ(stage=1, data_type='text', task_type='classification', classes=3, parents=None)
-    ev = evaluation.Evaluator(kfold_number=5, device='cpu')
-    data = data_processing.Data(x_raw=x_tmp, y_raw=y_tmp, data_type='text', task_type='classification')
+    ev = evaluation.Evaluator(x_tmp, y_tmp, kfold_number=2, device='cpu', generator=False)
 
     # Set evaluation parameters
-    ev.set_kfold_number(value=4)
-    ev.set_verbose(level=0)
+    ev.set_verbose(level=1)
 
     # Show architecture
     print(ind.get_schema())
@@ -29,14 +27,11 @@ def main():
     # Show again
     print(ind.get_schema())
 
-    # Create train data. BE CAREFUL - dont create data before mutation step
-    x, y = data.process_data(data_processing=ind.get_data_processing())
-
     # Show his story and name
-    print(ind.history, ind.name)
+    print(ind.get_history(), ind.get_name())
 
     # Train this model
-    result = ev.train(network=ind, x=x, y=y)
+    result = ev.fit_generator(network=ind)
 
     # Show result as AUC score (default). One value for each class
     print('AUC: ', result)

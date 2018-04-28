@@ -17,8 +17,13 @@
 
 ### TODO
 
-1. Add more supported data types: images, timelines, etc
-2. Add more available layers
-3. Add assumption options
-4. Logo
-5. Visualization
+- [ ] Data generator for big data
+- [ ] Images support
+- [ ] Timelines support
+- [ ] Regression models
+- [ ] Auto-regression models
+- [ ] Generative networks
+- [ ] More available layers
+- [ ] More options (assumptions)
+- [x] Logo
+- [ ] Visualization
