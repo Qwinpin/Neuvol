@@ -10,8 +10,10 @@ def main():
     x_tmp = df.x.astype(str).tolist()
     y_tmp = df.y.astype(int).tolist()
 
+    print(len(x_tmp), len(y_tmp))
     # Create objects
-    ind = architecture.Individ(stage=1, data_type='text', task_type='classification', classes=3, parents=None)
+    options = {'classes': 3}
+    ind = architecture.Individ(stage=1, data_type='text', task_type='classification', parents=None, **options)
     ev = evaluation.Evaluator(x_tmp, y_tmp, kfold_number=2, device='cpu', generator=False)
 
     # Set evaluation parameters
@@ -31,7 +33,7 @@ def main():
     print(ind.get_history(), ind.get_name())
 
     # Train this model
-    result = ev.fit_generator(network=ind)
+    result = ev.fit(network=ind)
 
     # Show result as AUC score (default). One value for each class
     print('AUC: ', result)

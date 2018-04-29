@@ -6,3 +6,5 @@ __pycache__/
 example\.csv
 
 \.vscode/
+
+log\.log

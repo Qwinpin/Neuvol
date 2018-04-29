@@ -111,28 +111,32 @@ class Layer():
             self.config['units'] = self._classes
 
 
-    
-
 class Individ():
     """
     Invidiv class for text data types
     TODO: add support for different data types
     TODO: add support for different task types
+    TODO: all data types as subclass?
+    TODO: network parser to avoid layer compatibility errors and shape errors
     """
-    def __init__(self, stage, data_type='text', task_type='classification', classes=2, parents=None):
+    def __init__(self, stage, data_type='text', task_type='classification', parents=None, freeze=None, **kwargs):
         """
         Create individ randomly or with its parents
         parents: set of two individ objects
+        kwargs: dictionary with manualy specified parameters like number of classes, training parameters, etc
         """
-        self._layers_number = 0
+        self._stage = stage
         self._data_type = data_type
         self._task_type = task_type
-        self._history = [Event('Init', stage)]
-        self._classes = classes
-        self._name = fake.name().replace(' ', '_') + '_' + str(stage)
-        self._stage = stage
-        self._architecture = []
+        # TODO: freeze training or data parameters of individ and set manualy
+        self._freeze = freeze
         self._parents = parents
+        self.options = kwargs
+        self._history = [Event('Init', stage)]
+        self._name = fake.name().replace(' ', '_') + '_' + str(stage)
+        self._architecture = []
+        self._layers_number = 0
+        self._result = 0.0
 
         if self._parents is None:
             self._random_init_()
@@ -238,7 +242,7 @@ class Individ():
 
         if self._task_type == 'classification':
             #Add last layer
-            layer = Layer('last_dense', classes=self._classes)
+            layer = Layer('last_dense', classes=self.options['classes'])
             self._architecture.append(layer)
         else:
             logger.error('Unsupported task type')
@@ -346,31 +350,9 @@ class Individ():
             data_tmp = {}
             data_tmp['vocabular'] = self._architecture[0].config['vocabular']
             data_tmp['sentences_length'] = self._architecture[0].config['sentences_length']
-            data_tmp['classes'] = self._classes
+            data_tmp['classes'] = self.options['classes']
 
         return data_tmp
-
-        
-    def get_schema(self):
-        """
-        Return network schema
-        """
-        schema = [(i.type, i.config) for i in self._architecture]
-
-        return schema
-
-    def get_data_processing(self):
-        """
-        Return data processing parameters
-        """
-        return self._data
-
-
-    def get_training_parameters(self):
-        """
-        Return training parameters
-        """
-        return self._training
 
 
     def init_tf_graph(self):
@@ -401,7 +383,7 @@ class Individ():
                 decay=self._training['optimizer_decay'])
 
         if self._task_type == 'classification':
-            if self._classes == 2:
+            if self.options['classes'] == 2:
                 loss = 'binary_crossentropy'
             else:
                 loss = 'categorical_crossentropy'
@@ -503,7 +485,7 @@ class Individ():
 
     
     def get_classes(self):
-        return self._classes
+        return self.options['classes']
 
     
     def get_name(self):
@@ -520,3 +502,36 @@ class Individ():
 
     def get_parents(self):
         return self._parents
+
+        
+    def get_schema(self):
+        """
+        Return network schema
+        """
+        schema = [(i.type, i.config) for i in self._architecture]
+
+        return schema
+
+    def get_data_processing(self):
+        """
+        Return data processing parameters
+        """
+        return self._data
+
+
+    def get_training_parameters(self):
+        """
+        Return training parameters
+        """
+        return self._training
+
+
+    def get_result(self):
+        """
+        Return fitness measure
+        """
+        return self._result
+        
+
+    def set_result(self, value):
+        self.result = value

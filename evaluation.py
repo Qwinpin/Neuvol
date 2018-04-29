@@ -29,13 +29,18 @@ class Evaluator():
         self.x = np.array(x)
         self.y = np.array(y)
         self.kfold_number = kfold_number
+
         if device == 'cpu':
             self.device = '/device:CPU:0'
+        elif device == 'gpu':
+            self.device = '/device:GPU:0'
+        self.generator = generator
 
+        self.use_multiprocessing = True
+        self.workers = 2
         self.early_stopping = {
             'min_delta': 0.005,
             'patience': 5}
-        self.generator = generator
         self.verbose = 0
         self.fitness_measure = 'AUC'
 
@@ -69,6 +74,25 @@ class Evaluator():
         self.fitness_measure = measure
 
 
+    def set_device(self, device='cpu', number=1):
+        """
+        Manualy device management
+        device: str cpu or gpu
+        number: int number of available devices
+        memory_limit: int size of available memory
+        TODO: set multiple devices, set memory limits
+        """
+        if device == 'cpu':
+            self.device == '/device:CPU:' + str(number)
+        elif device == 'gpu':
+            self.device == '/device:GPU:' + str(number)
+
+
+    def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
+        self.use_multiprocessing = use_multiprocessing
+        self.workers = workers
+
+
     def fit(self, network):
         """
         Training function. N steps of cross-validation
@@ -90,40 +114,44 @@ class Evaluator():
         for train, test in kfold.split(np.zeros(x.shape), y.argmax(-1)):
             # work only with this device
             with tf.device(self.device):
-                nn, optimizer, loss = network.init_tf_graph()
-                nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
+                try:
+                    nn, optimizer, loss = network.init_tf_graph()
+                    nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
-                early_stopping = EarlyStopping(
-                    monitor='val_loss', 
-                    min_delta=self.early_stopping['min_delta'], 
-                    patience=self.early_stopping['patience'],  
-                    mode='auto',
-                    verbose=False)
-                callbacks = [early_stopping]
+                    early_stopping = EarlyStopping(
+                        monitor='val_loss', 
+                        min_delta=self.early_stopping['min_delta'], 
+                        patience=self.early_stopping['patience'],  
+                        mode='auto',
+                        verbose=False)
+                    callbacks = [early_stopping]
+                    
+                    nn.fit(
+                        x[train], y[train],
+                        batch_size=network.get_training_parameters()['batchs'],
+                        epochs=network.get_training_parameters()['epochs'],
+                        validation_data=(x[test], y[test]),
+                        callbacks=callbacks,
+                        shuffle=True,
+                        verbose=self.verbose)
 
-                nn.fit(
-                    x[train], y[train],
-                    batch_size=network.get_training_parameters()['batchs'],
-                    epochs=network.get_training_parameters()['epochs'],
-                    validation_data=(x[test], y[test]),
-                    callbacks=callbacks,
-                    shuffle=True,
-                    verbose=self.verbose)
+                    predicted = nn.predict(x[test])
+                    real = y[test]
+                    
+                    # Dear Keras, please, study the resources management!
+                    K.clear_session()
 
-                predicted = nn.predict(x[test])
-                real = y[test]
-                
-                # Dear Keras, please, study the resources management!
-                K.clear_session()
-
-                predicted_out.extend(predicted)
-                real_out.extend(real)
+                    predicted_out.extend(predicted)
+                    real_out.extend(real)
+                except:
+                    return 0.0
 
             tf.reset_default_graph()
 
         training_time -= time.time()
 
-        result = self.test(predicted_out, real_out, network.get_classes())
+        if network.get_task_type() == 'classification':
+            result = self.test_classification(predicted_out, real_out, network.options['classes'])
 
         return result
 
@@ -171,15 +199,15 @@ class Evaluator():
                     verbose=self.verbose,
                     callbacks=callbacks,
                     validation_data=test_generator,
-                    workers=2,
-                    use_multiprocessing=True)
+                    workers=self.workers,
+                    use_multiprocessing=self.use_multiprocessing)
 
                 predicted = nn.predict_generator(
                     test_generator,
-                    workers=2,
-                    use_multiprocessing=True)
+                    workers=self.workers,
+                    use_multiprocessing=self.use_multiprocessing)
 
-                #TODO: Generator should work with indexes, so, self.y will be a list of indexes in future
+                #TODO: Generator should work with pointers to files, so, self.y and self.x will be a list of file names in future
                 real = self.y[test]
                 
                 # Dear Keras, please, study the resources management!
@@ -192,12 +220,13 @@ class Evaluator():
 
         training_time -= time.time()
 
-        result = self.test(predicted_out, real_out, network.get_classes())
+        if network.task_type == 'classification':
+            result = self.test_classification(predicted_out, real_out, network.options['classes'])
 
         return result
 
 
-    def test(self, predicted_out, real_out, classes):
+    def test_classification(self, predicted_out, real_out, classes):
         """
         Return fitness results
         """
