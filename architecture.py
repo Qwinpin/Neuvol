@@ -51,6 +51,12 @@ SPECIAL = {
         'trainable': [False, True]}}
 
 LAYERS_POOL = {
+    'bi': {
+        'units': [1, 2, 4, 8, 12, 16], 
+        'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 5)],
+        'activation': ['tanh', 'relu'],
+        'implementation': [1, 2]},
+
     'lstm': {
         'units': [1, 2, 4, 8, 12, 16], 
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 5)],
@@ -61,8 +67,9 @@ LAYERS_POOL = {
         'filters': [4, 8, 16, 32, 64, 128],
         'kernel_size': [1, 3, 5, 7],
         'strides': [1, 2, 3],
-        'padding': ['valid'],
-        'activation': ['tanh', 'relu']},
+        'padding': ['valid', 'same', 'causal'],
+        'activation': ['tanh', 'relu'],
+        'dilation_rate': [1, 2, 3]},
 
     'dense': {
         'units': [16, 64, 128, 256, 512],
@@ -99,6 +106,9 @@ class Layer():
             for parameter in variables:
                 self.config[parameter] = np.random.choice(LAYERS_POOL['dense'][parameter])
 
+        elif self.type == 'flatten':
+            pass
+
         else:
             variables = list(LAYERS_POOL[self.type])
             for parameter in variables:
@@ -108,21 +118,30 @@ class Layer():
     def _check_compability_(self, previous_layer, next_layer):
         """
         Check data shape in specific case such as lstm or bi-lstm
+        TODO: check negative dimension size in case of convolution layers
         """
         if self.type == 'lstm':
-            if next_layer is not None and next_layer != 'Dense':
+            if next_layer is not None and next_layer != 'last_dense':
                 self.config['return_sequences'] = True
             else:
                 self.config['return_sequences'] = False
 
         elif self.type == 'bi':
-            if next_layer is not None and next_layer != 'Dense':
+            if next_layer is not None and next_layer != 'last_dense':
                 self.config['return_sequences'] = True
             else:
                 self.config['return_sequences'] = False
 
         elif self.type == 'last_dense':
             self.config['units'] = self._classes
+
+        elif self.type == 'cnn':
+            if self.config['padding'] == 'causal':
+                self.config['strides'] = 1
+                if self.config['dilation_rate'] == 1:
+                    self.config['padding'] = 'same'
+            else:
+                self.config['dilation_rate'] = 1
 
 
 class Individ():
@@ -156,6 +175,8 @@ class Individ():
             self._random_init_()
         else:
             self._init_with_crossing_()
+        
+        self._check_compability()
 
 
     def _init_layer_(self, layer):
@@ -195,6 +216,7 @@ class Individ():
                 kernel_size=[layer.config['kernel_size']], 
                 strides=[layer.config['strides']], 
                 padding=layer.config['padding'], 
+                dilation_rate=tuple([layer.config['dilation_rate']]),
                 activation=layer.config['activation'])
 
         elif layer.type == 'dropout':
@@ -206,6 +228,9 @@ class Individ():
                 output_dim=layer.config['embedding_dim'],
                 input_length=layer.config['sentences_length'],
                 trainable=layer.config['trainable'])
+
+        elif layer.type == 'flatten':
+            layer_tf = Flatten()
 
         return layer_tf
 
@@ -380,11 +405,23 @@ class Individ():
         # TODO: add different hacks to solve shape conflicts
         previous_shape = None
 
-        for layer in self._architecture:
+        for i, layer in enumerate(self._architecture):
             if layer.type == 'last_dense':
                 if len(previous_shape) == 3:
-                    network_graph.add(Flatten())
-            network_graph.add(self._init_layer_(layer))
+                    new_layer = Layer('flatten', None, None)
+                    network_graph.add(self._init_layer_(new_layer))
+
+            try:
+                network_graph.add(self._init_layer_(layer))
+            except Exception as e:
+                # in some cases shape of previous output can be less than kernel size of cnn
+                # add same padding to avoid this problem
+                if str(e)[:45] == 'Negative dimension size caused by subtracting':
+                    layer.config['padding'] = 'same'
+                    network_graph.add(self._init_layer_(layer))
+                else:
+                    raise
+
             previous_shape = network_graph.output.shape
         
         if self._training['optimizer'] == 'adam':
@@ -444,19 +481,6 @@ class Individ():
 
                 self._architecture[mutation_layer] = Layer(new_layer, next_layer=next_layer)
         
-        # TODO: decide that to do with that
-        # elif mutation_type == 'text':
-        #     mutation_size = np.random.choice(['all', 'part'], p=(0.3, 0.7))
-        #     if mutation_size == 'all':
-        #         print('wop6')
-        #         # reinitialize the text config with existing embedding
-        #         text_model = init_text(arch[0])
-        #     elif mutation_size == 'part':
-        #         print('wop7')
-        #         mutation_layer = np.random.choice(list(text_param_pool))
-        #         new_model = init_text(arch[0])
-        #         text_model[mutation_layer] = new_model[mutation_layer]
-
         elif mutation_type == 'train':
             mutation_size = np.random.choice(['all', 'part'], p=(0.3, 0.7))
 
@@ -548,4 +572,78 @@ class Individ():
         
 
     def set_result(self, value):
+        """
+        New fitness result
+        """
         self.result = value
+
+
+    def _check_compability(self):
+        """
+        Check shapes compabilities, modify layer if it is necessary
+        """
+        previous_shape = []
+        shape_structure = []
+        # create structure of flow shape
+        for layer in self._architecture:
+            if layer.type == 'embedding':
+                output_shape = (2, layer.config['sentences_length'], layer.config['embedding_dim'])
+
+            if layer.type == 'cnn':
+                filters = layer.config['filters']
+                kernel_size = [layer.config['kernel_size']]
+                padding = layer.config['padding']
+                strides = layer.config['strides']
+                dilation_rate = layer.config['dilation_rate']
+                input = previous_shape[1:-1]
+                out = []
+
+                if padding == 'valid':
+                    if strides == 1:
+                        for i, side in enumerate(input):
+                            out.append(side - kernel_size[i] + 1)
+                    else:
+                        for i, side in enumerate(input):
+                            out.append((side - kernel_size[i]) // strides + 1)
+
+                elif padding == 'same':
+                    if strides == 1:
+                        for i, side in enumerate(input):
+                            out.append(side - kernel_size[i] + (2 * (kernel_size[i] // 2)) + 1)
+                    else:
+                        for i, side in enumerate(input):
+                            out.append((side - kernel_size[i] + (2 * (kernel_size[i] // 2))) // strides + 1)
+
+                elif padding == 'causal':
+                    for i, side in enumerate(input):
+                        out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (dilation_rate - 1)) // strides + 1)
+                print(out)
+                output_shape = (previous_shape[0], *out, filters)
+
+            elif layer.type == 'lstm' or layer.type == 'bi':
+                units = layer.config['units']
+                sequences = layer.config['return_sequences']
+                bi = 2 if layer.type == 'bi' else 1
+                if sequences:
+                    output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
+                else:
+                    output_shape = (1, units * bi)
+
+            elif layer.type == 'dense' or layer.type == 'last_dense':
+                units = layer.config['units']
+                output_shape = (previous_shape[0], *previous_shape[1:-1], units)
+
+            elif layer.type == 'flatten':
+                output_shape = (1, np.prod(previous_shape[1:]))
+
+            previous_shape = output_shape
+            shape_structure.append(output_shape)
+
+        if self._task_type == 'classification':
+            if shape_structure[-1][0] != 1:
+                new_layer = Layer('flatten', None, None)
+                self._architecture.insert(-1, new_layer)
+
+        # TODO: negative dimenstion value check
+
+            

@@ -8,3 +8,5 @@ example\.csv
 \.vscode/
 
 log\.log
+
+train\.csv

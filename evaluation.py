@@ -103,6 +103,9 @@ class Evaluator():
 
 
     def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
+        """
+        Set multiprocessing parameters for data generator
+        """
         self.use_multiprocessing = use_multiprocessing
         self.workers = workers
 
@@ -130,6 +133,7 @@ class Evaluator():
             with tf.device(self.device):
                 try:
                     nn, optimizer, loss = network.init_tf_graph()
+                    print(nn.summary())
                     nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
                     early_stopping = EarlyStopping(
@@ -157,7 +161,8 @@ class Evaluator():
 
                     predicted_out.extend(predicted)
                     real_out.extend(real)
-                except:
+                except Exception as e:
+                    print(e)
                     return 0.0
 
             tf.reset_default_graph()
@@ -262,7 +267,7 @@ class Evaluator():
             for i in range(classes):
                 try:
                     fpr[i], tpr[i], _ = roc_curve(np.array(real_out)[:, i], np.array(predicted_out)[:, i])
-                except:
+                except Exception as e:
                     fpr[i], tpr[i] = np.zeros(len(real_out)), np.zeros(len(predicted_out))
                 roc_auc.append(auc(fpr[i], tpr[i]))
         

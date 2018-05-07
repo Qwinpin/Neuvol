@@ -37,7 +37,7 @@ class Evolution():
 
     
     def _create_population(self):
-        for i in range(self.population_size):
+        for _ in range(self.population_size):
             self.population.append(architecture.Individ(0, self.data_type, self.task_type, freeze=self.freeze, **self.options))
 
 
