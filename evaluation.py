@@ -13,13 +13,13 @@
 # limitations under the License.
 
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import (accuracy_score, f1_score, precision_score,
-                             recall_score)
-from sklearn.metrics import roc_curve, auc
 import tensorflow as tf
-from keras.callbacks import EarlyStopping
 from keras import backend as K
+from keras.callbacks import EarlyStopping
+from sklearn.metrics import (f1_score)
+from sklearn.metrics import roc_curve, auc
+from sklearn.model_selection import StratifiedKFold
+
 K._LEARNING_PHASE = tf.constant(0)
 
 import time
@@ -34,6 +34,7 @@ class Evaluator():
     All these parameters - metaparameters of training
     Set it before you start if you want
     """
+
     def __init__(self, x, y, kfold_number=5, device='cpu', generator=False):
         """
         device available value:
@@ -58,7 +59,6 @@ class Evaluator():
         self.verbose = 0
         self.fitness_measure = 'AUC'
 
-        
     def set_early_stopping(self, min_delta=0.005, patience=5):
         """
         Set early stopping parameters for training
@@ -68,14 +68,12 @@ class Evaluator():
         self.early_stopping['min_delta'] = min_delta
         self.early_stopping['patience'] = patience
 
-    
     def set_verbose(self, level=0):
         """
         Set verbose level, dont touch it, with large amount of individs the number
         of info messages will be too large
         """
         self.verbose = level
-
 
     def set_fitness_measure(self, measure):
         """
@@ -86,7 +84,6 @@ class Evaluator():
             - f1
         """
         self.fitness_measure = measure
-
 
     def set_device(self, device='cpu', number=1):
         """
@@ -101,14 +98,12 @@ class Evaluator():
         elif device == 'gpu':
             self.device == '/device:GPU:' + str(number)
 
-
     def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
         """
         Set multiprocessing parameters for data generator
         """
         self.use_multiprocessing = use_multiprocessing
         self.workers = workers
-
 
     def fit(self, network):
         """
@@ -117,12 +112,12 @@ class Evaluator():
         training_time = time.time()
         predicted_out = []
         real_out = []
-        
+
         data = Data(
-            self.x, 
-            self.y, 
-            data_type=network.get_data_type(), 
-            task_type=network.get_task_type(), 
+            self.x,
+            self.y,
+            data_type=network.get_data_type(),
+            task_type=network.get_task_type(),
             data_processing=network.get_data_processing())
 
         x, y = data.process_data()
@@ -137,13 +132,13 @@ class Evaluator():
                     nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
                     early_stopping = EarlyStopping(
-                        monitor='val_loss', 
-                        min_delta=self.early_stopping['min_delta'], 
-                        patience=self.early_stopping['patience'],  
+                        monitor='val_loss',
+                        min_delta=self.early_stopping['min_delta'],
+                        patience=self.early_stopping['patience'],
                         mode='auto',
                         verbose=False)
                     callbacks = [early_stopping]
-                    
+
                     nn.fit(
                         x[train], y[train],
                         batch_size=network.get_training_parameters()['batchs'],
@@ -155,7 +150,7 @@ class Evaluator():
 
                     predicted = nn.predict(x[test])
                     real = y[test]
-                    
+
                     # Dear Keras, please, study the resources management!
                     K.clear_session()
 
@@ -174,7 +169,6 @@ class Evaluator():
 
         return result
 
-
     def fit_generator(self, network):
         """
         Training function with generators. N steps of cross-validation
@@ -182,21 +176,21 @@ class Evaluator():
         training_time = time.time()
         predicted_out = []
         real_out = []
-        
+
         kfold = StratifiedKFold(n_splits=self.kfold_number)
         for train, test in kfold.split(np.zeros(len(self.x)), np.zeros(len(self.y))):
             train_generator = DataGenerator(
-                self.x[train], 
-                self.y[train], 
-                data_type=network.get_data_type(), 
-                task_type=network.get_task_type(), 
+                self.x[train],
+                self.y[train],
+                data_type=network.get_data_type(),
+                task_type=network.get_task_type(),
                 data_processing=network.get_data_processing())
 
             test_generator = DataGenerator(
-                self.x[test], 
-                self.y[test], 
-                data_type=network.get_data_type(), 
-                task_type=network.get_task_type(), 
+                self.x[test],
+                self.y[test],
+                data_type=network.get_data_type(),
+                task_type=network.get_task_type(),
                 data_processing=network.get_data_processing())
 
             # work only with this device
@@ -205,9 +199,9 @@ class Evaluator():
                 nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
                 early_stopping = EarlyStopping(
-                    monitor='val_loss', 
-                    min_delta=self.early_stopping['min_delta'], 
-                    patience=self.early_stopping['patience'],  
+                    monitor='val_loss',
+                    min_delta=self.early_stopping['min_delta'],
+                    patience=self.early_stopping['patience'],
                     mode='auto',
                     verbose=False)
                 callbacks = [early_stopping]
@@ -226,9 +220,9 @@ class Evaluator():
                     workers=self.workers,
                     use_multiprocessing=self.use_multiprocessing)
 
-                #TODO: Generator should work with pointers to files, so, self.y and self.x will be a list of file names in future
+                # TODO: Generator should work with pointers to files, so, self.y and self.x will be a list of file names in future
                 real = self.y[test]
-                
+
                 # Dear Keras, please, study the resources management!
                 K.clear_session()
 
@@ -243,7 +237,6 @@ class Evaluator():
             result = self.test_classification(predicted_out, real_out, network.options['classes'])
 
         return result
-
 
     def test_classification(self, predicted_out, real_out, classes):
         """
@@ -263,14 +256,14 @@ class Evaluator():
             fpr = dict()
             tpr = dict()
             roc_auc = []
-            
+
             for i in range(classes):
                 try:
                     fpr[i], tpr[i], _ = roc_curve(np.array(real_out)[:, i], np.array(predicted_out)[:, i])
                 except Exception as e:
                     fpr[i], tpr[i] = np.zeros(len(real_out)), np.zeros(len(predicted_out))
                 roc_auc.append(auc(fpr[i], tpr[i]))
-        
+
             return roc_auc
 
         else:

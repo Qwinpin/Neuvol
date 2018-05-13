@@ -12,17 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
-from keras.utils import multi_gpu_model, to_categorical
 from keras.utils import Sequence
-import numpy as np
+from keras.utils import to_categorical
 
 
 class DataGenerator(Sequence):
     """
     Generate data samples
     """
+
     def __init__(self, x_raw, y_raw, data_processing, data_type, task_type, batch_size=32, shuffle=True):
         self.x_raw = x_raw
         self.y_raw = y_raw
@@ -34,13 +35,11 @@ class DataGenerator(Sequence):
 
         self.on_epoch_end()
 
-
     def __len__(self):
         """
         Total number of batches per epoch
         """
         return int(np.floor(len(self.x_raw) / self.batch_size))
-
 
     def __getitem__(self, index):
         """
@@ -60,7 +59,6 @@ class DataGenerator(Sequence):
 
         if self.shuffle:
             np.random.shuffle(self.indexes)
-
 
     def __data_generation(self, indexes):
         """
@@ -84,7 +82,6 @@ class DataGenerator(Sequence):
                 X[i,] = x_raw[index]
                 Y[i,] = y_raw[index]
 
-            
         return X, Y
 
 
@@ -107,7 +104,6 @@ class Data():
         self.task_type = task_type
         self.data_processing = data_processing
 
-
     def process_data(self):
         """
         Return data for training
@@ -124,5 +120,5 @@ class Data():
             y = to_categorical(self.y_raw, num_classes=self.data_processing['classes'])
         else:
             raise Exception('This data type is not supported now')
-            
+
         return x, y

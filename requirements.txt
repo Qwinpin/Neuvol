@@ -1,0 +1,6 @@
+faker
+numpy
+keras
+pandas
+tensorflow
+scikit-learn
