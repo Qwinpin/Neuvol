@@ -17,8 +17,8 @@ import numpy as np
 
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 from keras.layers import (Activation, Bidirectional, Conv1D, Conv2D, Dense, Dropout,
-    Embedding, Flatten, GlobalMaxPooling1D, Input,
-    RepeatVector)
+                          Embedding, Flatten, GlobalMaxPooling1D, Input,
+                          RepeatVector)
 from keras.layers.normalization import BatchNormalization
 from keras.layers.recurrent import GRU, LSTM
 from keras.models import Model, Sequential, load_model
@@ -30,7 +30,6 @@ from keras.utils import multi_gpu_model, to_categorical
 import faker
 
 from config import logger
-
 
 FLOAT32 = np.float32
 
@@ -52,13 +51,13 @@ SPECIAL = {
 
 LAYERS_POOL = {
     'bi': {
-        'units': [1, 2, 4, 8, 12, 16], 
+        'units': [1, 2, 4, 8, 12, 16],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 5)],
         'activation': ['tanh', 'relu'],
         'implementation': [1, 2]},
 
     'lstm': {
-        'units': [1, 2, 4, 8, 12, 16], 
+        'units': [1, 2, 4, 8, 12, 16],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 5)],
         'activation': ['tanh', 'relu'],
         'implementation': [1, 2]},
@@ -82,10 +81,12 @@ POOL_SIZE = len(LAYERS_POOL)
 Event = namedtuple('event', ['type', 'stage'])
 fake = faker.Faker()
 
+
 class Layer():
     """
     Single layer class with compability checking
     """
+
     def __init__(self, layer_type, previous_layer=None, next_layer=None, classes=None):
         self._classes = classes
         self.config = {}
@@ -93,7 +94,6 @@ class Layer():
 
         self._init_parameters_()
         self._check_compability_(previous_layer, next_layer)
-        
 
     def _init_parameters_(self):
         if self.type == 'embedding':
@@ -113,7 +113,6 @@ class Layer():
             variables = list(LAYERS_POOL[self.type])
             for parameter in variables:
                 self.config[parameter] = np.random.choice(LAYERS_POOL[self.type][parameter])
-
 
     def _check_compability_(self, previous_layer, next_layer):
         """
@@ -152,6 +151,7 @@ class Individ():
     TODO: all data types as subclass?
     TODO: network parser to avoid layer compatibility errors and shape errors
     """
+
     def __init__(self, stage, data_type='text', task_type='classification', parents=None, freeze=None, **kwargs):
         """
         Create individ randomly or with its parents
@@ -175,9 +175,8 @@ class Individ():
             self._random_init_()
         else:
             self._init_with_crossing_()
-        
-        self._check_compability()
 
+        self._check_compability()
 
     def _init_layer_(self, layer):
         """
@@ -185,37 +184,37 @@ class Individ():
         """
         if layer.type == 'lstm':
             layer_tf = LSTM(
-                units=layer.config['units'], 
-                recurrent_dropout=layer.config['recurrent_dropout'], 
-                activation=layer.config['activation'], 
+                units=layer.config['units'],
+                recurrent_dropout=layer.config['recurrent_dropout'],
+                activation=layer.config['activation'],
                 implementation=layer.config['implementation'],
                 return_sequences=layer.config['return_sequences'])
 
         elif layer.type == 'bi':
             layer_tf = Bidirectional(
                 LSTM(
-                    units=layer.config['units'], 
-                    recurrent_dropout=layer.config['recurrent_dropout'], 
-                    activation=layer.config['activation'], 
+                    units=layer.config['units'],
+                    recurrent_dropout=layer.config['recurrent_dropout'],
+                    activation=layer.config['activation'],
                     implementation=layer.config['implementation'],
                     return_sequences=layer.config['return_sequences']))
 
         elif layer.type == 'dense':
             layer_tf = Dense(
-                units=layer.config['units'], 
+                units=layer.config['units'],
                 activation=layer.config['activation'])
 
         elif layer.type == 'last_dense':
             layer_tf = Dense(
-                units=layer.config['units'], 
+                units=layer.config['units'],
                 activation=layer.config['activation'])
 
         elif layer.type == 'cnn':
             layer_tf = Conv1D(
-                filters=layer.config['filters'], 
-                kernel_size=[layer.config['kernel_size']], 
-                strides=[layer.config['strides']], 
-                padding=layer.config['padding'], 
+                filters=layer.config['filters'],
+                kernel_size=[layer.config['kernel_size']],
+                strides=[layer.config['strides']],
+                padding=layer.config['padding'],
                 dilation_rate=tuple([layer.config['dilation_rate']]),
                 activation=layer.config['activation'])
 
@@ -233,7 +232,6 @@ class Individ():
             layer_tf = Flatten()
 
         return layer_tf
-
 
     def _random_init_(self):
         """
@@ -267,7 +265,7 @@ class Individ():
                 next_layer = pool_index[tmp_architecture[i + 1]]
             if i == len(tmp_architecture) - 1:
                 next_layer = 'last_dense'
-                
+
             layer = Layer(pool_index[name], previous_layer, next_layer)
             self._architecture.append(layer)
 
@@ -280,7 +278,7 @@ class Individ():
             raise Exception('Unsupported data type')
 
         if self._task_type == 'classification':
-            #Add last layer
+            # Add last layer
             layer = Layer('last_dense', classes=self.options['classes'])
             self._architecture.append(layer)
         else:
@@ -289,7 +287,6 @@ class Individ():
 
         self._training = self._random_init_training_()
         self._data = self._random_init_data_processing()
-
 
     def _init_with_crossing_(self):
         """
@@ -302,10 +299,12 @@ class Individ():
         # father_training - only training config from first one
         # father_arch_layers - select overlapping layers and replace parameters from the first architecture 
         # with parameters from the second
-  
-        pairing_type = np.random.choice(['father_architecture', 'father_training', 'father_architecture_layers', 'father_architecture_parameter', 'father_data_processing'])
+
+        pairing_type = np.random.choice(
+            ['father_architecture', 'father_training', 'father_architecture_layers', 'father_architecture_parameter',
+             'father_data_processing'])
         self._history.append(Event('Birth', self._stage))
-        
+
         if pairing_type == 'father_architecture':
             # Father's architecture and mother's training and data
             self._architecture = father.architecture
@@ -336,7 +335,7 @@ class Individ():
             intersections = set(list(father.architecture[1:-1])) & set(list(mother.architecture[1:-1]))
             intersected_layer = np.random.choice(intersections)
             self._architecture = father.architecture
-            
+
             def find(lst, key, value):
                 """
                 Return index of element in the list of dictionaries that is equal
@@ -360,9 +359,8 @@ class Individ():
             self._architecture = mother.architecture
             self._training = mother.training
             self._data = father.data
-            
-            self._architecture[0] = father.architecture[0]
 
+            self._architecture[0] = father.architecture[0]
 
     def _random_init_training_(self):
         """
@@ -370,14 +368,13 @@ class Individ():
         """
         if not self._architecture:
             raise Exception('Not initialized yet')
-        
+
         variables = list(TRAINING)
         training_tmp = {}
         for i in variables:
             training_tmp[i] = np.random.choice(TRAINING[i])
         return training_tmp
 
-    
     def _random_init_data_processing(self):
         """
         Initialize data processing parameters
@@ -392,7 +389,6 @@ class Individ():
             data_tmp['classes'] = self.options['classes']
 
         return data_tmp
-
 
     def init_tf_graph(self):
         """
@@ -423,14 +419,14 @@ class Individ():
                     raise
 
             previous_shape = network_graph.output.shape
-        
+
         if self._training['optimizer'] == 'adam':
             optimizer = adam(
                 lr=self._training['optimizer_lr'],
                 decay=self._training['optimizer_decay'])
         else:
             optimizer = RMSprop(
-                lr=self._training['optimizer_lr'], 
+                lr=self._training['optimizer_lr'],
                 decay=self._training['optimizer_decay'])
 
         if self._task_type == 'classification':
@@ -443,18 +439,17 @@ class Individ():
 
         return network_graph, optimizer, loss
 
-
     def mutation(self, stage):
         """
         Darwin was right. Change some part of individ with some probability
         """
         mutation_type = np.random.choice(['architecture', 'train', 'all'], p=(0.45, 0.45, 0.1))
         self._history.append(Event('Mutation', stage))
-        
+
         if mutation_type == 'architecture':
             # all - change the whole net
             mutation_size = np.random.choice(['all', 'part', 'parameters'], p=(0.3, 0.3, 0.4))
-            
+
             if mutation_size == 'all':
                 # If some parts of the architecture change, the processing of data must also change
                 self._random_init_()
@@ -463,7 +458,7 @@ class Individ():
             elif mutation_size == 'part':
                 # select layer except the first and the last one - embedding and dense(*)
                 mutation_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
-                
+
                 # find next layer to avoid incopabilities in neural architecture
                 next_layer = self._architecture[mutation_layer + 1]
                 new_layer = np.random.choice(list(LAYERS_POOL.keys()))
@@ -480,7 +475,7 @@ class Individ():
                 new_layer = self._architecture[mutation_layer].type
 
                 self._architecture[mutation_layer] = Layer(new_layer, next_layer=next_layer)
-        
+
         elif mutation_type == 'train':
             mutation_size = np.random.choice(['all', 'part'], p=(0.3, 0.7))
 
@@ -498,50 +493,40 @@ class Individ():
             self._training = self._random_init_training_()
             self._data = self._random_init_data_processing()
 
-    
     def crossing(self, other, stage):
         """
         Create new object as crossing between this one and the other
         """
         new_individ = Individ(stage=stage, classes=2, parents=(self, other))
         return new_individ
-        
+
     def get_layer_number(self):
         return self._layers_number
-
 
     def get_data_type(self):
         return self._data_type
 
-    
     def get_task_type(self):
         return self._task_type
 
-    
     def get_history(self):
         return self._history
 
-    
     def get_classes(self):
         return self.options['classes']
 
-    
     def get_name(self):
         return self._name
 
-    
     def get_stage(self):
         return self._stage
 
-    
     def get_architecture(self):
         return self._architecture
-
 
     def get_parents(self):
         return self._parents
 
-        
     def get_schema(self):
         """
         Return network schema
@@ -556,27 +541,23 @@ class Individ():
         """
         return self._data
 
-
     def get_training_parameters(self):
         """
         Return training parameters
         """
         return self._training
 
-
     def get_result(self):
         """
         Return fitness measure
         """
         return self._result
-        
 
     def set_result(self, value):
         """
         New fitness result
         """
         self.result = value
-
 
     def _check_compability(self):
         """
@@ -616,7 +597,8 @@ class Individ():
 
                 elif padding == 'causal':
                     for i, side in enumerate(input):
-                        out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (dilation_rate - 1)) // strides + 1)
+                        out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (
+                                    dilation_rate - 1)) // strides + 1)
                 print(out)
                 output_shape = (previous_shape[0], *out, filters)
 
@@ -645,5 +627,3 @@ class Individ():
                 self._architecture.insert(-1, new_layer)
 
         # TODO: negative dimenstion value check
-
-            

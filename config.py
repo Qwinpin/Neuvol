@@ -14,7 +14,6 @@
 
 import logging
 
-
 handler = logging.FileHandler("log.log")
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d')
