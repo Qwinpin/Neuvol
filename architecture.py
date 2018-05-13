@@ -13,21 +13,14 @@
 # limitations under the License.
 
 from collections import namedtuple
-import numpy as np
-
-from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
-from keras.layers import (Activation, Bidirectional, Conv1D, Conv2D, Dense, Dropout,
-                          Embedding, Flatten, GlobalMaxPooling1D, Input,
-                          RepeatVector)
-from keras.layers.normalization import BatchNormalization
-from keras.layers.recurrent import GRU, LSTM
-from keras.models import Model, Sequential, load_model
-from keras.optimizers import RMSprop, adam
-from keras.preprocessing.sequence import pad_sequences
-from keras.preprocessing.text import Tokenizer
-from keras.utils import multi_gpu_model, to_categorical
 
 import faker
+import numpy as np
+from keras.layers import (Bidirectional, Conv1D, Dense, Dropout,
+                          Embedding, Flatten)
+from keras.layers.recurrent import LSTM
+from keras.models import Sequential
+from keras.optimizers import RMSprop, adam
 
 from config import logger
 

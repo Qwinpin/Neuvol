@@ -13,13 +13,12 @@
 # limitations under the License.
 
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import (accuracy_score, f1_score, precision_score,
-                             recall_score)
-from sklearn.metrics import roc_curve, auc
 import tensorflow as tf
-from keras.callbacks import EarlyStopping
 from keras import backend as K
+from keras.callbacks import EarlyStopping
+from sklearn.metrics import (f1_score)
+from sklearn.metrics import roc_curve, auc
+from sklearn.model_selection import StratifiedKFold
 
 K._LEARNING_PHASE = tf.constant(0)
 

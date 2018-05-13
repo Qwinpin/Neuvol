@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
-from keras.utils import multi_gpu_model, to_categorical
 from keras.utils import Sequence
-import numpy as np
+from keras.utils import to_categorical
 
 
 class DataGenerator(Sequence):
