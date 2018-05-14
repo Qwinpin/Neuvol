@@ -11,18 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import time
 import numpy as np
 import tensorflow as tf
 from keras import backend as K
+
+K._LEARNING_PHASE = tf.constant(0)
+
 from keras.callbacks import EarlyStopping
 from sklearn.metrics import (f1_score)
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
-
-K._LEARNING_PHASE = tf.constant(0)
-
-import time
 
 from data_processing import DataGenerator
 from data_processing import Data
@@ -77,7 +76,7 @@ class Evaluator():
 
     def set_fitness_measure(self, measure):
         """
-        Set fitness measure - This parameter determines the criterion 
+        Set fitness measure - This parameter determines the criterion
         for the effectiveness of the model
         measure available values:
             - AUC
@@ -220,7 +219,8 @@ class Evaluator():
                     workers=self.workers,
                     use_multiprocessing=self.use_multiprocessing)
 
-                # TODO: Generator should work with pointers to files, so, self.y and self.x will be a list of file names in future
+                # TODO: Generator should work with pointers to files,
+                # TODO: so, self.y and self.x will be a list of file names in future
                 real = self.y[test]
 
                 # Dear Keras, please, study the resources management!

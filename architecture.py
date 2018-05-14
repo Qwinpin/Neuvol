@@ -139,17 +139,18 @@ class Layer():
 class Individ():
     """
     Invidiv class for text data types
-    TODO: add support for different data types
-    TODO: add support for different task types
-    TODO: all data types as subclass?
-    TODO: network parser to avoid layer compatibility errors and shape errors
     """
+    # TODO: add support for different data types
+    # TODO: add support for different task types
+    # TODO: all data types as subclass?
+    # TODO: network parser to avoid layer compatibility errors and shape errors
 
     def __init__(self, stage, data_type='text', task_type='classification', parents=None, freeze=None, **kwargs):
         """
         Create individ randomly or with its parents
         parents: set of two individ objects
-        kwargs: dictionary with manualy specified parameters like number of classes, training parameters, etc
+        kwargs: dictionary with manualy specified parameters like number of classes,
+        training parameters, etc
         """
         self._stage = stage
         self._data_type = data_type
@@ -161,6 +162,7 @@ class Individ():
         self._history = [Event('Init', stage)]
         self._name = fake.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = []
+        self.shape_structure = None
         self._layers_number = 0
         self._result = 0.0
 
@@ -228,7 +230,7 @@ class Individ():
 
     def _random_init_(self):
         """
-        At first, we set probabilities pool and the we change 
+        At first, we set probabilities pool and the we change
         this uniform distribution according to previous layer
         """
         if self._architecture:
@@ -248,7 +250,7 @@ class Individ():
             probabilities_pool[tmp_layer] *= 2
             probabilities_pool /= probabilities_pool.sum()
 
-        # tmp_architecture = [np.random.choice(list(pool_index.keys()), 
+        # tmp_architecture = [np.random.choice(list(pool_index.keys()),
         # p=probabilities_pool) for i in range(self._layers_number)]
 
         for i, name in enumerate(tmp_architecture):
@@ -284,18 +286,23 @@ class Individ():
     def _init_with_crossing_(self):
         """
         New individ parameters according its parents (only 2 now, classic)
-        TODO: add compability checker after all crossing
         """
+        # TODO: add compability checker after all crossing
         father = self._parents[0]
         mother = self._parents[1]
-        # father_architecture - chose architecture from first individ and text and train from second
+        # father_architecture - chose architecture from first individ and text
+        # and train from second
         # father_training - only training config from first one
-        # father_arch_layers - select overlapping layers and replace parameters from the first architecture 
+        # father_arch_layers - select overlapping layers
+        # and replace parameters from the first architecture
         # with parameters from the second
 
-        pairing_type = np.random.choice(
-            ['father_architecture', 'father_training', 'father_architecture_layers', 'father_architecture_parameter',
-             'father_data_processing'])
+        pairing_type = np.random.choice([
+            'father_architecture',
+            'father_training',
+            'father_architecture_layers',
+            'father_architecture_parameter',
+            'father_data_processing'])
         self._history.append(Event('Birth', self._stage))
 
         if pairing_type == 'father_architecture':
@@ -322,7 +329,7 @@ class Individ():
 
         elif pairing_type == 'father_architecture_parameter':
             # Select father's architecture and change layer parameters with mother's layer
-            # dont touch first and last elements - embedding and dense(3), 
+            # dont touch first and last elements - embedding and dense(3),
             # too many dependencies with text model
             # select common layer
             intersections = set(list(father.architecture[1:-1])) & set(list(mother.architecture[1:-1]))
@@ -550,7 +557,7 @@ class Individ():
         """
         New fitness result
         """
-        self.result = value
+        self._result = value
 
     def _check_compability(self):
         """
@@ -592,7 +599,7 @@ class Individ():
                     for i, side in enumerate(input):
                         out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (
                                     dilation_rate - 1)) // strides + 1)
-                print(out)
+
                 output_shape = (previous_shape[0], *out, filters)
 
             elif layer.type == 'lstm' or layer.type == 'bi':
@@ -618,5 +625,7 @@ class Individ():
             if shape_structure[-1][0] != 1:
                 new_layer = Layer('flatten', None, None)
                 self._architecture.insert(-1, new_layer)
+
+        self.shape_structure = shape_structure
 
         # TODO: negative dimenstion value check

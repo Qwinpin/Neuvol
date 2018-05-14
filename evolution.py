@@ -42,10 +42,12 @@ class Evolution():
 
     def mutation_step(self):
         for _ in range(int(self.mutation_pool_size * self.population_size)):
-            np.random.choice(self.population).mutation(self.current_stage)
+            index = np.random.randint(0, self.population_size)
+            self.population[index].mutation(self.current_stage)
 
     def step(self):
-        [network.set_result(self.evaluator.fit(network)) for network in self.population]
+        for network in self.population:
+            network.set_result(self.evaluator.fit(network))
 
         best_individs = sorted(self.population, key=lambda individ: -individ.get_result())
         self.population = best_individs[:int(-self.mortality_rate * self.population_size)]

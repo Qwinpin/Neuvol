@@ -79,8 +79,8 @@ class DataGenerator(Sequence):
             Y = np.empty((self.batch_size, self.data_processing['classes']), dtype=int)
 
             for i, index in enumerate(indexes):
-                X[i,] = x_raw[index]
-                Y[i,] = y_raw[index]
+                X[i, ] = x_raw[index]
+                Y[i, ] = y_raw[index]
 
         return X, Y
 
@@ -95,7 +95,7 @@ class Data():
         TODO: add support for image and timelines data
         TODO: add support for regression and autoregression
         """
-        if len(x_raw) != len(y_raw):
+        if x_raw.shape != y_raw.shape:
             raise Exception('Input length does not match the target length')
 
         self.x_raw = x_raw

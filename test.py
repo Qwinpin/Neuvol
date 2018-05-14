@@ -12,7 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
 from architecture import Individ
 
-a = Individ(1)
-print(a.get_schema())
+
+class Tests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """
+        Start evolution test
+        """
+        print("==========")
+
+    @classmethod
+    def tearDownClass(cls):
+        """
+        Test end
+        """
+        print("==========")
+
+    def setUp(self):
+        print("Set up for [" + self.shortDescription() + "]")
+
+    def tearDown(self):
+        pass
+
+    def test_init(self):
+        """
+        Initialization test
+        """
+        options = {'classes': 2}
+        self.assertIsNotNone(0, Individ(stage=1, data_type='text', task_type='classification', parents=None, **options))
+
+    # def test_err_init(self):
+    #     """
+    #     Wrong cases test
+    #     without options
+    #     """
+    #     Individ(stage=1, data_type='text', task_type='classification', parents=None)
+
+    def test_compile(self):
+        options = {'classes': 2}
+        a = Individ(stage=1, data_type='text', task_type='classification', parents=None, **options)
+        self.assertEqual(len(a.init_tf_graph()), 3)
