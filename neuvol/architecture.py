@@ -22,7 +22,6 @@ from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.optimizers import RMSprop, adam
 
-from config import logger
 
 FLOAT32 = np.float32
 
@@ -269,7 +268,6 @@ class Individ():
             layer = Layer('embedding')
             self._architecture.insert(0, layer)
         else:
-            logger.error('Unsupported data type')
             raise Exception('Unsupported data type')
 
         if self._task_type == 'classification':
@@ -277,7 +275,6 @@ class Individ():
             layer = Layer('last_dense', classes=self.options['classes'])
             self._architecture.append(layer)
         else:
-            logger.error('Unsupported task type')
             raise Exception('Unsupported task type')
 
         self._training = self._random_init_training_()
@@ -398,15 +395,8 @@ class Individ():
             raise Exception('Non initialized net')
 
         network_graph = Sequential()
-        # TODO: add different hacks to solve shape conflicts
-        previous_shape = None
 
         for i, layer in enumerate(self._architecture):
-            if layer.type == 'last_dense':
-                if len(previous_shape) == 3:
-                    new_layer = Layer('flatten', None, None)
-                    network_graph.add(self._init_layer_(new_layer))
-
             try:
                 network_graph.add(self._init_layer_(layer))
             except Exception as e:
@@ -417,8 +407,6 @@ class Individ():
                     network_graph.add(self._init_layer_(layer))
                 else:
                     raise
-
-            previous_shape = network_graph.output.shape
 
         if self._training['optimizer'] == 'adam':
             optimizer = adam(

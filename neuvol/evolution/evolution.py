@@ -14,7 +14,7 @@
 
 import numpy as np
 
-import architecture
+from .. import architecture
 
 
 class Evolution():
@@ -49,12 +49,20 @@ class Evolution():
         for network in self.population:
             network.set_result(self.evaluator.fit(network))
 
-        best_individs = sorted(self.population, key=lambda individ: -individ.get_result())
+        best_individs = sorted(self.population, key=lambda individ: (-1) * individ.get_result())
         self.population = best_individs[:int(-self.mortality_rate * self.population_size)]
+
+    def crossing_step(self):
+        for _ in range(self.population_size - len(self.population)):
+            index_father = np.random.randint(0, len(self.population_size))
+            index_mother = np.random.randint(0, len(self.population_size))
+
+            new_individ = self.population[index_father].crossing(self.population[index_mother])
+            self.population.append(new_individ)
 
     def cultivate(self):
         for i in range(self.stages):
-            print('\n\n Stage #\n\n', i)
+            print('\nStage #{}\n'.format(i))
             self.current_stage = i
             self.mutation_step()
             self.step()
