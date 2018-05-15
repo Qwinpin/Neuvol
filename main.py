@@ -60,9 +60,9 @@ def main_ev():
     x = [' '.join([''.join(random.sample(string.ascii_lowercase, k=15)) for _ in range(25)]) for _ in range(1000)]
     y = np.random.randint(0, 2, size=(1000)).tolist()
 
-    ev = evaluation.Evaluator(x, y, 2, generator=False)
+    ev = evaluation.Evaluator(x, y, 1, generator=False)
     options = {'classes': 2}
-    wop = evolution.Evolution(10, 10, ev, **options)
+    wop = evolution.Evolution(10, 5, ev, **options)
     wop.mutation_step()
     for ind in wop.population:
         print(ind.get_result())

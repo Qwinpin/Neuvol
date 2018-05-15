@@ -42,22 +42,25 @@ class Evolution():
 
     def mutation_step(self):
         for _ in range(int(self.mutation_pool_size * self.population_size)):
-            index = np.random.randint(0, self.population_size)
+            index = int(np.random.randint(0, len(self.population)))
             self.population[index].mutation(self.current_stage)
 
     def step(self):
         for network in self.population:
-            network.set_result(self.evaluator.fit(network))
+            network.result = self.evaluator.fit(network)
 
-        best_individs = sorted(self.population, key=lambda individ: (-1) * individ.get_result())
+        best_individs = sorted(self.population, key=lambda individ: (-1) * individ.result)
         self.population = best_individs[:int(-self.mortality_rate * self.population_size)]
 
     def crossing_step(self):
         for _ in range(self.population_size - len(self.population)):
-            index_father = np.random.randint(0, len(self.population_size))
-            index_mother = np.random.randint(0, len(self.population_size))
+            index_father = int(np.random.randint(0, len(self.population)))
+            index_mother = int(np.random.randint(0, len(self.population)))
 
-            new_individ = self.population[index_father].crossing(self.population[index_mother])
+            new_individ = self.population[index_father].crossing(
+                self.population[index_mother],
+                self.current_stage)
+
             self.population.append(new_individ)
 
     def cultivate(self):
@@ -66,3 +69,4 @@ class Evolution():
             self.current_stage = i
             self.mutation_step()
             self.step()
+            self.crossing_step()

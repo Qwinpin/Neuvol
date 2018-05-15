@@ -152,7 +152,7 @@ class Individ():
         training parameters, etc
         """
         self._stage = stage
-        self._data_type = data_type
+        self._data_processing_type = data_type
         self._task_type = task_type
         # TODO: freeze training or data parameters of individ and set manualy
         self._freeze = freeze
@@ -263,7 +263,7 @@ class Individ():
             layer = Layer(pool_index[name], previous_layer, next_layer)
             self._architecture.append(layer)
 
-        if self._data_type == 'text':
+        if self._data_processing_type == 'text':
             # Push embedding for texts
             layer = Layer('embedding')
             self._architecture.insert(0, layer)
@@ -277,8 +277,8 @@ class Individ():
         else:
             raise Exception('Unsupported task type')
 
-        self._training = self._random_init_training_()
-        self._data = self._random_init_data_processing()
+        self._training_parameters = self._random_init_training_()
+        self._data_processing = self._random_init_data_processing()
 
     def _init_with_crossing_(self):
         """
@@ -305,14 +305,14 @@ class Individ():
         if pairing_type == 'father_architecture':
             # Father's architecture and mother's training and data
             self._architecture = father.architecture
-            self._training = mother.training
-            self._data = mother.data
+            self._training_parameters = mother.training_parameters
+            self._data_processing = mother.data_processing
 
         elif pairing_type == 'father_training':
             # Father's training and mother's architecture and data
             self._architecture = mother.architecture
-            self._training = father.training
-            self._data = mother.data
+            self._training_parameters = father.training_parameters
+            self._data_processing = mother.data_processing
 
         elif pairing_type == 'father_architecture_layers':
             # Select father's architecture and replace random layer with mother's layer
@@ -321,8 +321,8 @@ class Individ():
             alter_layer = np.random.choice([i for i in range(1, len(mother.architecture) - 1)])
 
             self._architecture[changes_layer] = mother.architecture[alter_layer]
-            self._training = father.training
-            self._data = father.data
+            self._training_parameters = father.training_parameters
+            self._data_processing = father.data_processing
 
         elif pairing_type == 'father_architecture_parameter':
             # Select father's architecture and change layer parameters with mother's layer
@@ -347,15 +347,15 @@ class Individ():
             alter_layer = find(mother.architecture, 'name', intersected_layer)
 
             self._architecture[changes_layer] = mother.architecture[alter_layer]
-            self._training = father.training
-            self._data = father.data
+            self._training_parameters = father.training_parameters
+            self._data_processing = father.data_processing
 
         elif pairing_type == 'father_data_processing':
             # Select father's data processing and mother's architecture and training
             # change mother's embedding to avoid mismatchs in dimensions
             self._architecture = mother.architecture
-            self._training = mother.training
-            self._data = father.data
+            self._training_parameters = mother.training_parameters
+            self._data_processing = father.data_processing
 
             self._architecture[0] = father.architecture[0]
 
@@ -379,7 +379,7 @@ class Individ():
         if not self._architecture:
             raise Exception('Not initialized yet')
 
-        if self._data_type == 'text':
+        if self._data_processing_type == 'text':
             data_tmp = {}
             data_tmp['vocabular'] = self._architecture[0].config['vocabular']
             data_tmp['sentences_length'] = self._architecture[0].config['sentences_length']
@@ -408,14 +408,14 @@ class Individ():
                 else:
                     raise
 
-        if self._training['optimizer'] == 'adam':
+        if self._training_parameters['optimizer'] == 'adam':
             optimizer = adam(
-                lr=self._training['optimizer_lr'],
-                decay=self._training['optimizer_decay'])
+                lr=self._training_parameters['optimizer_lr'],
+                decay=self._training_parameters['optimizer_decay'])
         else:
             optimizer = RMSprop(
-                lr=self._training['optimizer_lr'],
-                decay=self._training['optimizer_decay'])
+                lr=self._training_parameters['optimizer_lr'],
+                decay=self._training_parameters['optimizer_decay'])
 
         if self._task_type == 'classification':
             if self.options['classes'] == 2:
@@ -441,7 +441,7 @@ class Individ():
             if mutation_size == 'all':
                 # If some parts of the architecture change, the processing of data must also change
                 self._random_init_()
-                self._data = self._random_init_data_processing()
+                self._data_processing = self._random_init_data_processing()
 
             elif mutation_size == 'part':
                 # select layer except the first and the last one - embedding and dense(*)
@@ -468,18 +468,18 @@ class Individ():
             mutation_size = np.random.choice(['all', 'part'], p=(0.3, 0.7))
 
             if mutation_size == 'all':
-                self._training = self._random_init_training_()
+                self._training_parameters = self._random_init_training_()
 
             elif mutation_size == 'part':
                 mutation_parameter = np.random.choice(list(TRAINING))
                 new_training = self._random_init_training_()
-                self._training[mutation_parameter] = new_training[mutation_parameter]
+                self._training_parameters[mutation_parameter] = new_training[mutation_parameter]
 
         elif mutation_type == 'all':
             # change the whole individ - similar to death and rebirth
             self._random_init_()
-            self._training = self._random_init_training_()
-            self._data = self._random_init_data_processing()
+            self._training_parameters = self._random_init_training_()
+            self._data_processing = self._random_init_data_processing()
 
     def crossing(self, other, stage):
         """
@@ -491,31 +491,40 @@ class Individ():
     def get_layer_number(self):
         return self._layers_number
 
-    def get_data_type(self):
-        return self._data_type
+    @property
+    def data_type(self):
+        return self._data_processing_type
 
-    def get_task_type(self):
+    @property
+    def task_type(self):
         return self._task_type
 
-    def get_history(self):
+    @property
+    def history(self):
         return self._history
 
-    def get_classes(self):
+    @property
+    def classes(self):
         return self.options['classes']
 
-    def get_name(self):
+    @property
+    def name(self):
         return self._name
 
-    def get_stage(self):
+    @property
+    def stage(self):
         return self._stage
 
-    def get_architecture(self):
+    @property
+    def architecture(self):
         return self._architecture
 
-    def get_parents(self):
+    @property
+    def parents(self):
         return self._parents
 
-    def get_schema(self):
+    @property
+    def schema(self):
         """
         Return network schema
         """
@@ -523,25 +532,29 @@ class Individ():
 
         return schema
 
-    def get_data_processing(self):
+    @property
+    def data_processing(self):
         """
         Return data processing parameters
         """
-        return self._data
+        return self._data_processing
 
-    def get_training_parameters(self):
+    @property
+    def training_parameters(self):
         """
         Return training parameters
         """
-        return self._training
+        return self._training_parameters
 
-    def get_result(self):
+    @property
+    def result(self):
         """
         Return fitness measure
         """
         return self._result
 
-    def set_result(self, value):
+    @result.setter
+    def result(self, value):
         """
         New fitness result
         """
