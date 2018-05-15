@@ -17,9 +17,7 @@ import numpy as np
 import random
 import string
 
-import evolution
-import architecture
-import evaluation
+from neuvol import evolution, evaluation
 
 
 def main():

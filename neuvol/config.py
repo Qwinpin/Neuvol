@@ -23,3 +23,5 @@ logger.setLevel(logging.INFO)
 
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+backend = 'plaid' # or plaid

@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from ..config import backend
 import time
+from contextlib import ExitStack
 import numpy as np
-import tensorflow as tf
-from keras import backend as K
 
-K._LEARNING_PHASE = tf.constant(0)
+if backend == 'tf':
+    import tensorflow as tf
 
 from keras.callbacks import EarlyStopping
 from sklearn.metrics import (f1_score)
@@ -124,7 +125,8 @@ class Evaluator():
         kfold = StratifiedKFold(n_splits=self.kfold_number)
         for train, test in kfold.split(np.zeros(x.shape), y.argmax(-1)):
             # work only with this device
-            with tf.device(self.device):
+
+            with tf.device(self.device) if (backend == 'tf') else ExitStack():
                 try:
                     nn, optimizer, loss = network.init_tf_graph()
                     print(nn.summary())
@@ -150,16 +152,14 @@ class Evaluator():
                     predicted = nn.predict(x[test])
                     real = y[test]
 
-                    # Dear Keras, please, study the resources management!
-                    K.clear_session()
-
                     predicted_out.extend(predicted)
                     real_out.extend(real)
                 except Exception as e:
                     print(e)
                     return 0.0
 
-            tf.reset_default_graph()
+            if (backend == 'tf'):
+                tf.reset_default_graph()
 
         training_time -= time.time()
 
@@ -193,7 +193,7 @@ class Evaluator():
                 data_processing=network.get_data_processing())
 
             # work only with this device
-            with tf.device(self.device):
+            with tf.device(self.device) if (backend == 'tf') else ExitStack():
                 nn, optimizer, loss = network.init_tf_graph()
                 nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
@@ -223,13 +223,11 @@ class Evaluator():
                 # TODO: so, self.y and self.x will be a list of file names in future
                 real = self.y[test]
 
-                # Dear Keras, please, study the resources management!
-                K.clear_session()
-
                 predicted_out.extend(predicted)
                 real_out.extend(real)
 
-            tf.reset_default_graph()
+            if (backend == 'tf'):
+                tf.reset_default_graph()
 
         training_time -= time.time()
 
