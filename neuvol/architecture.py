@@ -161,6 +161,8 @@ class Individ():
         self._history = [Event('Init', stage)]
         self._name = fake.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = []
+        self._data_processing = None
+        self._training_parameters = None
         self.shape_structure = None
         self._layers_number = 0
         self._result = 0.0
@@ -298,7 +300,7 @@ class Individ():
             'father_architecture',
             'father_training',
             'father_architecture_layers',
-            'father_architecture_parameter',
+            # 'father_architecture_parameter',
             'father_data_processing'])
         self._history.append(Event('Birth', self._stage))
 
@@ -307,6 +309,7 @@ class Individ():
             self._architecture = father.architecture
             self._training_parameters = mother.training_parameters
             self._data_processing = mother.data_processing
+            self._data_processing['sentences_length'] = father.data_processing['sentences_length']
 
         elif pairing_type == 'father_training':
             # Father's training and mother's architecture and data
@@ -324,31 +327,32 @@ class Individ():
             self._training_parameters = father.training_parameters
             self._data_processing = father.data_processing
 
-        elif pairing_type == 'father_architecture_parameter':
-            # Select father's architecture and change layer parameters with mother's layer
-            # dont touch first and last elements - embedding and dense(3),
-            # too many dependencies with text model
-            # select common layer
-            intersections = set(list(father.architecture[1:-1])) & set(list(mother.architecture[1:-1]))
-            intersected_layer = np.random.choice(intersections)
-            self._architecture = father.architecture
+        # TODO: Reimplement with part
+        # elif pairing_type == 'father_architecture_parameter':
+        #     # Select father's architecture and change layer parameters with mother's layer
+        #     # dont touch first and last elements - embedding and dense(3),
+        #     # too many dependencies with text model
+        #     # select common layer
+        #     intersections = set(list(father.architecture[1:-1])) & set(list(mother.architecture[1:-1]))
+        #     intersected_layer = np.random.choice(intersections)
+        #     self._architecture = father.architecture
 
-            def find(lst, key, value):
-                """
-                Return index of element in the list of dictionaries that is equal
-                to some value by some key
-                """
-                for i, dic in enumerate(lst):
-                    if dic[key] == value:
-                        return i
-                return -1
+        #     def find(lst, key, value):
+        #         """
+        #         Return index of element in the list of dictionaries that is equal
+        #         to some value by some key
+        #         """
+        #         for i, dic in enumerate(lst):
+        #             if dic[key] == value:
+        #                 return i
+        #         return -1
 
-            changes_layer = find(father.architecture, 'name', intersected_layer)
-            alter_layer = find(mother.architecture, 'name', intersected_layer)
+        #     changes_layer = find(father.architecture, 'name', intersected_layer)
+        #     alter_layer = find(mother.architecture, 'name', intersected_layer)
 
-            self._architecture[changes_layer] = mother.architecture[alter_layer]
-            self._training_parameters = father.training_parameters
-            self._data_processing = father.data_processing
+        #     self._architecture[changes_layer] = mother.architecture[alter_layer]
+        #     self._training_parameters = father.training_parameters
+        #     self._data_processing = father.data_processing
 
         elif pairing_type == 'father_data_processing':
             # Select father's data processing and mother's architecture and training
@@ -395,6 +399,7 @@ class Individ():
             raise Exception('Non initialized net')
 
         network_graph = Sequential()
+        self._check_compability()
 
         for i, layer in enumerate(self._architecture):
             try:
@@ -621,7 +626,7 @@ class Individ():
 
             previous_shape = output_shape
             shape_structure.append(output_shape)
-
+            
         if self._task_type == 'classification':
             if shape_structure[-1][0] != 1:
                 new_layer = Layer('flatten', None, None)

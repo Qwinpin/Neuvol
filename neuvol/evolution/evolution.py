@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+from tqdm import tqdm
 
 from .. import architecture
 
@@ -64,8 +65,12 @@ class Evolution():
             self.population.append(new_individ)
 
     def cultivate(self):
-        for i in range(self.stages):
+        for i in tqdm(range(self.stages)):
             print('\nStage #{}\n'.format(i))
+            for individ in self.population:
+                print('ARCH', individ.architecture[0].config, '\n')
+                print('DATA PROC', individ.data_processing, '\n\n')
+
             self.current_stage = i
             self.mutation_step()
             self.step()
