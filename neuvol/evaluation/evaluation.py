@@ -136,7 +136,6 @@ class Evaluator():
             with tf.device(self._device) if (backend == 'tf') else ExitStack():
                 try:
                     nn, optimizer, loss = network.init_tf_graph()
-                    print(nn.summary())
                     nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
                     early_stopping = EarlyStopping(
@@ -146,15 +145,17 @@ class Evaluator():
                         mode='auto',
                         verbose=False)
                     callbacks = [early_stopping]
-
-                    nn.fit(
-                        x[train], y[train],
-                        batch_size=network.training_parameters['batchs'],
-                        epochs=network.training_parameters['epochs'],
-                        validation_data=(x[test], y[test]),
-                        callbacks=callbacks,
-                        shuffle=True,
-                        verbose=self._verbose)
+                    try:
+                        nn.fit(
+                            x[train], y[train],
+                            batch_size=network.training_parameters['batchs'],
+                            epochs=network.training_parameters['epochs'],
+                            validation_data=(x[test], y[test]),
+                            callbacks=callbacks,
+                            shuffle=True,
+                            verbose=self._verbose)
+                    except:
+                        print(nn.summary())
 
                     predicted = nn.predict(x[test])
                     real = y[test]
