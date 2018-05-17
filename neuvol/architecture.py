@@ -76,7 +76,7 @@ fake = faker.Faker()
 
 class Layer():
     """
-    Single layer class with compability checking
+    Single layer class with compatibility checking
     """
 
     def __init__(self, layer_type, previous_layer=None, next_layer=None, classes=None):
@@ -85,7 +85,7 @@ class Layer():
         self.type = layer_type
 
         self._init_parameters_()
-        self._check_compability_(previous_layer, next_layer)
+        self._check_compatibility_(previous_layer, next_layer)
 
     def _init_parameters_(self):
         if self.type == 'embedding':
@@ -106,7 +106,7 @@ class Layer():
             for parameter in variables:
                 self.config[parameter] = np.random.choice(LAYERS_POOL[self.type][parameter])
 
-    def _check_compability_(self, previous_layer, next_layer):
+    def _check_compatibility_(self, previous_layer, next_layer):
         """
         Check data shape in specific case such as lstm or bi-lstm
         TODO: check negative dimension size in case of convolution layers
@@ -172,7 +172,7 @@ class Individ():
         else:
             self._init_with_crossing_()
 
-        self._check_compability()
+        self._check_compatibility()
 
     def _init_layer_(self, layer):
         """
@@ -236,24 +236,33 @@ class Individ():
         """
         if self._architecture:
             self._architecture = []
+
+        # choose number of layers
         self._layers_number = np.random.randint(1, 10)
 
+        # initialize pool of uniform probabilities
         probabilities_pool = np.full((POOL_SIZE), 1 / POOL_SIZE)
+
+        # dict of layers and their indexes
+        # indexes are used to change probabilities pool
         pool_index = {i: name for i, name in enumerate(LAYERS_POOL.keys())}
+
+        # layers around current one
         previous_layer = None
         next_layer = None
         tmp_architecture = []
 
         # Create structure
         for i in range(self._layers_number):
+            # choose layer index
             tmp_layer = np.random.choice(list(pool_index.keys()), p=probabilities_pool)
             tmp_architecture.append(tmp_layer)
+
+            # increase probability of this layer type
             probabilities_pool[tmp_layer] *= 2
             probabilities_pool /= probabilities_pool.sum()
 
-        # tmp_architecture = [np.random.choice(list(pool_index.keys()),
-        # p=probabilities_pool) for i in range(self._layers_number)]
-
+        # generate architecture
         for i, name in enumerate(tmp_architecture):
             if i != 0:
                 previous_layer = pool_index[tmp_architecture[i - 1]]
@@ -286,7 +295,7 @@ class Individ():
         """
         New individ parameters according its parents (only 2 now, classic)
         """
-        # TODO: add compability checker after all crossing
+        # TODO: add compatibility checker after all crossing
         father = self._parents[0]
         mother = self._parents[1]
         # father_architecture - chose architecture from first individ and text
@@ -302,6 +311,7 @@ class Individ():
             'father_architecture_layers',
             # 'father_architecture_parameter',
             'father_data_processing'])
+
         self._history.append(Event('Birth', self._stage))
 
         if pairing_type == 'father_architecture':
@@ -309,6 +319,8 @@ class Individ():
             self._architecture = father.architecture
             self._training_parameters = mother.training_parameters
             self._data_processing = mother.data_processing
+
+            # change data processing parameter to avoid incompatibility
             self._data_processing['sentences_length'] = father.data_processing['sentences_length']
 
         elif pairing_type == 'father_training':
@@ -361,6 +373,7 @@ class Individ():
             self._training_parameters = mother.training_parameters
             self._data_processing = father.data_processing
 
+            # change data processing parameter to avoid incompatibility
             self._architecture[0] = father.architecture[0]
 
     def _random_init_training_(self):
@@ -399,7 +412,7 @@ class Individ():
             raise Exception('Non initialized net')
 
         network_graph = Sequential()
-        self._check_compability()
+        self._check_compatibility()
 
         for i, layer in enumerate(self._architecture):
             try:
@@ -446,7 +459,6 @@ class Individ():
             if mutation_size == 'all':
                 # If some parts of the architecture change, the processing of data must also change
                 self._random_init_()
-                self._data_processing = self._random_init_data_processing()
 
             elif mutation_size == 'part':
                 # select layer except the first and the last one - embedding and dense(*)
@@ -483,8 +495,6 @@ class Individ():
         elif mutation_type == 'all':
             # change the whole individ - similar to death and rebirth
             self._random_init_()
-            self._training_parameters = self._random_init_training_()
-            self._data_processing = self._random_init_data_processing()
 
     def crossing(self, other, stage):
         """
@@ -565,9 +575,9 @@ class Individ():
         """
         self._result = value
 
-    def _check_compability(self):
+    def _check_compatibility(self):
         """
-        Check shapes compabilities, modify layer if it is necessary
+        Check shapes compatibilities, modify layer if it is necessary
         """
         previous_shape = []
         shape_structure = []
@@ -585,6 +595,7 @@ class Individ():
                 input = previous_shape[1:-1]
                 out = []
 
+                # convolution output shape depends on padding and stride
                 if padding == 'valid':
                     if strides == 1:
                         for i, side in enumerate(input):
@@ -610,8 +621,13 @@ class Individ():
 
             elif layer.type == 'lstm' or layer.type == 'bi':
                 units = layer.config['units']
+
+                # if we return sequence, output has 3-dim
                 sequences = layer.config['return_sequences']
+
+                # bidirectional lstm returns double basic lstm output
                 bi = 2 if layer.type == 'bi' else 1
+
                 if sequences:
                     output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
                 else:
@@ -626,8 +642,10 @@ class Individ():
 
             previous_shape = output_shape
             shape_structure.append(output_shape)
-            
+
         if self._task_type == 'classification':
+            # Reshape data flow in case of dimensional incompatibility
+            # output shape for classifier must be 2-dim
             if shape_structure[-1][0] != 1:
                 new_layer = Layer('flatten', None, None)
                 self._architecture.insert(-1, new_layer)

@@ -14,6 +14,7 @@
 
 import numpy as np
 from tqdm import tqdm
+from copy import deepcopy
 
 from .. import architecture
 
@@ -58,8 +59,8 @@ class Evolution():
             index_father = int(np.random.randint(0, len(self.population)))
             index_mother = int(np.random.randint(0, len(self.population)))
 
-            new_individ = self.population[index_father].crossing(
-                self.population[index_mother],
+            new_individ = deepcopy(self.population[index_father]).crossing(
+                deepcopy(self.population[index_mother]),
                 self.current_stage)
 
             self.population.append(new_individ)
@@ -67,11 +68,8 @@ class Evolution():
     def cultivate(self):
         for i in tqdm(range(self.stages)):
             print('\nStage #{}\n'.format(i))
-            for individ in self.population:
-                print('ARCH', individ.architecture[0].config, '\n')
-                print('DATA PROC', individ.data_processing, '\n\n')
 
-            self.current_stage = i
+            self.current_stage += i
             self.mutation_step()
             self.step()
             self.crossing_step()
