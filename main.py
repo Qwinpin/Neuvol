@@ -57,11 +57,11 @@ def main():
 
 
 def main_ev():
-    df = pd.read_csv('extend_prerpoc.csv')
-    x = df.emoji_sign_pronoun.tolist()
-    y = df.score.tolist()
+    x = [' '.join([''.join(random.sample(string.ascii_lowercase, k=15)) for _ in range(25)]) for _ in range(1000)] 
+    y = np.random.randint(0, 2, size=(1000)).tolist() 
+
     ev = evaluation.Evaluator(x, y, 1, generator=False)
-    options = {'classes': 3}
+    options = {'classes': 2}
     wop = evolution.Evolution(10, 5, ev, **options)
     wop.cultivate()
 
