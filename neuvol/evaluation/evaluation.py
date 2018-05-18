@@ -145,17 +145,14 @@ class Evaluator():
                         mode='auto',
                         verbose=False)
                     callbacks = [early_stopping]
-                    try:
-                        nn.fit(
-                            x[train], y[train],
-                            batch_size=network.training_parameters['batchs'],
-                            epochs=network.training_parameters['epochs'],
-                            validation_data=(x[test], y[test]),
-                            callbacks=callbacks,
-                            shuffle=True,
-                            verbose=self._verbose)
-                    except:
-                        print(nn.summary())
+                    nn.fit(
+                        x[train], y[train],
+                        batch_size=network.training_parameters['batchs'],
+                        epochs=network.training_parameters['epochs'],
+                        validation_data=(x[test], y[test]),
+                        callbacks=callbacks,
+                        shuffle=True,
+                        verbose=self._verbose)
 
                     predicted = nn.predict(x[test])
                     real = y[test]

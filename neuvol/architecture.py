@@ -309,7 +309,7 @@ class Individ():
             'father_architecture',
             'father_training',
             'father_architecture_layers',
-            # 'father_architecture_parameter',
+            'father_architecture_parameter',
             'father_data_processing'])
 
         self._history.append(Event('Birth', self._stage))
@@ -331,40 +331,33 @@ class Individ():
 
         elif pairing_type == 'father_architecture_layers':
             # Select father's architecture and replace random layer with mother's layer
-            self._architecture = father.architecture
             changes_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
             alter_layer = np.random.choice([i for i in range(1, len(mother.architecture) - 1)])
 
+            self._architecture = father.architecture
             self._architecture[changes_layer] = mother.architecture[alter_layer]
             self._training_parameters = father.training_parameters
             self._data_processing = father.data_processing
 
-        # TODO: Reimplement with part
-        # elif pairing_type == 'father_architecture_parameter':
-        #     # Select father's architecture and change layer parameters with mother's layer
-        #     # dont touch first and last elements - embedding and dense(3),
-        #     # too many dependencies with text model
-        #     # select common layer
-        #     intersections = set(list(father.architecture[1:-1])) & set(list(mother.architecture[1:-1]))
-        #     intersected_layer = np.random.choice(intersections)
-        #     self._architecture = father.architecture
+        elif pairing_type == 'father_architecture_parameter':
+            # Select father's architecture and change layer parameters with mother's layer
+            # dont touch first and last elements - embedding and dense(3),
+            # too many dependencies with text model
+            # select common layer
+            tmp_father = [layer.type for layer in father.architecture[1:-1]]
+            tmp_mother = [layer.type for layer in mother.architecture[1:-1]]
 
-        #     def find(lst, key, value):
-        #         """
-        #         Return index of element in the list of dictionaries that is equal
-        #         to some value by some key
-        #         """
-        #         for i, dic in enumerate(lst):
-        #             if dic[key] == value:
-        #                 return i
-        #         return -1
+            intersections = set(tmp_father) & set(tmp_mother)
+            intersected_layer = np.random.choice(intersections)
 
-        #     changes_layer = find(father.architecture, 'name', intersected_layer)
-        #     alter_layer = find(mother.architecture, 'name', intersected_layer)
+            # add 1, because we did not take into account first layer
+            changes_layer = tmp_father.index(intersected_layer) + 1
+            alter_layer = tmp_mother.index(intersected_layer) + 1
 
-        #     self._architecture[changes_layer] = mother.architecture[alter_layer]
-        #     self._training_parameters = father.training_parameters
-        #     self._data_processing = father.data_processing
+            self._architecture = father.architecture
+            self._architecture[changes_layer] = mother.architecture[alter_layer]
+            self._training_parameters = father.training_parameters
+            self._data_processing = father.data_processing
 
         elif pairing_type == 'father_data_processing':
             # Select father's data processing and mother's architecture and training
@@ -403,6 +396,86 @@ class Individ():
             data_tmp['classes'] = self.options['classes']
 
         return data_tmp
+
+    def _check_compatibility(self):
+        """
+        Check shapes compatibilities, modify layer if it is necessary
+        """
+        previous_shape = []
+        shape_structure = []
+        # create structure of flow shape
+        for layer in self._architecture:
+            if layer.type == 'embedding':
+                output_shape = (2, layer.config['sentences_length'], layer.config['embedding_dim'])
+
+            if layer.type == 'cnn':
+                filters = layer.config['filters']
+                kernel_size = [layer.config['kernel_size']]
+                padding = layer.config['padding']
+                strides = layer.config['strides']
+                dilation_rate = layer.config['dilation_rate']
+                input = previous_shape[1:-1]
+                out = []
+
+                # convolution output shape depends on padding and stride
+                if padding == 'valid':
+                    if strides == 1:
+                        for i, side in enumerate(input):
+                            out.append(side - kernel_size[i] + 1)
+                    else:
+                        for i, side in enumerate(input):
+                            out.append((side - kernel_size[i]) // strides + 1)
+
+                elif padding == 'same':
+                    if strides == 1:
+                        for i, side in enumerate(input):
+                            out.append(side - kernel_size[i] + (2 * (kernel_size[i] // 2)) + 1)
+                    else:
+                        for i, side in enumerate(input):
+                            out.append((side - kernel_size[i] + (2 * (kernel_size[i] // 2))) // strides + 1)
+
+                elif padding == 'causal':
+                    for i, side in enumerate(input):
+                        out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (
+                                    dilation_rate - 1)) // strides + 1)
+
+                # check for negative values
+                if any(side <= 0 for size in out):
+                    layer.config['padding'] = 'same'
+                output_shape = (previous_shape[0], *out, filters)
+
+            elif layer.type == 'lstm' or layer.type == 'bi':
+                units = layer.config['units']
+
+                # if we return sequence, output has 3-dim
+                sequences = layer.config['return_sequences']
+
+                # bidirectional lstm returns double basic lstm output
+                bi = 2 if layer.type == 'bi' else 1
+
+                if sequences:
+                    output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
+                else:
+                    output_shape = (1, units * bi)
+
+            elif layer.type == 'dense' or layer.type == 'last_dense':
+                units = layer.config['units']
+                output_shape = (previous_shape[0], *previous_shape[1:-1], units)
+
+            elif layer.type == 'flatten':
+                output_shape = (1, np.prod(previous_shape[1:]))
+
+            previous_shape = output_shape
+            shape_structure.append(output_shape)
+
+        if self._task_type == 'classification':
+            # Reshape data flow in case of dimensional incompatibility
+            # output shape for classifier must be 2-dim
+            if shape_structure[-1][0] != 1:
+                new_layer = Layer('flatten', None, None)
+                self._architecture.insert(-1, new_layer)
+
+        self.shape_structure = shape_structure
 
     def init_tf_graph(self):
         """
@@ -574,82 +647,3 @@ class Individ():
         New fitness result
         """
         self._result = value
-
-    def _check_compatibility(self):
-        """
-        Check shapes compatibilities, modify layer if it is necessary
-        """
-        previous_shape = []
-        shape_structure = []
-        # create structure of flow shape
-        for layer in self._architecture:
-            if layer.type == 'embedding':
-                output_shape = (2, layer.config['sentences_length'], layer.config['embedding_dim'])
-
-            if layer.type == 'cnn':
-                filters = layer.config['filters']
-                kernel_size = [layer.config['kernel_size']]
-                padding = layer.config['padding']
-                strides = layer.config['strides']
-                dilation_rate = layer.config['dilation_rate']
-                input = previous_shape[1:-1]
-                out = []
-
-                # convolution output shape depends on padding and stride
-                if padding == 'valid':
-                    if strides == 1:
-                        for i, side in enumerate(input):
-                            out.append(side - kernel_size[i] + 1)
-                    else:
-                        for i, side in enumerate(input):
-                            out.append((side - kernel_size[i]) // strides + 1)
-
-                elif padding == 'same':
-                    if strides == 1:
-                        for i, side in enumerate(input):
-                            out.append(side - kernel_size[i] + (2 * (kernel_size[i] // 2)) + 1)
-                    else:
-                        for i, side in enumerate(input):
-                            out.append((side - kernel_size[i] + (2 * (kernel_size[i] // 2))) // strides + 1)
-
-                elif padding == 'causal':
-                    for i, side in enumerate(input):
-                        out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (
-                                    dilation_rate - 1)) // strides + 1)
-
-                output_shape = (previous_shape[0], *out, filters)
-
-            elif layer.type == 'lstm' or layer.type == 'bi':
-                units = layer.config['units']
-
-                # if we return sequence, output has 3-dim
-                sequences = layer.config['return_sequences']
-
-                # bidirectional lstm returns double basic lstm output
-                bi = 2 if layer.type == 'bi' else 1
-
-                if sequences:
-                    output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
-                else:
-                    output_shape = (1, units * bi)
-
-            elif layer.type == 'dense' or layer.type == 'last_dense':
-                units = layer.config['units']
-                output_shape = (previous_shape[0], *previous_shape[1:-1], units)
-
-            elif layer.type == 'flatten':
-                output_shape = (1, np.prod(previous_shape[1:]))
-
-            previous_shape = output_shape
-            shape_structure.append(output_shape)
-
-        if self._task_type == 'classification':
-            # Reshape data flow in case of dimensional incompatibility
-            # output shape for classifier must be 2-dim
-            if shape_structure[-1][0] != 1:
-                new_layer = Layer('flatten', None, None)
-                self._architecture.insert(-1, new_layer)
-
-        self.shape_structure = shape_structure
-
-        # TODO: negative dimenstion value check
