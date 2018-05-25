@@ -68,11 +68,11 @@ class DataGenerator(Sequence):
             vocabular = self.data_processing['vocabular']
             sentences_length = self.data_processing['sentences_length']
 
-            tokenizer = Tokenizer(num_words=vocabular)
-            tokenizer.fit_on_texts(self.x_raw)
-            sequences = tokenizer.texts_to_sequences(self.x_raw)
+            # tokenizer = Tokenizer(num_words=vocabular)
+            # tokenizer.fit_on_texts(self.x_raw)
+            # sequences = tokenizer.texts_to_sequences(self.x_raw)
 
-            x_raw = pad_sequences(sequences, sentences_length)
+            x_raw = pad_sequences(self.x_raw, sentences_length)
             y_raw = to_categorical(self.y_raw, num_classes=self.data_processing['classes'])
 
             X = np.empty((self.batch_size, self.data_processing['sentences_length']))
@@ -112,11 +112,11 @@ class Data():
             vocabular = self.data_processing['vocabular']
             sentences_length = self.data_processing['sentences_length']
 
-            tokenizer = Tokenizer(num_words=vocabular)
-            tokenizer.fit_on_texts(self.x_raw)
-            sequences = tokenizer.texts_to_sequences(self.x_raw)
+            # tokenizer = Tokenizer(num_words=vocabular)
+            # tokenizer.fit_on_texts(self.x_raw)
+            # sequences = tokenizer.texts_to_sequences(self.x_raw)
 
-            x = pad_sequences(sequences, sentences_length)
+            x = pad_sequences(self.x_raw, sentences_length)
             y = to_categorical(self.y_raw, num_classes=self.data_processing['classes'])
         else:
             raise Exception('This data type is not supported now')

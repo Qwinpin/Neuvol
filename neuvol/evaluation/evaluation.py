@@ -143,7 +143,7 @@ class Evaluator():
                         min_delta=self._early_stopping['min_delta'],
                         patience=self._early_stopping['patience'],
                         mode='auto',
-                        verbose=False)
+                        verbose=self._verbose)
                     callbacks = [early_stopping]
                     nn.fit(
                         x[train], y[train],
