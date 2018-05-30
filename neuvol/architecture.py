@@ -348,6 +348,12 @@ class Individ():
             tmp_mother = [layer.type for layer in mother.architecture[1:-1]]
 
             intersections = set(tmp_father) & set(tmp_mother)
+
+            if not intersections:
+                self._architecture = father.architecture
+                self._training_parameters = father.training_parameters
+                self._data_processing = father.data_processing
+
             intersected_layer = np.random.choice(list(intersections))
 
             # add 1, because we did not take into account first layer

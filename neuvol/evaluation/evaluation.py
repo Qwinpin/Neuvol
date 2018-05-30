@@ -51,6 +51,7 @@ class Evaluator():
         elif device == 'gpu':
             self._device = '/device:GPU:0'
         self._generator = generator
+        self._create_tokens = True
 
         self._use_multiprocessing = True
         self._workers = 2
@@ -67,6 +68,13 @@ class Evaluator():
         """
         self._early_stopping['min_delta'] = min_delta
         self._early_stopping['patience'] = patience
+
+    def set_create_tokens(self, value):
+        """
+        Set create tokens False or True,
+        if False, prepare data in form of sequences of numeric values
+        """
+        self._create_tokens = value
 
     def set_verbose(self, level=0):
         """
@@ -118,7 +126,8 @@ class Evaluator():
             self._y,
             data_type=network.data_type,
             task_type=network.task_type,
-            data_processing=network.data_processing)
+            data_processing=network.data_processing,
+            create_tokens=self._create_tokens)
 
         x, y = data.process_data()
 
@@ -197,14 +206,16 @@ class Evaluator():
                 self._y[train],
                 data_type=network.data_type,
                 task_type=network.task_type,
-                data_processing=network.data_processing)
+                data_processing=network.data_processing,
+                create_tokens=self._create_tokens)
 
             test_generator = DataGenerator(
                 self._x[test],
                 self._y[test],
                 data_type=network.data_type,
                 task_type=network.task_type,
-                data_processing=network.data_processing)
+                data_processing=network.data_processing,
+                create_tokens=self._create_tokens)
 
             # work only with this device
             with tf.device(self._device) if (backend == 'tf') else ExitStack():
