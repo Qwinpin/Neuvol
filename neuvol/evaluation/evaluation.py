@@ -14,11 +14,9 @@
 import time
 import numpy as np
 import tensorflow as tf
-from keras import backend as K
-
-K._LEARNING_PHASE = tf.constant(0)
 
 from keras.callbacks import EarlyStopping
+import keras.backend as K
 from sklearn.metrics import (f1_score)
 from sklearn.metrics import roc_curve, auc
 from sklearn.model_selection import StratifiedKFold
@@ -40,39 +38,46 @@ class Evaluator():
             - gpu
             - cpu
         """
-        self.x = np.array(x)
-        self.y = np.array(y)
-        self.kfold_number = kfold_number
+        self._x = np.array(x)
+        self._y = np.array(y)
+        self._kfold_number = kfold_number
 
         if device == 'cpu':
-            self.device = '/device:CPU:0'
+            self._device = '/device:CPU:0'
         elif device == 'gpu':
-            self.device = '/device:GPU:0'
-        self.generator = generator
+            self._device = '/device:GPU:0'
+        self._generator = generator
+        self._create_tokens = True
 
-        self.use_multiprocessing = True
-        self.workers = 2
-        self.early_stopping = {
+        self._use_multiprocessing = True
+        self._workers = 2
+        self._early_stopping = {
             'min_delta': 0.005,
             'patience': 5}
-        self.verbose = 0
-        self.fitness_measure = 'AUC'
+        self._verbose = 0
+        self._fitness_measure = 'AUC'
 
     def set_early_stopping(self, min_delta=0.005, patience=5):
         """
         Set early stopping parameters for training
         Please, be careful
         """
+        self._early_stopping['min_delta'] = min_delta
+        self._early_stopping['patience'] = patience
 
-        self.early_stopping['min_delta'] = min_delta
-        self.early_stopping['patience'] = patience
+    def set_create_tokens(self, value):
+        """
+        Set create tokens False or True,
+        if False, prepare data in form of sequences of numeric values
+        """
+        self._create_tokens = value
 
     def set_verbose(self, level=0):
         """
         Set verbose level, dont touch it, with large amount of individs the number
         of info messages will be too large
         """
-        self.verbose = level
+        self._verbose = level
 
     def set_fitness_measure(self, measure):
         """
@@ -82,7 +87,7 @@ class Evaluator():
             - AUC
             - f1
         """
-        self.fitness_measure = measure
+        self._fitness_measure = measure
 
     def set_device(self, device='cpu', number=1):
         """
@@ -90,19 +95,19 @@ class Evaluator():
         device: str cpu or gpu
         number: int number of available devices
         memory_limit: int size of available memory
-        TODO: set multiple devices, set memory limits
         """
+        # TODO: set multiple devices, set memory limits
         if device == 'cpu':
-            self.device == '/device:CPU:' + str(number)
+            self._device == '/device:CPU:' + str(number)
         elif device == 'gpu':
-            self.device == '/device:GPU:' + str(number)
+            self._device == '/device:GPU:' + str(number)
 
     def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
         """
         Set multiprocessing parameters for data generator
         """
-        self.use_multiprocessing = use_multiprocessing
-        self.workers = workers
+        self._use_multiprocessing = use_multiprocessing
+        self._workers = workers
 
     def fit(self, network):
         """
@@ -113,57 +118,62 @@ class Evaluator():
         real_out = []
 
         data = Data(
-            self.x,
-            self.y,
-            data_type=network.get_data_type(),
-            task_type=network.get_task_type(),
-            data_processing=network.get_data_processing())
+            self._x,
+            self._y,
+            data_type=network.data_type,
+            task_type=network.task_type,
+            data_processing=network.data_processing,
+            create_tokens=self._create_tokens)
 
         x, y = data.process_data()
 
-        kfold = StratifiedKFold(n_splits=self.kfold_number)
-        for train, test in kfold.split(np.zeros(x.shape), y.argmax(-1)):
+        if self._kfold_number != 1:
+            kfold = StratifiedKFold(n_splits=self._kfold_number)
+            kfold_generator = kfold.split(np.zeros(self._x.shape), y.argmax(-1))
+        else:
+            # create list of indexes
+            # to work without cross-validation and avoid code duplication
+            # we imitate kfold behaviour and return two lists of indexes
+            kfold_generator = [[list(range(self._x.shape[0]))] * 2]
+
+        for train, test in kfold_generator:
             # work only with this device
-            with tf.device(self.device):
+            with tf.device(self._device):
                 try:
                     nn, optimizer, loss = network.init_tf_graph()
-                    print(nn.summary())
                     nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
                     early_stopping = EarlyStopping(
                         monitor='val_loss',
-                        min_delta=self.early_stopping['min_delta'],
-                        patience=self.early_stopping['patience'],
+                        min_delta=self._early_stopping['min_delta'],
+                        patience=self._early_stopping['patience'],
                         mode='auto',
-                        verbose=False)
+                        verbose=self._verbose)
                     callbacks = [early_stopping]
-
                     nn.fit(
                         x[train], y[train],
-                        batch_size=network.get_training_parameters()['batchs'],
-                        epochs=network.get_training_parameters()['epochs'],
+                        batch_size=network.training_parameters['batchs'],
+                        epochs=network.training_parameters['epochs'],
                         validation_data=(x[test], y[test]),
                         callbacks=callbacks,
                         shuffle=True,
-                        verbose=self.verbose)
+                        verbose=self._verbose)
 
                     predicted = nn.predict(x[test])
                     real = y[test]
 
-                    # Dear Keras, please, study the resources management!
-                    K.clear_session()
-
                     predicted_out.extend(predicted)
                     real_out.extend(real)
                 except Exception as e:
-                    print(e)
-                    return 0.0
+                    raise
 
             tf.reset_default_graph()
 
+            K.clear_session()
+
         training_time -= time.time()
 
-        if network.get_task_type() == 'classification':
+        if network.task_type == 'classification':
             result = self.test_classification(predicted_out, real_out, network.options['classes'])
 
         return result
@@ -176,60 +186,69 @@ class Evaluator():
         predicted_out = []
         real_out = []
 
-        kfold = StratifiedKFold(n_splits=self.kfold_number)
-        for train, test in kfold.split(np.zeros(len(self.x)), np.zeros(len(self.y))):
+        if self._kfold_number != 1:
+            kfold = StratifiedKFold(n_splits=self._kfold_number)
+            kfold_generator = kfold.split(np.zeros(len(self._x)), np.zeros(len(self._y)))
+        else:
+            # create list of indexes
+            # to work without cross-validation and avoid code duplication
+            # we imitate kfold behaviour and return two lists of indexes
+            kfold_generator = [[list(range(self._x.shape[0]))] * 2]
+
+        for train, test in kfold_generator:
             train_generator = DataGenerator(
-                self.x[train],
-                self.y[train],
-                data_type=network.get_data_type(),
-                task_type=network.get_task_type(),
-                data_processing=network.get_data_processing())
+                self._x[train],
+                self._y[train],
+                data_type=network.data_type,
+                task_type=network.task_type,
+                data_processing=network.data_processing,
+                create_tokens=self._create_tokens)
 
             test_generator = DataGenerator(
-                self.x[test],
-                self.y[test],
-                data_type=network.get_data_type(),
-                task_type=network.get_task_type(),
-                data_processing=network.get_data_processing())
+                self._x[test],
+                self._y[test],
+                data_type=network.data_type,
+                task_type=network.task_type,
+                data_processing=network.data_processing,
+                create_tokens=self._create_tokens)
 
             # work only with this device
-            with tf.device(self.device):
+            with tf.device(self._device):
                 nn, optimizer, loss = network.init_tf_graph()
                 nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
                 early_stopping = EarlyStopping(
                     monitor='val_loss',
-                    min_delta=self.early_stopping['min_delta'],
-                    patience=self.early_stopping['patience'],
+                    min_delta=self._early_stopping['min_delta'],
+                    patience=self._early_stopping['patience'],
                     mode='auto',
                     verbose=False)
                 callbacks = [early_stopping]
 
                 nn.fit_generator(
                     generator=train_generator,
-                    epochs=network.get_training_parameters()['epochs'],
-                    verbose=self.verbose,
+                    epochs=network.training_parameters['epochs'],
+                    verbose=self._verbose,
                     callbacks=callbacks,
                     validation_data=test_generator,
-                    workers=self.workers,
-                    use_multiprocessing=self.use_multiprocessing)
+                    workers=self._workers,
+                    use_multiprocessing=self._use_multiprocessing)
 
                 predicted = nn.predict_generator(
                     test_generator,
-                    workers=self.workers,
-                    use_multiprocessing=self.use_multiprocessing)
+                    workers=self._workers,
+                    use_multiprocessing=self._use_multiprocessing)
 
                 # TODO: Generator should work with pointers to files,
-                # TODO: so, self.y and self.x will be a list of file names in future
-                real = self.y[test]
-
-                # Dear Keras, please, study the resources management!
-                K.clear_session()
+                # TODO: so, self._y and self._x will be a list of file names in future
+                real = self._y[test]
 
                 predicted_out.extend(predicted)
                 real_out.extend(real)
 
             tf.reset_default_graph()
+
+            K.clear_session()
 
         training_time -= time.time()
 
@@ -242,7 +261,7 @@ class Evaluator():
         """
         Return fitness results
         """
-        if self.fitness_measure == 'f1':
+        if self._fitness_measure == 'f1':
             predicted = np.array(predicted_out).argmax(-1)
             real = np.array(real_out).argmax(-1)
 
@@ -252,7 +271,7 @@ class Evaluator():
             # accuracy = accuracy_score(real, predicted)
             return f1
 
-        elif self.fitness_measure == 'AUC':
+        elif self._fitness_measure == 'AUC':
             fpr = dict()
             tpr = dict()
             roc_auc = []
@@ -261,6 +280,7 @@ class Evaluator():
                 try:
                     fpr[i], tpr[i], _ = roc_curve(np.array(real_out)[:, i], np.array(predicted_out)[:, i])
                 except Exception as e:
+                    print('AUC error', e)
                     fpr[i], tpr[i] = np.zeros(len(real_out)), np.zeros(len(predicted_out))
                 roc_auc.append(auc(fpr[i], tpr[i]))
 

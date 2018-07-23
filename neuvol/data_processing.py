@@ -24,7 +24,7 @@ class DataGenerator(Sequence):
     Generate data samples
     """
 
-    def __init__(self, x_raw, y_raw, data_processing, data_type, task_type, batch_size=32, shuffle=True):
+    def __init__(self, x_raw, y_raw, data_processing, data_type, task_type, batch_size=32, shuffle=True, create_tokens=True):
         self.x_raw = x_raw
         self.y_raw = y_raw
         self.data_processing = data_processing
@@ -32,6 +32,7 @@ class DataGenerator(Sequence):
         self.shuffle = shuffle
         self.data_type = data_type
         self.task_type = task_type
+        self.create_tokens = create_tokens
 
         self.on_epoch_end()
 
@@ -67,10 +68,12 @@ class DataGenerator(Sequence):
         if self.data_type == 'text':
             vocabular = self.data_processing['vocabular']
             sentences_length = self.data_processing['sentences_length']
+            sequences = self.x_raw
 
-            tokenizer = Tokenizer(num_words=vocabular)
-            tokenizer.fit_on_texts(self.x_raw)
-            sequences = tokenizer.texts_to_sequences(self.x_raw)
+            if self.create_tokens:
+                tokenizer = Tokenizer(num_words=vocabular)
+                tokenizer.fit_on_texts(self.x_raw)
+                sequences = tokenizer.texts_to_sequences(self.x_raw)
 
             x_raw = pad_sequences(sequences, sentences_length)
             y_raw = to_categorical(self.y_raw, num_classes=self.data_processing['classes'])
@@ -86,7 +89,7 @@ class DataGenerator(Sequence):
 
 
 class Data():
-    def __init__(self, x_raw, y_raw, data_type, task_type, data_processing):
+    def __init__(self, x_raw, y_raw, data_type, task_type, data_processing, create_tokens=True):
         """
         x_raw: list of input data
         y_raw: list of target data
@@ -103,6 +106,7 @@ class Data():
         self.data_type = data_type
         self.task_type = task_type
         self.data_processing = data_processing
+        self.create_tokens = create_tokens
 
     def process_data(self):
         """
@@ -111,10 +115,12 @@ class Data():
         if self.data_type == 'text':
             vocabular = self.data_processing['vocabular']
             sentences_length = self.data_processing['sentences_length']
+            sequences = self.x_raw
 
-            tokenizer = Tokenizer(num_words=vocabular)
-            tokenizer.fit_on_texts(self.x_raw)
-            sequences = tokenizer.texts_to_sequences(self.x_raw)
+            if self.create_tokens:
+                tokenizer = Tokenizer(num_words=vocabular)
+                tokenizer.fit_on_texts(self.x_raw)
+                sequences = tokenizer.texts_to_sequences(self.x_raw)
 
             x = pad_sequences(sequences, sentences_length)
             y = to_categorical(self.y_raw, num_classes=self.data_processing['classes'])

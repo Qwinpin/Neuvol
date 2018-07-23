@@ -1,4 +1,4 @@
-# ![logo](logo.png)Neural_evolution
+# ![logo](logo.png)Neuvol
 
 *Genetic algorithm to find the best neural network architecture with Keras*
 
@@ -13,7 +13,6 @@
 - Supported data types: texts.
 - CNN, Dense, LSTM layers are available
 - Dropout and reshape sub-layers (Flattern) are available too
-- All possible parameters for supported layers
 
 ### TODO
 
@@ -21,8 +20,7 @@
 - [ ] Images support
 - [ ] Timelines support
 - [ ] Regression models
-- [ ] Auto-regression models
-- [ ] Generative networks
+- [ ] Generative networks (??? almost impossible)
 - [ ] More available layers
 - [ ] More options (assumptions)
 - [x] Logo
