@@ -24,4 +24,3 @@ logger.setLevel(logging.INFO)
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-backend = 'tf' # or plaid

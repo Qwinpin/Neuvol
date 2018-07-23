@@ -11,26 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import pandas as pd
-import numpy as np
-import random
-import string
-
 from neuvol import evolution, evaluation
 
 
 def main_ev():
-    x = [' '.join([''.join(random.sample(string.ascii_lowercase, k=15)) for _ in range(25)]) for _ in range(1000)]
-    y = np.random.randint(0, 2, size=(1000)).tolist()
-
-    ev = evaluation.Evaluator(x, y, 1, generator=False)
-    options = {'classes': 2}
-    wop = evolution.Evolution(10, 5, ev, **options)
-    wop.cultivate()
-
-    for ind in wop.population:
-        print(ind.result)
+    pass
 
 
 if __name__ == "__main__":

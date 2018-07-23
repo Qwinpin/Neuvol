@@ -11,13 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ..config import backend
 import time
-from contextlib import ExitStack
 import numpy as np
-
-if backend == 'tf':
-    import tensorflow as tf
+import tensorflow as tf
 
 from keras.callbacks import EarlyStopping
 import keras.backend as K
@@ -142,7 +138,7 @@ class Evaluator():
 
         for train, test in kfold_generator:
             # work only with this device
-            with tf.device(self._device) if (backend == 'tf') else ExitStack():
+            with tf.device(self._device):
                 try:
                     nn, optimizer, loss = network.init_tf_graph()
                     nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
@@ -171,8 +167,7 @@ class Evaluator():
                 except Exception as e:
                     raise
 
-            if (backend == 'tf'):
-                tf.reset_default_graph()
+            tf.reset_default_graph()
 
             K.clear_session()
 
@@ -218,7 +213,7 @@ class Evaluator():
                 create_tokens=self._create_tokens)
 
             # work only with this device
-            with tf.device(self._device) if (backend == 'tf') else ExitStack():
+            with tf.device(self._device):
                 nn, optimizer, loss = network.init_tf_graph()
                 nn.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
@@ -251,8 +246,7 @@ class Evaluator():
                 predicted_out.extend(predicted)
                 real_out.extend(real)
 
-            if (backend == 'tf'):
-                tf.reset_default_graph()
+            tf.reset_default_graph()
 
             K.clear_session()
 

@@ -40,7 +40,7 @@ class Evolution():
     def _create_population(self):
         for _ in range(self.population_size):
             self.population.append(
-                architecture.Individ(0, self.data_type, self.task_type, freeze=self.freeze, **self.options))
+                architecture.cradle(0, self.data_type, self.task_type, freeze=self.freeze, **self.options))
 
     def mutation_step(self):
         for _ in range(int(self.mutation_pool_size * self.population_size)):
