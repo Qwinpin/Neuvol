@@ -12,8 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
+from collections import namedtuple
+import faker
 
 
+EVENT = namedtuple('event', ['type', 'stage'])
+FAKE = faker.Faker()
 FLOAT32 = np.float32
 
 # Training parameters

@@ -13,26 +13,28 @@
 # limitations under the License.
 import numpy as np
 
-from .individ_base import Individ_base
-from .constants import LAYERS_POOL, POOL_SIZE
-from .layer import Layer
+from .individ_base import IndividBase
+from ..constants import LAYERS_POOL, POOL_SIZE
+from ..layer import Layer
 
 
-class Individ_text(Individ_base):
+class IndividText(IndividBase):
     """
     Invidiv class for text data types
     """
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
-        Individ_base.__init__(self, stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
+        IndividBase.__init__(self, stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
         self._data_processing_type = 'text'
 
-    def _random_init(self):
+    def _random_init_architecture(self):
         """
         At first, we set probabilities pool and the we change
         this uniform distribution according to previous layer
         """
         if self._architecture:
             self._architecture = []
+
+        architecture = []
 
         # choose number of layers
         self._layers_number = np.random.randint(1, 10)
@@ -70,21 +72,20 @@ class Individ_text(Individ_base):
                     next_layer = 'last_dense'
 
             layer = Layer(pool_index[name], previous_layer, next_layer)
-            self._architecture.append(layer)
+            architecture.append(layer)
 
         # Push embedding for texts
         layer = Layer('embedding')
-        self._architecture.insert(0, layer)
+        architecture.insert(0, layer)
 
         if self._task_type == 'classification':
             # Add last layer according to task type (usually perceptron)
             layer = Layer('last_dense', classes=self.options['classes'])
-            self._architecture.append(layer)
+            architecture.append(layer)
         else:
             raise Exception('Unsupported task type')
 
-        self._training_parameters = self._random_init_training()
-        self._data_processing = self._random_init_data_processing()
+        return architecture
 
     def _random_init_data_processing(self):
         if not self._architecture:
@@ -101,5 +102,6 @@ class Individ_text(Individ_base):
         """
         Create new object as crossing between this one and the other
         """
-        new_individ = Individ_text(stage=stage, classes=2, parents=(self, other))
+        new_individ = IndividText(stage=stage, classes=2, parents=(self, other))
+
         return new_individ

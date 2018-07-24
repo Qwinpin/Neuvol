@@ -11,25 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from collections import namedtuple
-
-import faker
 import numpy as np
-from keras.layers import (Bidirectional, Conv1D, Dense, Dropout,
-                          Embedding, Flatten)
-from keras.layers.recurrent import LSTM
 from keras.models import Sequential
 from keras.optimizers import RMSprop, adam
 
-from .constants import LAYERS_POOL, TRAINING
-from .layer import Layer
-
-Event = namedtuple('event', ['type', 'stage'])
-fake = faker.Faker()
+from ..constants import TRAINING, EVENT, FAKE
+from ..layer import Layer, init_layer
 
 
-class Individ_base():
+class IndividBase():
     """
     Invidiv class
     """
@@ -52,8 +42,8 @@ class Individ_base():
         self._freeze = freeze
         self._parents = parents
         self.options = kwargs
-        self._history = [Event('Init', stage)]
-        self._name = fake.name().replace(' ', '_') + '_' + str(stage)
+        self._history = [EVENT('Init', stage)]
+        self._name = FAKE.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = []
         self._data_processing = None
         self._training_parameters = None
@@ -68,62 +58,15 @@ class Individ_base():
 
         self._check_compatibility()
 
-    def _init_layer(self, layer):
-        """
-        Return layer according its configs as keras object
-        """
-        if layer.type == 'lstm':
-            layer_tf = LSTM(
-                units=layer.config['units'],
-                recurrent_dropout=layer.config['recurrent_dropout'],
-                activation=layer.config['activation'],
-                implementation=layer.config['implementation'],
-                return_sequences=layer.config['return_sequences'])
-
-        elif layer.type == 'bi':
-            layer_tf = Bidirectional(
-                LSTM(
-                    units=layer.config['units'],
-                    recurrent_dropout=layer.config['recurrent_dropout'],
-                    activation=layer.config['activation'],
-                    implementation=layer.config['implementation'],
-                    return_sequences=layer.config['return_sequences']))
-
-        elif layer.type == 'dense':
-            layer_tf = Dense(
-                units=layer.config['units'],
-                activation=layer.config['activation'])
-
-        elif layer.type == 'last_dense':
-            layer_tf = Dense(
-                units=layer.config['units'],
-                activation=layer.config['activation'])
-
-        elif layer.type == 'cnn':
-            layer_tf = Conv1D(
-                filters=layer.config['filters'],
-                kernel_size=[layer.config['kernel_size']],
-                strides=[layer.config['strides']],
-                padding=layer.config['padding'],
-                dilation_rate=tuple([layer.config['dilation_rate']]),
-                activation=layer.config['activation'])
-
-        elif layer.type == 'dropout':
-            layer_tf = Dropout(rate=layer.config['rate'])
-
-        elif layer.type == 'embedding':
-            layer_tf = Embedding(
-                input_dim=layer.config['vocabular'],
-                output_dim=layer.config['embedding_dim'],
-                input_length=layer.config['sentences_length'],
-                trainable=layer.config['trainable'])
-
-        elif layer.type == 'flatten':
-            layer_tf = Flatten()
-
-        return layer_tf
+    def __str__(self):
+        return None
 
     def _random_init(self):
+        self._architecture = self._random_init_architecture()
+        self._data_processing = self._random_init_data_processing()
+        self._training_parameters = self._random_init_training()
+
+    def _random_init_architecture(self):
         pass
 
     def _init_with_crossing(self):
@@ -147,7 +90,7 @@ class Individ_base():
             'father_architecture_parameter',
             'father_data_processing'])
 
-        self._history.append(Event('Birth', self._stage))
+        self._history.append(EVENT('Birth', self._stage))
 
         if pairing_type == 'father_architecture':
             # Father's architecture and mother's training and data
@@ -166,8 +109,8 @@ class Individ_base():
 
         elif pairing_type == 'father_architecture_layers':
             # Select father's architecture and replace random layer with mother's layer
-            changes_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
-            alter_layer = np.random.choice([i for i in range(1, len(mother.architecture) - 1)])
+            changes_layer = np.random.choice([i for i in range(1, len(self._architecture))])
+            alter_layer = np.random.choice([i for i in range(1, len(mother.architecture))])
 
             self._architecture = father.architecture
             self._architecture[changes_layer] = mother.architecture[alter_layer]
@@ -221,6 +164,7 @@ class Individ_base():
         training_tmp = {}
         for i in variables:
             training_tmp[i] = np.random.choice(TRAINING[i])
+
         return training_tmp
 
     def _random_init_data_processing(self):
@@ -321,13 +265,13 @@ class Individ_base():
 
         for i, layer in enumerate(self._architecture):
             try:
-                network_graph.add(self._init_layer(layer))
+                network_graph.add(init_layer(layer))
             except ValueError as e:
                 # in some cases shape of previous output could be less than kernel size of cnn
                 # it leads to a negative dimension size error
                 # add same padding to avoid this problem
                 layer.config['padding'] = 'same'
-                network_graph.add(self._init_layer(layer))
+                network_graph.add(init_layer(layer))
 
         if self._training_parameters['optimizer'] == 'adam':
             optimizer = adam(
@@ -348,62 +292,11 @@ class Individ_base():
 
         return network_graph, optimizer, loss
 
-    def mutation(self, stage):
-        """
-        Darwin was right. Change some part of individ with some probability
-        """
-        mutation_type = np.random.choice(['architecture', 'train', 'all'], p=(0.45, 0.45, 0.1))
-        self._history.append(Event('Mutation', stage))
-
-        if mutation_type == 'architecture':
-            # all - change the whole net
-            mutation_size = np.random.choice(['all', 'part', 'parameters'], p=(0.3, 0.3, 0.4))
-
-            if mutation_size == 'all':
-                # If some parts of the architecture change, the processing of data must also change
-                self._random_init()
-
-            elif mutation_size == 'part':
-                # select layer except the first and the last one - embedding and dense(*)
-                mutation_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
-
-                # find next layer to avoid incopabilities in neural architecture
-                next_layer = self._architecture[mutation_layer + 1]
-                new_layer = np.random.choice(list(LAYERS_POOL.keys()))
-                layer = Layer(new_layer, next_layer=next_layer)
-
-                self._architecture[mutation_layer] = layer
-
-            elif mutation_size == 'parameters':
-                # select layer except the first and the last one - embedding and dense(3)
-                mutation_layer = np.random.choice([i for i in range(1, len(self._architecture) - 1)])
-
-                # find next layer to avoid incopabilities in neural architecture
-                next_layer = self._architecture[mutation_layer + 1]
-                new_layer = self._architecture[mutation_layer].type
-
-                self._architecture[mutation_layer] = Layer(new_layer, next_layer=next_layer)
-
-        elif mutation_type == 'train':
-            mutation_size = np.random.choice(['all', 'part'], p=(0.3, 0.7))
-
-            if mutation_size == 'all':
-                self._training_parameters = self._random_init_training()
-
-            elif mutation_size == 'part':
-                mutation_parameter = np.random.choice(list(TRAINING))
-                new_training = self._random_init_training()
-                self._training_parameters[mutation_parameter] = new_training[mutation_parameter]
-
-        elif mutation_type == 'all':
-            # change the whole individ - similar to death and rebirth
-            self._random_init()
-
     def crossing(self, other, stage):
         pass
 
     @property
-    def get_layer_number(self):
+    def layers_number(self):
         return self._layers_number
 
     @property
@@ -474,3 +367,46 @@ class Individ_base():
         New fitness result
         """
         self._result = value
+
+    @history.setter
+    def history(self, event):
+        """
+        Add new event to the history
+        """
+        self._history.append(event)
+
+    def random_init(self):
+        """
+        Public method for random initialisation
+        """
+        self._random_init()
+
+    def random_init_architecture(self):
+        """
+        Public method for random architecture initialisation
+        """
+        return self._random_init_architecture()
+
+    def random_init_data_processing(self):
+        """
+        Public method for random data processing initialisation
+        """
+        return self._random_init_data_processing()
+
+    def random_init_training(self):
+        """
+        Public method for random training initialisation
+        """
+        return self._random_init_training()
+
+    @data_processing.setter
+    def data_processing(self, data_processing):
+        self._data_processing = data_processing
+
+    @training_parameters.setter
+    def training_parameters(self, training_parameters):
+        self._training_parameters = training_parameters
+
+    @architecture.setter
+    def architecture(self, architecture):
+        self._architecture = architecture

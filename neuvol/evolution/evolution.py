@@ -16,15 +16,15 @@ import numpy as np
 from tqdm import tqdm
 from copy import deepcopy
 
-from .. import architecture
+from ..architecture import cradle
 
 
 class Evolution():
-    def __init__(self, stages, population_size, evaluator, data_type='text', task_type='classification', freeze=None,
-                 **kwargs):
+    def __init__(self, stages, population_size, evaluator, mutator, data_type='text', task_type='classification', freeze=None, **kwargs):
         self.stages = stages
         self.population_size = population_size
         self.evaluator = evaluator
+        self.mutator = mutator
         self.data_type = data_type
         self.task_type = task_type
         self.freeze = freeze
@@ -40,12 +40,12 @@ class Evolution():
     def _create_population(self):
         for _ in range(self.population_size):
             self.population.append(
-                architecture.cradle(0, self.data_type, self.task_type, freeze=self.freeze, **self.options))
+                cradle(0, self.data_type, self.task_type, freeze=self.freeze, **self.options))
 
     def mutation_step(self):
         for _ in range(int(self.mutation_pool_size * self.population_size)):
             index = int(np.random.randint(0, len(self.population)))
-            self.population[index].mutation(self.current_stage)
+            self.population[index] = self.mutator.mutate(self.population[index], self.current_stage)
 
     def step(self):
         for network in self.population:

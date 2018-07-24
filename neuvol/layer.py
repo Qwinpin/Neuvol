@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import numpy as np
+from keras.layers import (Bidirectional, Conv1D, Dense, Dropout,
+                          Embedding, Flatten)
+from keras.layers.recurrent import LSTM
 
 from .constants import LAYERS_POOL, SPECIAL
 
@@ -75,3 +78,59 @@ class Layer():
                     self.config['padding'] = 'same'
             else:
                 self.config['dilation_rate'] = 1
+
+
+def init_layer(layer):
+    """
+    Return layer according its configs as keras object
+    """
+    if layer.type == 'lstm':
+        layer_tf = LSTM(
+            units=layer.config['units'],
+            recurrent_dropout=layer.config['recurrent_dropout'],
+            activation=layer.config['activation'],
+            implementation=layer.config['implementation'],
+            return_sequences=layer.config['return_sequences'])
+
+    elif layer.type == 'bi':
+        layer_tf = Bidirectional(
+            LSTM(
+                units=layer.config['units'],
+                recurrent_dropout=layer.config['recurrent_dropout'],
+                activation=layer.config['activation'],
+                implementation=layer.config['implementation'],
+                return_sequences=layer.config['return_sequences']))
+
+    elif layer.type == 'dense':
+        layer_tf = Dense(
+            units=layer.config['units'],
+            activation=layer.config['activation'])
+
+    elif layer.type == 'last_dense':
+        layer_tf = Dense(
+            units=layer.config['units'],
+            activation=layer.config['activation'])
+
+    elif layer.type == 'cnn':
+        layer_tf = Conv1D(
+            filters=layer.config['filters'],
+            kernel_size=[layer.config['kernel_size']],
+            strides=[layer.config['strides']],
+            padding=layer.config['padding'],
+            dilation_rate=tuple([layer.config['dilation_rate']]),
+            activation=layer.config['activation'])
+
+    elif layer.type == 'dropout':
+        layer_tf = Dropout(rate=layer.config['rate'])
+
+    elif layer.type == 'embedding':
+        layer_tf = Embedding(
+            input_dim=layer.config['vocabular'],
+            output_dim=layer.config['embedding_dim'],
+            input_length=layer.config['sentences_length'],
+            trainable=layer.config['trainable'])
+
+    elif layer.type == 'flatten':
+        layer_tf = Flatten()
+
+    return layer_tf

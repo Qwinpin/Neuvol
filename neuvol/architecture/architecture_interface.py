@@ -1,4 +1,4 @@
-from .individ_text import Individ_text
+from .individ_text import IndividText
 
 
 def cradle(stage, data_type='text', task_type='classification', parents=None, freeze=None, **kwargs):
@@ -6,4 +6,4 @@ def cradle(stage, data_type='text', task_type='classification', parents=None, fr
     Factory method for different data types
     """
     if data_type == 'text':
-        return Individ_text(stage, task_type='classification', parents=None, freeze=None, **kwargs)
+        return IndividText(stage, task_type='classification', parents=None, freeze=None, **kwargs)
