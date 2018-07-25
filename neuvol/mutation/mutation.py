@@ -13,7 +13,7 @@
 # limitations under the License.
 import numpy as np
 
-from ..constants import TRAINING, EVENT
+from ..constants import EVENT, TRAINING
 from ..layer import Layer, LAYERS_POOL
 
 

@@ -12,17 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import time
+
+import keras.backend as K
+from keras.callbacks import EarlyStopping
 import numpy as np
+from sklearn.metrics import auc, roc_curve
+from sklearn.metrics import (f1_score)
+from sklearn.model_selection import StratifiedKFold
 import tensorflow as tf
 
-from keras.callbacks import EarlyStopping
-import keras.backend as K
-from sklearn.metrics import (f1_score)
-from sklearn.metrics import roc_curve, auc
-from sklearn.model_selection import StratifiedKFold
-
-from ..data import DataGenerator
 from ..data import Data
+from ..data import DataGenerator
 
 
 class Evaluator():
@@ -98,9 +98,9 @@ class Evaluator():
         """
         # TODO: set multiple devices, set memory limits
         if device == 'cpu':
-            self._device == '/device:CPU:' + str(number)
+            self._device = '/device:CPU:' + str(number)
         elif device == 'gpu':
-            self._device == '/device:GPU:' + str(number)
+            self._device = '/device:GPU:' + str(number)
 
     def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
         """
@@ -164,7 +164,7 @@ class Evaluator():
 
                     predicted_out.extend(predicted)
                     real_out.extend(real)
-                except Exception as e:
+                except Exception:
                     raise
 
             tf.reset_default_graph()

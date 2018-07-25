@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
 from keras.models import Sequential
-from keras.optimizers import RMSprop, adam
+from keras.optimizers import adam, RMSprop
+import numpy as np
 
-from ..constants import TRAINING, EVENT, FAKE
-from ..layer import Layer, init_layer
+from ..constants import EVENT, FAKE, TRAINING
+from ..layer import init_layer, Layer
 
 
 class IndividBase():
@@ -263,10 +263,10 @@ class IndividBase():
         network_graph = Sequential()
         self._check_compatibility()
 
-        for i, layer in enumerate(self._architecture):
+        for layer in self._architecture:
             try:
                 network_graph.add(init_layer(layer))
-            except ValueError as e:
+            except ValueError:
                 # in some cases shape of previous output could be less than kernel size of cnn
                 # it leads to a negative dimension size error
                 # add same padding to avoid this problem

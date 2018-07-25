@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
 from keras.layers import (Bidirectional, Conv1D, Dense, Dropout,
                           Embedding, Flatten)
 from keras.layers.recurrent import LSTM
+import numpy as np
 
 from .constants import LAYERS_POOL, SPECIAL
 
