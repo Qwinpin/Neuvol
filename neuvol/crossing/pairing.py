@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from .crossing_interface import pairing
 
-import logging
 
-HANDLER = logging.FileHandler("log.log")
-FORMATTER = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d')
+class Crosser():
+    def __init__(self):
+        pass
 
-LOGGER = logging.getLogger('default')
-LOGGER.setLevel(logging.INFO)
-
-HANDLER.setFormatter(FORMATTER)
-LOGGER.addHandler(HANDLER)
+    def pairing(self, father, mother, stage):
+        return pairing(father.data_type).cross(father, mother, stage)

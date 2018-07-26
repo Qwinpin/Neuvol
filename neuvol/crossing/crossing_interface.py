@@ -11,15 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from .pairing_text import CrosserText
 
-import logging
 
-HANDLER = logging.FileHandler("log.log")
-FORMATTER = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d')
-
-LOGGER = logging.getLogger('default')
-LOGGER.setLevel(logging.INFO)
-
-HANDLER.setFormatter(FORMATTER)
-LOGGER.addHandler(HANDLER)
+def pairing(data_type):
+    if data_type == 'text':
+        return CrosserText

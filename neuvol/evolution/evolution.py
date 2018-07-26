@@ -20,11 +20,22 @@ from ..architecture import cradle
 
 
 class Evolution():
-    def __init__(self, stages, population_size, evaluator, mutator, data_type='text', task_type='classification', freeze=None, **kwargs):
+    def __init__(
+            self,
+            stages,
+            population_size,
+            evaluator,
+            mutator,
+            crosser,
+            data_type='text',
+            task_type='classification',
+            freeze=None,
+            **kwargs):
         self.stages = stages
         self.population_size = population_size
         self.evaluator = evaluator
         self.mutator = mutator
+        self.crosser = crosser
         self.data_type = data_type
         self.task_type = task_type
         self.freeze = freeze
@@ -59,9 +70,9 @@ class Evolution():
             index_father = int(np.random.randint(0, len(self.population)))
             index_mother = int(np.random.randint(0, len(self.population)))
 
-            new_individ = deepcopy(self.population[index_father]).crossing(
-                deepcopy(self.population[index_mother]),
-                self.current_stage)
+            new_individ = self.crosser.pairing(
+                deepcopy(self.population[index_father]),
+                deepcopy(self.population[index_mother]), self.current_stage)
 
             self.population.append(new_individ)
 

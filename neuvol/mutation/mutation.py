@@ -73,8 +73,8 @@ class Mutator():
 
         elif mutation_type == 'all':
             # change the whole individ - similar to death and rebirth
-            architecture = network.random_init_architecture
-            training_parameters = network._random_init_training
+            architecture = network.random_init_architecture()
+            training_parameters = network.random_init_training()
 
         data_processing['sentences_length'] = architecture[0].config['sentences_length']
 

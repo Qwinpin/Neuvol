@@ -42,7 +42,7 @@ class IndividBase():
         self._freeze = freeze
         self._parents = parents
         self.options = kwargs
-        self._history = [EVENT('Init', stage)]
+        self._history = []
         self._name = FAKE.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = []
         self._data_processing = None
@@ -53,10 +53,11 @@ class IndividBase():
 
         if self._parents is None:
             self._random_init()
+            self._history.append(EVENT('Init', stage))
         else:
-            self._init_with_crossing()
-
-        self._check_compatibility()
+            self._task_type = parents[0].task_type
+            self._data_processing_type = parents[0].data_type
+            self._history.append(EVENT('Birth', self._stage))
 
     def __str__(self):
         return None
@@ -69,96 +70,12 @@ class IndividBase():
     def _random_init_architecture(self):
         pass
 
-    def _init_with_crossing(self):
-        """
-        New individ parameters according its parents (only 2 now, classic)
-        """
-        # TODO: add compatibility checker after all crossing
-        father = self._parents[0]
-        mother = self._parents[1]
-        # father_architecture - chose architecture from first individ and text
-        # and train from second
-        # father_training - only training config from first one
-        # father_arch_layers - select overlapping layers
-        # and replace parameters from the first architecture
-        # with parameters from the second
-
-        pairing_type = np.random.choice([
-            'father_architecture',
-            'father_training',
-            'father_architecture_layers',
-            'father_architecture_parameter',
-            'father_data_processing'])
-
-        self._history.append(EVENT('Birth', self._stage))
-
-        if pairing_type == 'father_architecture':
-            # Father's architecture and mother's training and data
-            self._architecture = father.architecture
-            self._training_parameters = mother.training_parameters
-            self._data_processing = mother.data_processing
-
-            # change data processing parameter to avoid incompatibility
-            self._data_processing['sentences_length'] = father.data_processing['sentences_length']
-
-        elif pairing_type == 'father_training':
-            # Father's training and mother's architecture and data
-            self._architecture = mother.architecture
-            self._training_parameters = father.training_parameters
-            self._data_processing = mother.data_processing
-
-        elif pairing_type == 'father_architecture_layers':
-            # Select father's architecture and replace random layer with mother's layer
-            changes_layer = np.random.choice([i for i in range(1, len(self._architecture))])
-            alter_layer = np.random.choice([i for i in range(1, len(mother.architecture))])
-
-            self._architecture = father.architecture
-            self._architecture[changes_layer] = mother.architecture[alter_layer]
-            self._training_parameters = father.training_parameters
-            self._data_processing = father.data_processing
-
-        elif pairing_type == 'father_architecture_parameter':
-            # Select father's architecture and change layer parameters with mother's layer
-            # dont touch first and last elements - embedding and dense(3),
-            # too many dependencies with text model
-            # select common layer
-            tmp_father = [layer.type for layer in father.architecture[1:-1]]
-            tmp_mother = [layer.type for layer in mother.architecture[1:-1]]
-
-            intersections = set(tmp_father) & set(tmp_mother)
-
-            if not intersections:
-                self._architecture = father.architecture
-                self._training_parameters = father.training_parameters
-                self._data_processing = father.data_processing
-
-            intersected_layer = np.random.choice(list(intersections))
-
-            # add 1, because we did not take into account first layer
-            changes_layer = tmp_father.index(intersected_layer) + 1
-            alter_layer = tmp_mother.index(intersected_layer) + 1
-
-            self._architecture = father.architecture
-            self._architecture[changes_layer] = mother.architecture[alter_layer]
-            self._training_parameters = father.training_parameters
-            self._data_processing = father.data_processing
-
-        elif pairing_type == 'father_data_processing':
-            # Select father's data processing and mother's architecture and training
-            # change mother's embedding to avoid mismatchs in dimensions
-            self._architecture = mother.architecture
-            self._training_parameters = mother.training_parameters
-            self._data_processing = father.data_processing
-
-            # change data processing parameter to avoid incompatibility
-            self._architecture[0] = father.architecture[0]
-
     def _random_init_training(self):
         """
         Initialize training parameters
         """
         if not self._architecture:
-            raise Exception('Not initialized yet')
+            self._architecture = self._random_init_architecture()
 
         variables = list(TRAINING)
         training_tmp = {}

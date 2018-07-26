@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 
-HANDLER = logging.FileHandler("log.log")
-FORMATTER = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d')
+class CrosserBase():
+    """
+    Crossing class for textual data
+    """
+    def __init__(self):
+        pass
 
-LOGGER = logging.getLogger('default')
-LOGGER.setLevel(logging.INFO)
-
-HANDLER.setFormatter(FORMATTER)
-LOGGER.addHandler(HANDLER)
+    @staticmethod
+    def cross(father, mother, stage):
+        pass
