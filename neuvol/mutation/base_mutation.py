@@ -11,12 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .crossing_interface import pairing
 
 
-class Crosser():
-    def __init__(self):
+class MutatorBase():
+    """
+    Mutator class for textual data
+    """
+
+    @staticmethod
+    def mutate(individ):
+        """
+        Mutate individ
+        """
         pass
-
-    def pairing(self, father, mother, stage):
-        return pairing(father.data_type).cross(father, mother, stage)

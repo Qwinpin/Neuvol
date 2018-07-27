@@ -20,6 +20,9 @@ from ..architecture import cradle
 
 
 class Evolution():
+    """
+    Simple class that performs evolution process
+    """
     def __init__(
             self,
             stages,
@@ -49,16 +52,25 @@ class Evolution():
         self._create_population()
 
     def _create_population(self):
+        """
+        First individ initialisation
+        """
         for _ in range(self.population_size):
             self.population.append(
                 cradle(0, self.data_type, self.task_type, freeze=self.freeze, **self.options))
 
     def mutation_step(self):
+        """
+        Mutate randomly chosen individs
+        """
         for _ in range(int(self.mutation_pool_size * self.population_size)):
             index = int(np.random.randint(0, len(self.population)))
             self.population[index] = self.mutator.mutate(self.population[index], self.current_stage)
 
     def step(self):
+        """
+        Perform one step of evolution, that consists of evaluation and death
+        """
         for network in self.population:
             network.result = self.evaluator.fit(network)
 
@@ -66,6 +78,9 @@ class Evolution():
         self.population = best_individs[:int(-self.mortality_rate * self.population_size)]
 
     def crossing_step(self):
+        """
+        Cross two individs and create new one
+        """
         for _ in range(self.population_size - len(self.population)):
             index_father = int(np.random.randint(0, len(self.population)))
             index_mother = int(np.random.randint(0, len(self.population)))
@@ -77,6 +92,9 @@ class Evolution():
             self.population.append(new_individ)
 
     def cultivate(self):
+        """
+        Perform all evolutional steps
+        """
         for i in tqdm(range(self.stages)):
             print('\nStage #{}\n'.format(i))
 

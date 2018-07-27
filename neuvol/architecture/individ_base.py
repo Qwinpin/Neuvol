@@ -25,8 +25,6 @@ class IndividBase():
     """
     # TODO: add support for different data types
     # TODO: add support for different task types
-    # TODO: all data types as subclass?
-    # TODO: network parser to avoid layer compatibility errors and shape errors
 
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
         """
@@ -60,7 +58,7 @@ class IndividBase():
             self._history.append(EVENT('Birth', self._stage))
 
     def __str__(self):
-        return None
+        return self.name
 
     def _random_init(self):
         self._architecture = self._random_init_architecture()
@@ -92,7 +90,7 @@ class IndividBase():
 
     def _check_compatibility(self):
         """
-        Check shapes compatibilities, modify layer if it is necessary
+        Check shapes compatibilities of different layers, modify layer if it is necessary
         """
         previous_shape = []
         shape_structure = []
@@ -107,30 +105,30 @@ class IndividBase():
                 padding = layer.config['padding']
                 strides = layer.config['strides']
                 dilation_rate = layer.config['dilation_rate']
-                input = previous_shape[1:-1]
+                input_layer = previous_shape[1:-1]
                 out = []
 
                 # convolution output shape depends on padding and stride
                 if padding == 'valid':
                     if strides == 1:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append(side - kernel_size[i] + 1)
                     else:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append((side - kernel_size[i]) // strides + 1)
 
                 elif padding == 'same':
                     if strides == 1:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append(side - kernel_size[i] + (2 * (kernel_size[i] // 2)) + 1)
                     else:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append((side - kernel_size[i] + (2 * (kernel_size[i] // 2))) // strides + 1)
 
                 elif padding == 'causal':
-                    for i, side in enumerate(input):
+                    for i, side in enumerate(input_layer):
                         out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (
-                                    dilation_rate - 1)) // strides + 1)
+                            dilation_rate - 1)) // strides + 1)
 
                 # check for negative values
                 if any(side <= 0 for size in out):
@@ -172,7 +170,7 @@ class IndividBase():
 
     def init_tf_graph(self):
         """
-        Return tensorflow graph from individ architecture
+        Return tensorflow graph, configurated optimizer and loss type of this individ
         """
         if not self._architecture:
             raise Exception('Non initialized net')
@@ -209,49 +207,76 @@ class IndividBase():
 
         return network_graph, optimizer, loss
 
-    def crossing(self, other, stage):
-        pass
-
     @property
     def layers_number(self):
+        """
+        Get the number of layers in the network
+        """
         return self._layers_number
 
     @property
     def data_type(self):
+        """
+        Get the type of data
+        """
         return self._data_processing_type
 
     @property
     def task_type(self):
+        """
+        Get the type of task
+        """
         return self._task_type
 
     @property
     def history(self):
+        """
+        Get the history of this individ
+        """
         return self._history
 
     @property
     def classes(self):
-        return self.options['classes']
+        """
+        Get the number of classes if it is exists, None otherwise
+        """
+        if self.options.get("classes", None) is not None:
+            return self.options['classes']
+        else:
+            return None
 
     @property
     def name(self):
+        """
+        Get the name of this individ
+        """
         return self._name
 
     @property
     def stage(self):
+        """
+        Get the stage of birth
+        """
         return self._stage
 
     @property
     def architecture(self):
+        """
+        Get the architecture in pure form: list of Layer's object
+        """
         return self._architecture
 
     @property
     def parents(self):
+        """
+        Get parents of this individ
+        """
         return self._parents
 
     @property
     def schema(self):
         """
-        Return network schema
+        Get the network schema in textual form
         """
         schema = [(i.type, i.config) for i in self._architecture]
 
@@ -260,28 +285,28 @@ class IndividBase():
     @property
     def data_processing(self):
         """
-        Return data processing parameters
+        Get the data processing parameters
         """
         return self._data_processing
 
     @property
     def training_parameters(self):
         """
-        Return training parameters
+        Get the training parameters
         """
         return self._training_parameters
 
     @property
     def result(self):
         """
-        Return fitness measure
+        Get the result of the efficiency (f1 or AUC)
         """
         return self._result
 
     @result.setter
     def result(self, value):
         """
-        New fitness result
+        Set new fitness result
         """
         self._result = value
 
@@ -294,36 +319,45 @@ class IndividBase():
 
     def random_init(self):
         """
-        Public method for random initialisation
+        Public method for calling the random initialisation
         """
         self._random_init()
 
     def random_init_architecture(self):
         """
-        Public method for random architecture initialisation
+        Public method for calling the random architecture initialisation
         """
         return self._random_init_architecture()
 
     def random_init_data_processing(self):
         """
-        Public method for random data processing initialisation
+        Public method for calling the random data processing initialisation
         """
         return self._random_init_data_processing()
 
     def random_init_training(self):
         """
-        Public method for random training initialisation
+        Public method for calling the random training initialisation
         """
         return self._random_init_training()
 
     @data_processing.setter
     def data_processing(self, data_processing):
+        """
+        Set a new data processing config
+        """
         self._data_processing = data_processing
 
     @training_parameters.setter
     def training_parameters(self, training_parameters):
+        """
+        Set a new training parameters
+        """
         self._training_parameters = training_parameters
 
     @architecture.setter
     def architecture(self, architecture):
+        """
+        Set a new architecture
+        """
         self._architecture = architecture

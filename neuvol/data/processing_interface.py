@@ -15,5 +15,8 @@ from .text_processing import ProcessingText
 
 
 def processing(data_type):
+    """
+    Interface for data processing of different type of data
+    """
     if data_type == 'text':
         return ProcessingText

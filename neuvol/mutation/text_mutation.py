@@ -11,21 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .mutation_interface import mutation
-from ..constants import EVENT
+import numpy as np
+
+from .base_mutation import MutatorBase
+from .mutation_modules import perform_mutation
 
 
-class Mutator():
+class MutatorText(MutatorBase):
     """
-    Class for mutation performing
+    Mutator class for textual data
     """
-    def __init__(self):
-        pass
 
-    def mutate(self, network, stage):
+    @staticmethod
+    def mutate(individ):
         """
-        Darwin was right. Change some part of individ with some probability
+        Mutate individ
         """
-        network.history = EVENT('Mutation', stage)
+        mutation_type = np.random.choice([
+            'architecture_part',
+            'architecture_parameters',
+            'training_all',
+            'training_part'
+        ])
 
-        return mutation(network.data_type).mutate(network)
+        individ = perform_mutation(individ, mutation_type)
+        individ.data_processing['sentences_length'] = individ.architecture[0].config['sentences_length']
+
+        return individ

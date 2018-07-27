@@ -19,4 +19,7 @@ class ProcessingBase():
     """
     @staticmethod
     def data(x_raw, y_raw, data_processing, create_tokens):
+        """
+        Static method for data processing
+        """
         pass
