@@ -72,7 +72,10 @@ class Evolution():
         Perform one step of evolution, that consists of evaluation and death
         """
         for network in self.population:
-            network.result = self.evaluator.fit(network)
+            try:
+                network.result = self.evaluator.fit(network)
+            except:
+                network.result = 0.0
 
         best_individs = sorted(self.population, key=lambda individ: (-1) * individ.result)
         self.population = best_individs[:int(-self.mortality_rate * self.population_size)]

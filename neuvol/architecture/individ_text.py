@@ -15,7 +15,7 @@ import numpy as np
 
 from .individ_base import IndividBase
 from ..constants import LAYERS_POOL, POOL_SIZE
-from ..layer import Layer
+from ..layer.block import Block
 
 
 class IndividText(IndividBase):
@@ -70,18 +70,18 @@ class IndividText(IndividBase):
             if i == len(tmp_architecture) - 1:
                 if self._task_type == 'classification':
                     next_layer = 'last_dense'
-
-            layer = Layer(pool_index[name], previous_layer, next_layer)
-            architecture.append(layer)
+            layers_number = np.random.randint(1, 4)
+            block = Block(pool_index[name], layers_number, previous_layer, next_layer)
+            architecture.append(block)
 
         # Push embedding for texts
-        layer = Layer('embedding')
-        architecture.insert(0, layer)
+        block = Block('embedding')
+        architecture.insert(0, block)
 
         if self._task_type == 'classification':
             # Add last layer according to task type (usually perceptron)
-            layer = Layer('last_dense', classes=self.options['classes'])
-            architecture.append(layer)
+            block = Block('last_dense', classes=self.options['classes'])
+            architecture.append(block)
         else:
             raise Exception('Unsupported task type')
 

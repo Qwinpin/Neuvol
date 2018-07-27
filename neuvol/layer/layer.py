@@ -16,14 +16,13 @@ from keras.layers import (Bidirectional, Conv1D, Dense, Dropout,
 from keras.layers.recurrent import LSTM
 import numpy as np
 
-from .constants import LAYERS_POOL, SPECIAL
+from ..constants import LAYERS_POOL, SPECIAL
 
 
 class Layer():
     """
     Single layer class with compatibility checking
     """
-
     def __init__(self, layer_type, previous_layer=None, next_layer=None, classes=None):
         self._classes = classes
         self.config = {}
@@ -54,7 +53,6 @@ class Layer():
     def _check_compatibility(self, previous_layer, next_layer):
         """
         Check data shape in specific case such as lstm or bi-lstm
-        TODO: check negative dimension size in case of convolution layers
         """
         if self.type == 'lstm':
             if next_layer is not None and next_layer != 'last_dense':

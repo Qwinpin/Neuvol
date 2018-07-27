@@ -14,7 +14,8 @@
 import numpy as np
 
 from ...constants import TRAINING
-from ...layer import Layer, LAYERS_POOL
+from ...layer.block import Block
+from ...layer.layer import LAYERS_POOL
 
 
 def perform_mutation(individ, mutation_type):
@@ -43,9 +44,9 @@ def architecture_part(individ):
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
     new_layer = np.random.choice(list(LAYERS_POOL.keys()))
-    layer = Layer(new_layer, next_layer=next_layer)
+    block = Block(new_layer, next_block=next_layer)
 
-    individ.architecture[mutation_layer] = layer
+    individ.architecture[mutation_layer] = block
 
     return individ
 
@@ -60,7 +61,7 @@ def architecture_parameters(individ):
     next_layer = individ.architecture[mutation_layer + 1]
     new_layer = individ.architecture[mutation_layer].type
 
-    individ.architecture[mutation_layer] = Layer(new_layer, next_layer=next_layer)
+    individ.architecture[mutation_layer] = Block(new_layer, next_block=next_layer)
 
     return individ
 

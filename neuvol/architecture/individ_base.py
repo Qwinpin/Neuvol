@@ -16,7 +16,7 @@ from keras.optimizers import adam, RMSprop
 import numpy as np
 
 from ..constants import EVENT, FAKE, TRAINING
-from ..layer import init_layer, Layer
+from ..layer.layer import init_layer, Layer
 
 
 class IndividBase():
@@ -278,7 +278,7 @@ class IndividBase():
         """
         Get the network schema in textual form
         """
-        schema = [(i.type, i.config) for i in self._architecture]
+        schema = [(i.type, i.config_all) for i in self._architecture]
 
         return schema
 
