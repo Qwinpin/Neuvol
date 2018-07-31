@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from keras.layers import (Bidirectional, Conv1D, Dense, Dropout,
-                          Embedding, Flatten)
+                          Embedding, Flatten, Input)
 from keras.layers.recurrent import LSTM
 import numpy as np
 
@@ -23,19 +23,26 @@ class Layer():
     """
     Single layer class with compatibility checking
     """
-    def __init__(self, layer_type, previous_layer=None, next_layer=None, classes=None):
-        self._classes = classes
+    def __init__(self, layer_type, previous_layer=None, next_layer=None, **kwargs):
         self.config = {}
         self.type = layer_type
+        self.options = kwargs
 
         self._init_parameters()
         self._check_compatibility(previous_layer, next_layer)
 
     def _init_parameters(self):
-        if self.type == 'embedding':
+        if self.type == 'input':
+            # set shape of the input - shape of the data
+            self.config['shape'] = self.options['shape']
+
+        elif self.type == 'embedding':
             variables = list(SPECIAL[self.type])
             for parameter in variables:
                 self.config[parameter] = np.random.choice(SPECIAL[self.type][parameter])
+
+            # select the first element in the shape tuple
+            self.config['sentences_length'] = self.options['shape'][0]
 
         elif self.type == 'last_dense':
             variables = list(LAYERS_POOL['dense'])
@@ -67,7 +74,7 @@ class Layer():
                 self.config['return_sequences'] = False
 
         elif self.type == 'last_dense':
-            self.config['units'] = self._classes
+            self.config['units'] = self.options['classes']
 
         elif self.type == 'cnn':
             if self.config['padding'] == 'causal':
@@ -82,7 +89,11 @@ def init_layer(layer):
     """
     Return layer according its configs as keras object
     """
-    if layer.type == 'lstm':
+    if layer.type == 'input':
+        layer_tf = Input(
+            shape=layer.config['shape'])
+
+    elif layer.type == 'lstm':
         layer_tf = LSTM(
             units=layer.config['units'],
             recurrent_dropout=layer.config['recurrent_dropout'],

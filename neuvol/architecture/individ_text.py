@@ -37,7 +37,7 @@ class IndividText(IndividBase):
         architecture = []
 
         # choose number of layers
-        self._layers_number = np.random.randint(1, 10)
+        self._layers_number = np.random.randint(1, self.options.get('depth', 10))
 
         # initialize pool of uniform probabilities
         probabilities_pool = np.full((POOL_SIZE), 1 / POOL_SIZE)
@@ -52,6 +52,7 @@ class IndividText(IndividBase):
         tmp_architecture = []
 
         # Create structure
+        # TODO: complex probabilities for the whole population
         for i in range(self._layers_number):
             # choose layer index
             tmp_layer = np.random.choice(list(pool_index.keys()), p=probabilities_pool)
@@ -70,17 +71,24 @@ class IndividText(IndividBase):
             if i == len(tmp_architecture) - 1:
                 if self._task_type == 'classification':
                     next_layer = 'last_dense'
-            layers_number = np.random.randint(1, 4)
-            block = Block(pool_index[name], layers_number, previous_layer, next_layer)
+
+            # choose the number of layers in one block (like inception)
+            # TODO: autoscaling
+            layers_number = np.random.choice(range(1, 5), p=[0.7, 0.1, 0.1, 0.1])
+            block = Block(pool_index[name], layers_number, previous_layer, next_layer, **self.options)
             architecture.append(block)
 
         # Push embedding for texts
-        block = Block('embedding')
+        block = Block('embedding', layers_number=1, **self.options)
+        architecture.insert(0, block)
+
+        # Push input layer for functional keras api
+        block = Block('input', layers_number=1, **self.options)
         architecture.insert(0, block)
 
         if self._task_type == 'classification':
             # Add last layer according to task type (usually perceptron)
-            block = Block('last_dense', classes=self.options['classes'])
+            block = Block('last_dense', layers_number=1, **self.options)
             architecture.append(block)
         else:
             raise Exception('Unsupported task type')
@@ -92,8 +100,8 @@ class IndividText(IndividBase):
             raise Exception('Not initialized yet')
 
         data_tmp = {}
-        data_tmp['vocabular'] = self._architecture[0].config['vocabular']
-        data_tmp['sentences_length'] = self._architecture[0].config['sentences_length']
+        data_tmp['vocabular'] = self._architecture[1].config['vocabular']
+        data_tmp['sentences_length'] = self.options['shape'][0]
         data_tmp['classes'] = self.options['classes']
 
         return data_tmp

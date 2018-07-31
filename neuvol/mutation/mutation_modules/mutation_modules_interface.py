@@ -44,7 +44,7 @@ def architecture_part(individ):
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
     new_layer = np.random.choice(list(LAYERS_POOL.keys()))
-    block = Block(new_layer, next_block=next_layer)
+    block = Block(new_layer, next_block=next_layer, **individ.options)
 
     individ.architecture[mutation_layer] = block
 
@@ -61,7 +61,7 @@ def architecture_parameters(individ):
     next_layer = individ.architecture[mutation_layer + 1]
     new_layer = individ.architecture[mutation_layer].type
 
-    individ.architecture[mutation_layer] = Block(new_layer, next_block=next_layer)
+    individ.architecture[mutation_layer] = Block(new_layer, next_block=next_layer, **individ.options)
 
     return individ
 

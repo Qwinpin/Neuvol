@@ -75,7 +75,7 @@ class Evolution():
             try:
                 network.result = self.evaluator.fit(network)
             except:
-                network.result = 0.0
+                network.result = [0.0, 0.0]
 
         best_individs = sorted(self.population, key=lambda individ: (-1) * individ.result)
         self.population = best_individs[:int(-self.mortality_rate * self.population_size)]
@@ -88,7 +88,7 @@ class Evolution():
             index_father = int(np.random.randint(0, len(self.population)))
             index_mother = int(np.random.randint(0, len(self.population)))
 
-            new_individ = self.crosser.pairing(
+            new_individ = self.crosser.cross(
                 deepcopy(self.population[index_father]),
                 deepcopy(self.population[index_mother]), self.current_stage)
 

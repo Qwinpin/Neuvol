@@ -18,13 +18,13 @@ class Block():
     """
     Block of layers class
     """
-    def __init__(self, layers_type, layers_number=1, previous_block=None, next_block=None, classes=None):
-        self._classes = classes
+    def __init__(self, layers_type, layers_number=1, previous_block=None, next_block=None, **kwargs):
         self.layers = None
         self.type = layers_type
         self.shape = layers_number
         self.previous_block = previous_block
         self.next_block = next_block
+        self.options = kwargs
 
         self._init_parameters()
         self._check_compatibility()
@@ -35,14 +35,31 @@ class Block():
         """
         previous_layers = self.previous_block if self.previous_block is not None else None
         next_layer = self.next_block if self.next_block is not None else None
-        
-        self.layers = [Layer(self.type, previous_layers, next_layer, classes=self._classes) for _ in range(self.shape)]
+
+        tmp_kwargs = self.options
+        self.layers = [Layer(self.type, previous_layers, next_layer, **tmp_kwargs) for _ in range(self.shape)]
 
     def _check_compatibility(self):
-        if self.type == 'last_dense' or self.type == 'embedding':
-            self.shape = 1
-            # we have to use only 1 output and 1 input layer
-            self.layers = [self.layers[0]]
+        """
+        For the output shape compatibility we need to freeze padding as the 'same'
+        """
+        # TODO: layers and block compatibility checker in one place
+        if self.shape > 1:
+            if self.type == 'dropout':
+                pass
+
+            elif self.type == 'cnn':
+                strides = self.layers[0].config['strides']
+                dilation_rate = self.layers[0].config['dilation_rate']
+                for layer in self.layers:
+                    layer.config['padding'] = 'same'
+                    layer.config['strides'] = strides
+                    layer.config['dilation_rate'] = dilation_rate
+
+            else:
+                output = self.layers[0].config['units']
+                for layer in self.layers:
+                    layer.config['units'] = output
 
     @property
     def config(self):
@@ -57,5 +74,5 @@ class Block():
         Return configs of all layers
         """
         info = [layer.config for layer in self.layers]
-        
+
         return info

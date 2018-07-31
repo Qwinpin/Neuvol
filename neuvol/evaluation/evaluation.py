@@ -275,6 +275,11 @@ class Evaluator():
             fpr = dict()
             tpr = dict()
             roc_auc = []
+            real_out[np.isnan(real_out)] = 0
+            predicted_out[np.isnan(predicted_out)] = 0
+
+            real_out[np.isinf(real_out)] = 0
+            predicted_out[np.isinf(predicted_out)] = 0
 
             for i in range(classes):
                 try:
