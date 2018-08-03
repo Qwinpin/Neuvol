@@ -57,29 +57,64 @@ class Evaluator():
         self._verbose = 0
         self._fitness_measure = 'AUC'
 
-    def set_early_stopping(self, min_delta=0.005, patience=5):
+    @property
+    def early_stopping_min_delta(self):
+        return self._early_stopping['min_delta']
+
+    @property
+    def early_stopping_patience(self):
+        return self._early_stopping['patience']
+
+    @property
+    def create_tokens(self):
+        return self._create_tokens
+
+    @property
+    def verbose(self):
+        return self._verbose
+
+    @property
+    def fitness_measure(self):
+        return self._fitness_measure
+
+    @property
+    def device(self):
+        return self._device
+
+    @early_stopping_min_delta.setter
+    def early_stopping_min_delta(self, ,min_delta):
         """
         Set early stopping parameters for training
         Please, be careful
         """
         self._early_stopping['min_delta'] = min_delta
+
+    @early_stopping_patience.setter
+    def early_stopping_patience(self, patience):
+        """
+        Set early stopping parameters for training
+        Please, be careful
+        """
         self._early_stopping['patience'] = patience
 
-    def set_create_tokens(self, value):
+    @create_tokens.setter
+    def create_tokens(self, create_tokens):
         """
         Set create tokens False or True,
         if False, prepare data in form of sequences of numeric values
         """
-        self._create_tokens = value
+        self._create_tokens = create_tokens
 
-    def set_verbose(self, level=0):
+    @verbose.setter
+    def verbose(self, verbose):
         """
         Set verbose level, dont touch it, with large amount of individs the number
         of info messages will be too large
         """
-        self._verbose = level
+        self._verbose = verbose
 
-    def set_fitness_measure(self, measure):
+    @fitness_measure.setter
+    def fitness_measure(self, fitness_measure):
         """
         Set fitness measure - This parameter determines the criterion
         for the effectiveness of the model
@@ -87,20 +122,15 @@ class Evaluator():
             - AUC
             - f1
         """
-        self._fitness_measure = measure
+        self._fitness_measure = fitness_measure
 
-    def set_device(self, device='cpu', number=1):
+    @device.setter
+    def device(self, device):
         """
         Manualy device management
         device: str cpu or gpu
-        number: int number of available devices
-        memory_limit: int size of available memory
         """
-        # TODO: set multiple devices, set memory limits
-        if device == 'cpu':
-            self._device = '/device:CPU:' + str(number)
-        elif device == 'gpu':
-            self._device = '/device:GPU:' + str(number)
+        self._device = device
 
     def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
         """
@@ -269,17 +299,17 @@ class Evaluator():
             # precision = precision_score(real, predicted, average=None)
             # recall = recall_score(real, predicted, average=None)
             # accuracy = accuracy_score(real, predicted)
-            return f1
+            return np.sum(f1)
 
         elif self._fitness_measure == 'AUC':
             fpr = dict()
             tpr = dict()
             roc_auc = []
-            real_out[np.isnan(real_out)] = 0
-            predicted_out[np.isnan(predicted_out)] = 0
+            # real_out[np.isnan(real_out)] = 0
+            # predicted_out[np.isnan(predicted_out)] = 0
 
-            real_out[np.isinf(real_out)] = 0
-            predicted_out[np.isinf(predicted_out)] = 0
+            # real_out[np.isinf(real_out)] = 0
+            # predicted_out[np.isinf(predicted_out)] = 0
 
             for i in range(classes):
                 try:
@@ -289,7 +319,7 @@ class Evaluator():
                     fpr[i], tpr[i] = np.zeros(len(real_out)), np.zeros(len(predicted_out))
                 roc_auc.append(auc(fpr[i], tpr[i]))
 
-            return roc_auc
+            return np.sum(roc_auc)
 
         else:
             raise Exception('Unrecognized fitness measure')

@@ -37,9 +37,9 @@ def perform_mutation(individ, mutation_type):
 
 def architecture_part(individ):
     """
-    select layer except the first and the last one - embedding and dense(*)
+    select layer except the first and second one and the last one - input, embedding and dense(*)
     """
-    mutation_layer = np.random.choice([i for i in range(1, len(individ.architecture) - 1)])
+    mutation_layer = np.random.choice([i for i in range(2, len(individ.architecture) - 1)])
 
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
@@ -53,9 +53,9 @@ def architecture_part(individ):
 
 def architecture_parameters(individ):
     """
-    Select layer except the first and the last one - embedding and dense(3)
+    select layer except the first and second one and the last one - input, embedding and dense(*)
     """
-    mutation_layer = np.random.choice([i for i in range(1, len(individ.architecture) - 1)])
+    mutation_layer = np.random.choice([i for i in range(2, len(individ.architecture) - 1)])
 
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
