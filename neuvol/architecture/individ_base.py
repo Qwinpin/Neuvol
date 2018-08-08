@@ -11,12 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.models import Sequential
+from keras.layers import concatenate
+from keras.models import Model
 from keras.optimizers import adam, RMSprop
 import numpy as np
 
 from ..constants import EVENT, FAKE, TRAINING
-from ..layer import init_layer, Layer
+from ..layer.block import Block
+from ..layer.layer import init_layer
+from ..probabilty_pool import Distribution
 
 
 class IndividBase():
@@ -78,7 +81,7 @@ class IndividBase():
         variables = list(TRAINING)
         training_tmp = {}
         for i in variables:
-            training_tmp[i] = np.random.choice(TRAINING[i])
+            training_tmp[i] = Distribution.training_parameters(i)
 
         return training_tmp
 
@@ -95,16 +98,20 @@ class IndividBase():
         previous_shape = []
         shape_structure = []
         # create structure of flow shape
-        for layer in self._architecture:
-            if layer.type == 'embedding':
-                output_shape = (2, layer.config['sentences_length'], layer.config['embedding_dim'])
+        for block in self._architecture:
+            # select only one layer from the block
+            # we assume, that their output shape is the same
+            if block.type == 'input':
+                output_shape = block.config['shape']
+            if block.type == 'embedding':
+                output_shape = (2, block.config['sentences_length'], block.config['embedding_dim'])
 
-            if layer.type == 'cnn':
-                filters = layer.config['filters']
-                kernel_size = [layer.config['kernel_size']]
-                padding = layer.config['padding']
-                strides = layer.config['strides']
-                dilation_rate = layer.config['dilation_rate']
+            if block.type == 'cnn':
+                filters = block.config['filters']
+                kernel_size = [block.config['kernel_size']]
+                padding = block.config['padding']
+                strides = block.config['strides']
+                dilation_rate = block.config['dilation_rate']
                 input_layer = previous_shape[1:-1]
                 out = []
 
@@ -132,28 +139,29 @@ class IndividBase():
 
                 # check for negative values
                 if any(side <= 0 for size in out):
-                    layer.config['padding'] = 'same'
+                    for layer in block:
+                        layer.config['padding'] = 'same'
                 output_shape = (previous_shape[0], *out, filters)
 
-            elif layer.type == 'lstm' or layer.type == 'bi':
-                units = layer.config['units']
+            elif block.type == 'lstm' or block.type == 'bi':
+                units = block.config['units']
 
                 # if we return sequence, output has 3-dim
-                sequences = layer.config['return_sequences']
+                sequences = block.config['return_sequences']
 
                 # bidirectional lstm returns double basic lstm output
-                bi = 2 if layer.type == 'bi' else 1
+                bi = 2 if block.type == 'bi' else 1
 
                 if sequences:
                     output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
                 else:
                     output_shape = (1, units * bi)
 
-            elif layer.type == 'dense' or layer.type == 'last_dense':
-                units = layer.config['units']
+            elif block.type == 'dense' or block.type == 'last_dense':
+                units = block.config['units']
                 output_shape = (previous_shape[0], *previous_shape[1:-1], units)
 
-            elif layer.type == 'flatten':
+            elif block.type == 'flatten':
                 output_shape = (1, np.prod(previous_shape[1:]))
 
             previous_shape = output_shape
@@ -163,7 +171,7 @@ class IndividBase():
             # Reshape data flow in case of dimensional incompatibility
             # output shape for classifier must be 2-dim
             if shape_structure[-1][0] != 1:
-                new_layer = Layer('flatten', None, None)
+                new_layer = Block('flatten', previous_block=None, next_block=None, layers_number=1)
                 self._architecture.insert(-1, new_layer)
 
         self.shape_structure = shape_structure
@@ -175,18 +183,30 @@ class IndividBase():
         if not self._architecture:
             raise Exception('Non initialized net')
 
-        network_graph = Sequential()
+        network_graph_input = init_layer(self._architecture[0])
+        network_graph = network_graph_input
         self._check_compatibility()
 
-        for layer in self._architecture:
-            try:
-                network_graph.add(init_layer(layer))
-            except ValueError:
-                # in some cases shape of previous output could be less than kernel size of cnn
-                # it leads to a negative dimension size error
-                # add same padding to avoid this problem
-                layer.config['padding'] = 'same'
-                network_graph.add(init_layer(layer))
+        for block in self._architecture[1:]:
+            if block.shape > 1:
+                # we need to create list of layers and concatenate them
+                tmp_block = []
+                for layer in block.layers:
+                    tmp_block.append(init_layer(layer)(network_graph))
+
+                network_graph = concatenate(tmp_block, axis=-1)
+
+            else:
+                # we need just to add new layer
+
+                network_graph = init_layer(block)(network_graph)
+            # except ValueError:
+            # in some cases shape of previous output could be less than kernel size of cnn
+            # it leads to a negative dimension size error
+            # add same padding to avoid this problem
+            #    layer.config['padding'] = 'same'
+            #    network_graph.add(init_layer(layer))
+        model = Model(inputs=[network_graph_input], outputs=[network_graph])
 
         if self._training_parameters['optimizer'] == 'adam':
             optimizer = adam(
@@ -205,7 +225,7 @@ class IndividBase():
         else:
             raise Exception('Unsupported task type')
 
-        return network_graph, optimizer, loss
+        return model, optimizer, loss
 
     @property
     def layers_number(self):
@@ -262,7 +282,7 @@ class IndividBase():
     @property
     def architecture(self):
         """
-        Get the architecture in pure form: list of Layer's object
+        Get the architecture in pure form: list of Block's object
         """
         return self._architecture
 
@@ -278,7 +298,7 @@ class IndividBase():
         """
         Get the network schema in textual form
         """
-        schema = [(i.type, i.config) for i in self._architecture]
+        schema = [(i.type, i.config_all) for i in self._architecture]
 
         return schema
 

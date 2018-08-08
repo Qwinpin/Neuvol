@@ -14,7 +14,8 @@
 import numpy as np
 
 from ...constants import TRAINING
-from ...layer import Layer, LAYERS_POOL
+from ...layer.block import Block
+from ...probabilty_pool import Distribution
 
 
 def perform_mutation(individ, mutation_type):
@@ -36,31 +37,31 @@ def perform_mutation(individ, mutation_type):
 
 def architecture_part(individ):
     """
-    select layer except the first and the last one - embedding and dense(*)
+    select layer except the first and second one and the last one - input, embedding and dense(*)
     """
-    mutation_layer = np.random.choice([i for i in range(1, len(individ.architecture) - 1)])
+    mutation_layer = np.random.choice([i for i in range(2, len(individ.architecture) - 1)])
 
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
-    new_layer = np.random.choice(list(LAYERS_POOL.keys()))
-    layer = Layer(new_layer, next_layer=next_layer)
+    new_layer = Distribution.layer()
+    block = Block(new_layer, next_block=next_layer, **individ.options)
 
-    individ.architecture[mutation_layer] = layer
+    individ.architecture[mutation_layer] = block
 
     return individ
 
 
 def architecture_parameters(individ):
     """
-    Select layer except the first and the last one - embedding and dense(3)
+    select layer except the first and second one and the last one - input, embedding and dense(*)
     """
-    mutation_layer = np.random.choice([i for i in range(1, len(individ.architecture) - 1)])
+    mutation_layer = np.random.choice([i for i in range(2, len(individ.architecture) - 1)])
 
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
     new_layer = individ.architecture[mutation_layer].type
 
-    individ.architecture[mutation_layer] = Layer(new_layer, next_layer=next_layer)
+    individ.architecture[mutation_layer] = Block(new_layer, next_block=next_layer, **individ.options)
 
     return individ
 
@@ -79,7 +80,6 @@ def training_part(individ):
     Choose and mutate only one parameters
     """
     mutation_parameter = np.random.choice(list(TRAINING))
-    new_training = individ.random_init_training()
-    individ.training_parameters[mutation_parameter] = new_training[mutation_parameter]
+    individ.training_parameters[mutation_parameter] = Distribution.training_parameters(mutation_parameter)
 
     return individ

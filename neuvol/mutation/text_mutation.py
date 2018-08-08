@@ -35,6 +35,6 @@ class MutatorText(MutatorBase):
         ])
 
         individ = perform_mutation(individ, mutation_type)
-        individ.data_processing['sentences_length'] = individ.architecture[0].config['sentences_length']
+        individ.data_processing['sentences_length'] = individ.architecture[1].config['sentences_length']
 
         return individ

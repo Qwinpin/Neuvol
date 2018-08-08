@@ -52,13 +52,13 @@ def father_architecture_pairing(individ, father, mother):
 
 def father_architecture_layers_pairing(individ, father, mother):
     """
-    Select father's architecture and replace random layer with mother's layer
+    Select father's architecture and replace random block with mother's layer
     """
-    changes_layer = np.random.choice([i for i in range(1, len(father.architecture))])
-    alter_layer = np.random.choice([i for i in range(1, len(mother.architecture))])
+    changes_block = np.random.choice([i for i in range(2, len(father.architecture))])
+    alter_block = np.random.choice([i for i in range(2, len(mother.architecture))])
 
     individ.architecture = father.architecture
-    individ.architecture[changes_layer] = mother.architecture[alter_layer]
+    individ.architecture[changes_block] = mother.architecture[alter_block]
     individ.training_parameters = father.training_parameters
     individ.data_processing = father.data_processing
 
@@ -67,13 +67,13 @@ def father_architecture_layers_pairing(individ, father, mother):
 
 def father_architecture_parameter_pairing(individ, father, mother):
     """
-    Select father's architecture and change layer parameters with mother's layer
-    dont touch first and last elements - embedding and dense(3),
+    Select father's architecture and change block parameters with mother's block
+    dont touch first, second and last elements - input, embedding and dense(3),
     too many dependencies with text model
-    select common layer
+    select shared block
     """
-    tmp_father = [layer.type for layer in father.architecture[1:-1]]
-    tmp_mother = [layer.type for layer in mother.architecture[1:-1]]
+    tmp_father = [block.type for block in father.architecture[2:-1]]
+    tmp_mother = [block.type for block in mother.architecture[2:-1]]
 
     intersections = set(tmp_father) & set(tmp_mother)
 
@@ -81,17 +81,18 @@ def father_architecture_parameter_pairing(individ, father, mother):
         individ.architecture = father.architecture
         individ.training_parameters = father.training_parameters
         individ.data_processing = father.data_processing
+    
+    else:
+        intersected_block = np.random.choice(list(intersections))
 
-    intersected_layer = np.random.choice(list(intersections))
+        # add 1, because we did not take into account first two block
+        changes_block = tmp_father.index(intersected_block) + 2
+        alter_block = tmp_mother.index(intersected_block) + 2
 
-    # add 1, because we did not take into account first layer
-    changes_layer = tmp_father.index(intersected_layer) + 1
-    alter_layer = tmp_mother.index(intersected_layer) + 1
-
-    individ.architecture = father.architecture
-    individ.architecture[changes_layer] = mother.architecture[alter_layer]
-    individ.training_parameters = father.training_parameters
-    individ.data_processing = father.data_processing
+        individ.architecture = father.architecture
+        individ.architecture[changes_block] = mother.architecture[alter_block]
+        individ.training_parameters = father.training_parameters
+        individ.data_processing = father.data_processing
 
     return individ
 
@@ -107,6 +108,7 @@ def father_data_processing_pairing(individ, father, mother):
 
     # change data processing parameter to avoid incompatibility
     individ.architecture[0] = father.architecture[0]
+    individ.architecture[1] = father.architecture[1]
 
     return individ
 
