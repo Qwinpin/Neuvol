@@ -11,4 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .mutation import Mutator
+
+
+class CrosserBase():
+    """
+    Crossing class for textual data
+    """
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def cross(father, mother, stage):
+        """
+        Definition of cross function
+        """
+        pass

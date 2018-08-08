@@ -14,8 +14,8 @@
 import numpy as np
 
 from .individ_base import IndividBase
-from ..constants import LAYERS_POOL, POOL_SIZE
-from ..layer import Layer
+from ..layer.block import Block
+from ..probabilty_pool import Distribution
 
 
 class IndividText(IndividBase):
@@ -37,51 +37,45 @@ class IndividText(IndividBase):
         architecture = []
 
         # choose number of layers
-        self._layers_number = np.random.randint(1, 10)
-
-        # initialize pool of uniform probabilities
-        probabilities_pool = np.full((POOL_SIZE), 1 / POOL_SIZE)
-
-        # dict of layers and their indexes
-        # indexes are used to change probabilities pool
-        pool_index = {i: name for i, name in enumerate(LAYERS_POOL.keys())}
+        self._layers_number = Distribution.layers_number()
 
         # layers around current one
         previous_layer = None
         next_layer = None
         tmp_architecture = []
 
-        # Create structure
-        for i in range(self._layers_number):
-            # choose layer index
-            tmp_layer = np.random.choice(list(pool_index.keys()), p=probabilities_pool)
-            tmp_architecture.append(tmp_layer)
-
-            # increase probability of this layer type
-            probabilities_pool[tmp_layer] *= 2
-            probabilities_pool /= probabilities_pool.sum()
-
         # generate architecture
-        for i, name in enumerate(tmp_architecture):
+        for i in range(self._layers_number):
             if i != 0:
-                previous_layer = pool_index[tmp_architecture[i - 1]]
-            if i < len(tmp_architecture) - 1:
-                next_layer = pool_index[tmp_architecture[i + 1]]
+                previous_layer = architecture[i - 1].type
+
+            if i < len(architecture) - 1:
+                next_layer = architecture[i + 1].type
+
             if i == len(tmp_architecture) - 1:
                 if self._task_type == 'classification':
                     next_layer = 'last_dense'
 
-            layer = Layer(pool_index[name], previous_layer, next_layer)
-            architecture.append(layer)
+            # choose the number of layers in one block (like inception)
+
+            layer = Distribution.layer()
+            layers_in_block_number = np.random.choice(range(1, 5), p=[0.7, 0.1, 0.1, 0.1])
+
+            block = Block(layer, layers_in_block_number, previous_layer, next_layer, **self.options)
+            architecture.append(block)
 
         # Push embedding for texts
-        layer = Layer('embedding')
-        architecture.insert(0, layer)
+        block = Block('embedding', layers_number=1, **self.options)
+        architecture.insert(0, block)
+
+        # Push input layer for functional keras api
+        block = Block('input', layers_number=1, **self.options)
+        architecture.insert(0, block)
 
         if self._task_type == 'classification':
             # Add last layer according to task type (usually perceptron)
-            layer = Layer('last_dense', classes=self.options['classes'])
-            architecture.append(layer)
+            block = Block('last_dense', layers_number=1, **self.options)
+            architecture.append(block)
         else:
             raise Exception('Unsupported task type')
 
@@ -92,9 +86,9 @@ class IndividText(IndividBase):
             raise Exception('Not initialized yet')
 
         data_tmp = {}
-        data_tmp['vocabular'] = self._architecture[0].config['vocabular']
-        data_tmp['sentences_length'] = self._architecture[0].config['sentences_length']
-        data_tmp['classes'] = self.options['classes']
+        data_tmp['vocabular'] = self._architecture[1].config['vocabular']
+        data_tmp['sentences_length'] = self.options.get('shape', [10])[0]
+        data_tmp['classes'] = self.options.get('classes', 2)
 
         return data_tmp
 

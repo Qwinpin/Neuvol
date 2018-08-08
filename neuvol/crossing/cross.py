@@ -11,4 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .mutation import Mutator
+from .pairing_interface import pairing
+
+
+class Crosser():
+    """
+    Crosser as a public point of entry
+    """
+    def __init__(self):
+        pass
+
+    def cross(self, father, mother, stage):
+        """
+        Get a new individ based on parents
+        """
+        return pairing(father.data_type).cross(father, mother, stage)

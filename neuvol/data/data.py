@@ -75,6 +75,9 @@ class DataGenerator(Sequence):
 
 
 class Data():
+    """
+    Class for data generation
+    """
     def __init__(self, x_raw, y_raw, data_type, task_type, data_processing, create_tokens=True):
         """
         x_raw: list of input data

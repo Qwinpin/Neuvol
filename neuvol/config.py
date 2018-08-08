@@ -14,12 +14,12 @@
 
 import logging
 
-handler = logging.FileHandler("log.log")
-formatter = logging.Formatter(
+HANDLER = logging.FileHandler("log.log")
+FORMATTER = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(lineno)d')
 
-logger = logging.getLogger('default')
-logger.setLevel(logging.INFO)
+LOGGER = logging.getLogger('default')
+LOGGER.setLevel(logging.INFO)
 
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+HANDLER.setFormatter(FORMATTER)
+LOGGER.addHandler(HANDLER)

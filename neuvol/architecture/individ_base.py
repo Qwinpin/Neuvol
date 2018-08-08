@@ -11,12 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.models import Sequential
+from keras.layers import concatenate
+from keras.models import Model
 from keras.optimizers import adam, RMSprop
 import numpy as np
 
 from ..constants import EVENT, FAKE, TRAINING
-from ..layer import init_layer, Layer
+from ..layer.block import Block
+from ..layer.layer import init_layer
+from ..probabilty_pool import Distribution
 
 
 class IndividBase():
@@ -25,8 +28,6 @@ class IndividBase():
     """
     # TODO: add support for different data types
     # TODO: add support for different task types
-    # TODO: all data types as subclass?
-    # TODO: network parser to avoid layer compatibility errors and shape errors
 
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
         """
@@ -42,7 +43,7 @@ class IndividBase():
         self._freeze = freeze
         self._parents = parents
         self.options = kwargs
-        self._history = [EVENT('Init', stage)]
+        self._history = []
         self._name = FAKE.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = []
         self._data_processing = None
@@ -53,13 +54,14 @@ class IndividBase():
 
         if self._parents is None:
             self._random_init()
+            self._history.append(EVENT('Init', stage))
         else:
-            self._init_with_crossing()
-
-        self._check_compatibility()
+            self._task_type = parents[0].task_type
+            self._data_processing_type = parents[0].data_type
+            self._history.append(EVENT('Birth', self._stage))
 
     def __str__(self):
-        return None
+        return self.name
 
     def _random_init(self):
         self._architecture = self._random_init_architecture()
@@ -69,101 +71,17 @@ class IndividBase():
     def _random_init_architecture(self):
         pass
 
-    def _init_with_crossing(self):
-        """
-        New individ parameters according its parents (only 2 now, classic)
-        """
-        # TODO: add compatibility checker after all crossing
-        father = self._parents[0]
-        mother = self._parents[1]
-        # father_architecture - chose architecture from first individ and text
-        # and train from second
-        # father_training - only training config from first one
-        # father_arch_layers - select overlapping layers
-        # and replace parameters from the first architecture
-        # with parameters from the second
-
-        pairing_type = np.random.choice([
-            'father_architecture',
-            'father_training',
-            'father_architecture_layers',
-            'father_architecture_parameter',
-            'father_data_processing'])
-
-        self._history.append(EVENT('Birth', self._stage))
-
-        if pairing_type == 'father_architecture':
-            # Father's architecture and mother's training and data
-            self._architecture = father.architecture
-            self._training_parameters = mother.training_parameters
-            self._data_processing = mother.data_processing
-
-            # change data processing parameter to avoid incompatibility
-            self._data_processing['sentences_length'] = father.data_processing['sentences_length']
-
-        elif pairing_type == 'father_training':
-            # Father's training and mother's architecture and data
-            self._architecture = mother.architecture
-            self._training_parameters = father.training_parameters
-            self._data_processing = mother.data_processing
-
-        elif pairing_type == 'father_architecture_layers':
-            # Select father's architecture and replace random layer with mother's layer
-            changes_layer = np.random.choice([i for i in range(1, len(self._architecture))])
-            alter_layer = np.random.choice([i for i in range(1, len(mother.architecture))])
-
-            self._architecture = father.architecture
-            self._architecture[changes_layer] = mother.architecture[alter_layer]
-            self._training_parameters = father.training_parameters
-            self._data_processing = father.data_processing
-
-        elif pairing_type == 'father_architecture_parameter':
-            # Select father's architecture and change layer parameters with mother's layer
-            # dont touch first and last elements - embedding and dense(3),
-            # too many dependencies with text model
-            # select common layer
-            tmp_father = [layer.type for layer in father.architecture[1:-1]]
-            tmp_mother = [layer.type for layer in mother.architecture[1:-1]]
-
-            intersections = set(tmp_father) & set(tmp_mother)
-
-            if not intersections:
-                self._architecture = father.architecture
-                self._training_parameters = father.training_parameters
-                self._data_processing = father.data_processing
-
-            intersected_layer = np.random.choice(list(intersections))
-
-            # add 1, because we did not take into account first layer
-            changes_layer = tmp_father.index(intersected_layer) + 1
-            alter_layer = tmp_mother.index(intersected_layer) + 1
-
-            self._architecture = father.architecture
-            self._architecture[changes_layer] = mother.architecture[alter_layer]
-            self._training_parameters = father.training_parameters
-            self._data_processing = father.data_processing
-
-        elif pairing_type == 'father_data_processing':
-            # Select father's data processing and mother's architecture and training
-            # change mother's embedding to avoid mismatchs in dimensions
-            self._architecture = mother.architecture
-            self._training_parameters = mother.training_parameters
-            self._data_processing = father.data_processing
-
-            # change data processing parameter to avoid incompatibility
-            self._architecture[0] = father.architecture[0]
-
     def _random_init_training(self):
         """
         Initialize training parameters
         """
         if not self._architecture:
-            raise Exception('Not initialized yet')
+            self._architecture = self._random_init_architecture()
 
         variables = list(TRAINING)
         training_tmp = {}
         for i in variables:
-            training_tmp[i] = np.random.choice(TRAINING[i])
+            training_tmp[i] = Distribution.training_parameters(i)
 
         return training_tmp
 
@@ -175,70 +93,75 @@ class IndividBase():
 
     def _check_compatibility(self):
         """
-        Check shapes compatibilities, modify layer if it is necessary
+        Check shapes compatibilities of different layers, modify layer if it is necessary
         """
         previous_shape = []
         shape_structure = []
         # create structure of flow shape
-        for layer in self._architecture:
-            if layer.type == 'embedding':
-                output_shape = (2, layer.config['sentences_length'], layer.config['embedding_dim'])
+        for block in self._architecture:
+            # select only one layer from the block
+            # we assume, that their output shape is the same
+            if block.type == 'input':
+                output_shape = block.config['shape']
+            if block.type == 'embedding':
+                output_shape = (2, block.config['sentences_length'], block.config['embedding_dim'])
 
-            if layer.type == 'cnn':
-                filters = layer.config['filters']
-                kernel_size = [layer.config['kernel_size']]
-                padding = layer.config['padding']
-                strides = layer.config['strides']
-                dilation_rate = layer.config['dilation_rate']
-                input = previous_shape[1:-1]
+            if block.type == 'cnn':
+                filters = block.config['filters']
+                kernel_size = [block.config['kernel_size']]
+                padding = block.config['padding']
+                strides = block.config['strides']
+                dilation_rate = block.config['dilation_rate']
+                input_layer = previous_shape[1:-1]
                 out = []
 
                 # convolution output shape depends on padding and stride
                 if padding == 'valid':
                     if strides == 1:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append(side - kernel_size[i] + 1)
                     else:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append((side - kernel_size[i]) // strides + 1)
 
                 elif padding == 'same':
                     if strides == 1:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append(side - kernel_size[i] + (2 * (kernel_size[i] // 2)) + 1)
                     else:
-                        for i, side in enumerate(input):
+                        for i, side in enumerate(input_layer):
                             out.append((side - kernel_size[i] + (2 * (kernel_size[i] // 2))) // strides + 1)
 
                 elif padding == 'causal':
-                    for i, side in enumerate(input):
+                    for i, side in enumerate(input_layer):
                         out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (
-                                    dilation_rate - 1)) // strides + 1)
+                            dilation_rate - 1)) // strides + 1)
 
                 # check for negative values
                 if any(side <= 0 for size in out):
-                    layer.config['padding'] = 'same'
+                    for layer in block:
+                        layer.config['padding'] = 'same'
                 output_shape = (previous_shape[0], *out, filters)
 
-            elif layer.type == 'lstm' or layer.type == 'bi':
-                units = layer.config['units']
+            elif block.type == 'lstm' or block.type == 'bi':
+                units = block.config['units']
 
                 # if we return sequence, output has 3-dim
-                sequences = layer.config['return_sequences']
+                sequences = block.config['return_sequences']
 
                 # bidirectional lstm returns double basic lstm output
-                bi = 2 if layer.type == 'bi' else 1
+                bi = 2 if block.type == 'bi' else 1
 
                 if sequences:
                     output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
                 else:
                     output_shape = (1, units * bi)
 
-            elif layer.type == 'dense' or layer.type == 'last_dense':
-                units = layer.config['units']
+            elif block.type == 'dense' or block.type == 'last_dense':
+                units = block.config['units']
                 output_shape = (previous_shape[0], *previous_shape[1:-1], units)
 
-            elif layer.type == 'flatten':
+            elif block.type == 'flatten':
                 output_shape = (1, np.prod(previous_shape[1:]))
 
             previous_shape = output_shape
@@ -248,30 +171,42 @@ class IndividBase():
             # Reshape data flow in case of dimensional incompatibility
             # output shape for classifier must be 2-dim
             if shape_structure[-1][0] != 1:
-                new_layer = Layer('flatten', None, None)
+                new_layer = Block('flatten', previous_block=None, next_block=None, layers_number=1)
                 self._architecture.insert(-1, new_layer)
 
         self.shape_structure = shape_structure
 
     def init_tf_graph(self):
         """
-        Return tensorflow graph from individ architecture
+        Return tensorflow graph, configurated optimizer and loss type of this individ
         """
         if not self._architecture:
             raise Exception('Non initialized net')
 
-        network_graph = Sequential()
+        network_graph_input = init_layer(self._architecture[0])
+        network_graph = network_graph_input
         self._check_compatibility()
 
-        for layer in self._architecture:
-            try:
-                network_graph.add(init_layer(layer))
-            except ValueError:
-                # in some cases shape of previous output could be less than kernel size of cnn
-                # it leads to a negative dimension size error
-                # add same padding to avoid this problem
-                layer.config['padding'] = 'same'
-                network_graph.add(init_layer(layer))
+        for block in self._architecture[1:]:
+            if block.shape > 1:
+                # we need to create list of layers and concatenate them
+                tmp_block = []
+                for layer in block.layers:
+                    tmp_block.append(init_layer(layer)(network_graph))
+
+                network_graph = concatenate(tmp_block, axis=-1)
+
+            else:
+                # we need just to add new layer
+
+                network_graph = init_layer(block)(network_graph)
+            # except ValueError:
+            # in some cases shape of previous output could be less than kernel size of cnn
+            # it leads to a negative dimension size error
+            # add same padding to avoid this problem
+            #    layer.config['padding'] = 'same'
+            #    network_graph.add(init_layer(layer))
+        model = Model(inputs=[network_graph_input], outputs=[network_graph])
 
         if self._training_parameters['optimizer'] == 'adam':
             optimizer = adam(
@@ -290,81 +225,108 @@ class IndividBase():
         else:
             raise Exception('Unsupported task type')
 
-        return network_graph, optimizer, loss
-
-    def crossing(self, other, stage):
-        pass
+        return model, optimizer, loss
 
     @property
     def layers_number(self):
+        """
+        Get the number of layers in the network
+        """
         return self._layers_number
 
     @property
     def data_type(self):
+        """
+        Get the type of data
+        """
         return self._data_processing_type
 
     @property
     def task_type(self):
+        """
+        Get the type of task
+        """
         return self._task_type
 
     @property
     def history(self):
+        """
+        Get the history of this individ
+        """
         return self._history
 
     @property
     def classes(self):
-        return self.options['classes']
+        """
+        Get the number of classes if it is exists, None otherwise
+        """
+        if self.options.get("classes", None) is not None:
+            return self.options['classes']
+        else:
+            return None
 
     @property
     def name(self):
+        """
+        Get the name of this individ
+        """
         return self._name
 
     @property
     def stage(self):
+        """
+        Get the stage of birth
+        """
         return self._stage
 
     @property
     def architecture(self):
+        """
+        Get the architecture in pure form: list of Block's object
+        """
         return self._architecture
 
     @property
     def parents(self):
+        """
+        Get parents of this individ
+        """
         return self._parents
 
     @property
     def schema(self):
         """
-        Return network schema
+        Get the network schema in textual form
         """
-        schema = [(i.type, i.config) for i in self._architecture]
+        schema = [(i.type, i.config_all) for i in self._architecture]
 
         return schema
 
     @property
     def data_processing(self):
         """
-        Return data processing parameters
+        Get the data processing parameters
         """
         return self._data_processing
 
     @property
     def training_parameters(self):
         """
-        Return training parameters
+        Get the training parameters
         """
         return self._training_parameters
 
     @property
     def result(self):
         """
-        Return fitness measure
+        Get the result of the efficiency (f1 or AUC)
         """
         return self._result
 
     @result.setter
     def result(self, value):
         """
-        New fitness result
+        Set new fitness result
         """
         self._result = value
 
@@ -377,36 +339,45 @@ class IndividBase():
 
     def random_init(self):
         """
-        Public method for random initialisation
+        Public method for calling the random initialisation
         """
         self._random_init()
 
     def random_init_architecture(self):
         """
-        Public method for random architecture initialisation
+        Public method for calling the random architecture initialisation
         """
         return self._random_init_architecture()
 
     def random_init_data_processing(self):
         """
-        Public method for random data processing initialisation
+        Public method for calling the random data processing initialisation
         """
         return self._random_init_data_processing()
 
     def random_init_training(self):
         """
-        Public method for random training initialisation
+        Public method for calling the random training initialisation
         """
         return self._random_init_training()
 
     @data_processing.setter
     def data_processing(self, data_processing):
+        """
+        Set a new data processing config
+        """
         self._data_processing = data_processing
 
     @training_parameters.setter
     def training_parameters(self, training_parameters):
+        """
+        Set a new training parameters
+        """
         self._training_parameters = training_parameters
 
     @architecture.setter
     def architecture(self, architecture):
+        """
+        Set a new architecture
+        """
         self._architecture = architecture
