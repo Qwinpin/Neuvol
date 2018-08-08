@@ -21,6 +21,11 @@ EVENT = namedtuple('event', ['type', 'stage'])
 FAKE = faker.Faker()
 FLOAT32 = np.float32
 
+# General parameters
+GENERAL = {
+    'layers_number': [i for i in range(1, 10)]
+}
+
 # Training parameters
 TRAINING = {
     'batchs': [i for i in range(8, 512, 32)],
@@ -42,13 +47,15 @@ LAYERS_POOL = {
         'units': [1, 2, 4, 8, 12, 16],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 5)],
         'activation': ['tanh', 'relu'],
-        'implementation': [1, 2]},
+        'implementation': [1, 2],
+        'return_sequences': [True, False]},
 
     'lstm': {
         'units': [1, 2, 4, 8, 12, 16],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 5)],
         'activation': ['tanh', 'relu'],
-        'implementation': [1, 2]},
+        'implementation': [1, 2],
+        'return_sequences': [True, False]},
 
     'cnn': {
         'filters': [4, 8, 16, 32, 64, 128],

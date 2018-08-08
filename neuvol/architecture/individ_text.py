@@ -14,8 +14,8 @@
 import numpy as np
 
 from .individ_base import IndividBase
-from ..constants import LAYERS_POOL, POOL_SIZE
 from ..layer.block import Block
+from ..probabilty_pool import Distribution
 
 
 class IndividText(IndividBase):
@@ -37,45 +37,31 @@ class IndividText(IndividBase):
         architecture = []
 
         # choose number of layers
-        self._layers_number = np.random.randint(1, self.options.get('depth', 10))
-
-        # initialize pool of uniform probabilities
-        probabilities_pool = np.full((POOL_SIZE), 1 / POOL_SIZE)
-
-        # dict of layers and their indexes
-        # indexes are used to change probabilities pool
-        pool_index = {i: name for i, name in enumerate(LAYERS_POOL.keys())}
+        self._layers_number = Distribution.layers_number()
 
         # layers around current one
         previous_layer = None
         next_layer = None
         tmp_architecture = []
 
-        # Create structure
-        # TODO: complex probabilities for the whole population
-        for i in range(self._layers_number):
-            # choose layer index
-            tmp_layer = np.random.choice(list(pool_index.keys()), p=probabilities_pool)
-            tmp_architecture.append(tmp_layer)
-
-            # increase probability of this layer type
-            probabilities_pool[tmp_layer] *= 2
-            probabilities_pool /= probabilities_pool.sum()
-
         # generate architecture
-        for i, name in enumerate(tmp_architecture):
+        for i in range(self._layers_number):
             if i != 0:
-                previous_layer = pool_index[tmp_architecture[i - 1]]
-            if i < len(tmp_architecture) - 1:
-                next_layer = pool_index[tmp_architecture[i + 1]]
+                previous_layer = architecture[i - 1].type
+
+            if i < len(architecture) - 1:
+                next_layer = architecture[i + 1].type
+
             if i == len(tmp_architecture) - 1:
                 if self._task_type == 'classification':
                     next_layer = 'last_dense'
 
             # choose the number of layers in one block (like inception)
-            # TODO: autoscaling
-            layers_number = np.random.choice(range(1, 5), p=[0.7, 0.1, 0.1, 0.1])
-            block = Block(pool_index[name], layers_number, previous_layer, next_layer, **self.options)
+
+            layer = Distribution.layer()
+            layers_in_block_number = np.random.choice(range(1, 5), p=[0.7, 0.1, 0.1, 0.1])
+
+            block = Block(layer, layers_in_block_number, previous_layer, next_layer, **self.options)
             architecture.append(block)
 
         # Push embedding for texts
@@ -101,8 +87,8 @@ class IndividText(IndividBase):
 
         data_tmp = {}
         data_tmp['vocabular'] = self._architecture[1].config['vocabular']
-        data_tmp['sentences_length'] = self.options['shape'][0]
-        data_tmp['classes'] = self.options['classes']
+        data_tmp['sentences_length'] = self.options.get('shape', [10])[0]
+        data_tmp['classes'] = self.options.get('classes', 2)
 
         return data_tmp
 

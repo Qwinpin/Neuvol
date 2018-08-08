@@ -82,7 +82,7 @@ class Evaluator():
         return self._device
 
     @early_stopping_min_delta.setter
-    def early_stopping_min_delta(self, ,min_delta):
+    def early_stopping_min_delta(self, min_delta):
         """
         Set early stopping parameters for training
         Please, be careful

@@ -12,3 +12,5 @@ log\.log
 train\.csv
 
 extend_prerpoc\.csv
+
+lstm_pop\.txt

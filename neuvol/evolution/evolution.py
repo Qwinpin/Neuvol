@@ -17,6 +17,7 @@ import numpy as np
 from tqdm import tqdm
 
 from ..architecture import cradle
+from ..probabilty_pool import Distribution
 
 
 class Evolution():
@@ -33,6 +34,7 @@ class Evolution():
             data_type='text',
             task_type='classification',
             freeze=None,
+            active_distribution=True,
             **kwargs):
         self.stages = stages
         self.population_size = population_size
@@ -42,6 +44,7 @@ class Evolution():
         self.data_type = data_type
         self.task_type = task_type
         self.freeze = freeze
+        self.active_distribution = active_distribution
         self.options = kwargs
 
         self.population = []
@@ -94,6 +97,10 @@ class Evolution():
 
             self.population.append(new_individ)
 
+    def population_probability(self):
+        for individ in self.population[:3]:
+            Distribution.parse_architecture(individ)
+
     def cultivate(self):
         """
         Perform all evolutional steps
@@ -104,4 +111,6 @@ class Evolution():
             self.current_stage += i
             self.mutation_step()
             self.step()
+            if self.active_distribution:
+                self.population_probability()
             self.crossing_step()

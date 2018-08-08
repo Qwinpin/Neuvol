@@ -19,6 +19,7 @@ import numpy as np
 from ..constants import EVENT, FAKE, TRAINING
 from ..layer.block import Block
 from ..layer.layer import init_layer
+from ..probabilty_pool import Distribution
 
 
 class IndividBase():
@@ -80,7 +81,7 @@ class IndividBase():
         variables = list(TRAINING)
         training_tmp = {}
         for i in variables:
-            training_tmp[i] = np.random.choice(TRAINING[i])
+            training_tmp[i] = Distribution.training_parameters(i)
 
         return training_tmp
 
@@ -197,7 +198,7 @@ class IndividBase():
 
             else:
                 # we need just to add new layer
-                
+
                 network_graph = init_layer(block)(network_graph)
             # except ValueError:
             # in some cases shape of previous output could be less than kernel size of cnn
@@ -281,7 +282,7 @@ class IndividBase():
     @property
     def architecture(self):
         """
-        Get the architecture in pure form: list of Layer's object
+        Get the architecture in pure form: list of Block's object
         """
         return self._architecture
 

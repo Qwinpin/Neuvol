@@ -17,6 +17,7 @@ from keras.layers.recurrent import LSTM
 import numpy as np
 
 from ..constants import LAYERS_POOL, SPECIAL
+from ..probabilty_pool import Distribution
 
 
 class Layer():
@@ -39,7 +40,7 @@ class Layer():
         elif self.type == 'embedding':
             variables = list(SPECIAL[self.type])
             for parameter in variables:
-                self.config[parameter] = np.random.choice(SPECIAL[self.type][parameter])
+                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
 
             # select the first element in the shape tuple
             self.config['sentences_length'] = self.options['shape'][0]
@@ -47,7 +48,7 @@ class Layer():
         elif self.type == 'last_dense':
             variables = list(LAYERS_POOL['dense'])
             for parameter in variables:
-                self.config[parameter] = np.random.choice(LAYERS_POOL['dense'][parameter])
+                self.config[parameter] = Distribution.layer_parameters('dense', parameter)
 
         elif self.type == 'flatten':
             pass
@@ -55,7 +56,7 @@ class Layer():
         else:
             variables = list(LAYERS_POOL[self.type])
             for parameter in variables:
-                self.config[parameter] = np.random.choice(LAYERS_POOL[self.type][parameter])
+                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
 
     def _check_compatibility(self, previous_layer, next_layer):
         """
