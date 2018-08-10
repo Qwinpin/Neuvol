@@ -52,6 +52,14 @@ class Evolution():
         self.mortality_rate = 0.2
         self.current_stage = 0
 
+        if self.data_type == 'text':
+            Distribution.set_layer_status('cnn2', active=False)
+        elif self.data_type == 'image':
+            Distribution.set_layer_status('cnn2', active=True)
+            Distribution.set_layer_status('lstm', active=False)
+            Distribution.set_layer_status('bi', active=False)
+            Distribution.set_layer_status('max_pool', active=False)
+
         self._create_population()
 
     def _create_population(self):
@@ -88,14 +96,20 @@ class Evolution():
         Cross two individs and create new one
         """
         for _ in range(self.population_size - len(self.population)):
-            index_father = int(np.random.randint(0, len(self.population)))
-            index_mother = int(np.random.randint(0, len(self.population)))
+            if np.random.choice([0, 1]):
+                index_father = int(np.random.randint(0, len(self.population)))
+                index_mother = int(np.random.randint(0, len(self.population)))
 
-            new_individ = self.crosser.cross(
-                deepcopy(self.population[index_father]),
-                deepcopy(self.population[index_mother]), self.current_stage)
+                new_individ = self.crosser.cross(
+                    deepcopy(self.population[index_father]),
+                    deepcopy(self.population[index_mother]), self.current_stage)
 
-            self.population.append(new_individ)
+                self.population.append(new_individ)
+
+            else:
+                self.population.append(
+                    cradle(0, self.data_type, self.task_type, freeze=self.freeze, **self.options))
+
 
     def population_probability(self):
         for individ in self.population[:3]:

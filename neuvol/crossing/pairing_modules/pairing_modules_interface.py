@@ -45,7 +45,7 @@ def father_architecture_pairing(individ, father, mother):
     individ.data_processing = mother.data_processing
 
     # change data processing parameter to avoid incompatibility
-    individ.data_processing['sentences_length'] = father.data_processing['sentences_length']
+    individ.data_processing = father.data_processing
 
     return individ
 

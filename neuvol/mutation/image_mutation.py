@@ -11,15 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .image_pairing import CrosserImage
-from .text_pairing import CrosserText
+import numpy as np
+
+from .base_mutation import MutatorBase
+from .mutation_modules import perform_mutation
 
 
-def pairing(data_type):
+class MutatorImage(MutatorBase):
     """
-    Interface of Crosser for different type of data
+    Mutator class for visual data
     """
-    if data_type == 'text':
-        return CrosserText
-    elif data_type == 'image':
-        return CrosserImage
+
+    @staticmethod
+    def mutate(individ):
+        """
+        Mutate individ
+        """
+        mutation_type = np.random.choice([
+            'architecture_part',
+            'architecture_parameters',
+            'training_all',
+            'training_part'
+        ])
+
+        individ = perform_mutation(individ, mutation_type)
+
+        return individ

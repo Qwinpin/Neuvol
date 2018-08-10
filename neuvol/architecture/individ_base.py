@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from copy import deepcopy
 from keras.layers import concatenate
 from keras.models import Model
 from keras.optimizers import adam, RMSprop
@@ -97,16 +98,22 @@ class IndividBase():
         """
         previous_shape = []
         shape_structure = []
+        tmp = deepcopy(self._architecture)
+        # use shift to know where to put additional layers
+        shift = 0
+
         # create structure of flow shape
-        for block in self._architecture:
+        for index, block in enumerate(tmp):
             # select only one layer from the block
             # we assume, that their output shape is the same
+            index += shift
+
             if block.type == 'input':
                 output_shape = block.config['shape']
             if block.type == 'embedding':
                 output_shape = (2, block.config['sentences_length'], block.config['embedding_dim'])
 
-            if block.type == 'cnn':
+            if block.type == 'cnn' or block.type == 'cnn2':
                 filters = block.config['filters']
                 kernel_size = [block.config['kernel_size']]
                 padding = block.config['padding']
@@ -114,7 +121,6 @@ class IndividBase():
                 dilation_rate = block.config['dilation_rate']
                 input_layer = previous_shape[1:-1]
                 out = []
-
                 # convolution output shape depends on padding and stride
                 if padding == 'valid':
                     if strides == 1:
@@ -185,7 +191,10 @@ class IndividBase():
 
         network_graph_input = init_layer(self._architecture[0])
         network_graph = network_graph_input
-        self._check_compatibility()
+        try:
+            self._check_compatibility()
+        except:
+            return None, None, None
 
         for block in self._architecture[1:]:
             if block.shape > 1:

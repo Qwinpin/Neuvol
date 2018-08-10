@@ -30,10 +30,20 @@ def main():
     evaluator = neuvol.Evaluator(x_train, y_train, kfold_number=1)
     mutator = neuvol.Mutator()
 
-    evaluator.set_create_tokens(False)
-    options = {'classes': 2}
+    evaluator.set_create_tokens = False
+    evaluator._fitness_measure = 'f1'
+    options = {'classes': 2, 'shape': (100,), 'depth': 4}
 
-    wop = neuvol.evolution.Evolution(10, 10, evaluator, mutator, 'text', 'classification', freeze=None, **options)
+    wop = neuvol.evolution.Evolution(
+                                    stages=10, 
+                                    population_size=10, 
+                                    evaluator=evaluator, 
+                                    mutator=mutator, 
+                                    data_type='text', 
+                                    task_type='classification', 
+                                    active_distribution=True, 
+                                    freeze=None, 
+                                    **options)
     wop.cultivate()
 
     for individ in wop.population:
