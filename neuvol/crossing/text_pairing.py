@@ -40,6 +40,7 @@ class CrosserText(CrosserBase):
             'father_training',
             'father_architecture_layers',
             'father_architecture_parameter',
+            'father_architecture_slice_mmother',
             'father_data_processing'])
 
         return peform_pairing(individ, father, mother, pairing_type)

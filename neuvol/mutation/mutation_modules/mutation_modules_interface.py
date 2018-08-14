@@ -41,6 +41,12 @@ def perform_mutation(individ, mutation_type):
     elif mutation_type == 'training_part':
         return training_part(individ)
 
+    elif mutation_type == 'architecture_add':
+        return architecture_add_layer(individ, limitations)
+
+    elif mutation_type == 'architecture_remove':
+        return architecture_remove_layer(individ, limitations)
+
 
 def architecture_part(individ, limitations):
     """

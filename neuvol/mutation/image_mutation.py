@@ -31,7 +31,9 @@ class MutatorImage(MutatorBase):
             'architecture_part',
             'architecture_parameters',
             'training_all',
-            'training_part'
+            'training_part',
+            'architecture_add',
+            'architecture_remove'
         ])
 
         individ = perform_mutation(individ, mutation_type)

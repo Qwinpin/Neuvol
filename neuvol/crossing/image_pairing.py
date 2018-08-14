@@ -39,6 +39,7 @@ class CrosserImage(CrosserBase):
             'father_architecture',
             'father_training',
             'father_architecture_layers',
+            'father_architecture_slice_mmother',
             'father_architecture_parameter'])
 
         return peform_pairing(individ, father, mother, pairing_type)

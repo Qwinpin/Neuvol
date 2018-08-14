@@ -30,6 +30,8 @@ class MutatorText(MutatorBase):
         mutation_type = np.random.choice([
             'architecture_part',
             'architecture_parameters',
+            'architecture_add',
+            'architecture_remove',
             'training_all',
             'training_part'
         ])
