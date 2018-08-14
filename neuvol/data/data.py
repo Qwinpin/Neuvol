@@ -87,9 +87,6 @@ class Data():
         TODO: add support for image and timelines data
         TODO: add support for regression and autoregression
         """
-        if x_raw.shape != y_raw.shape:
-            raise Exception('Input length does not match the target length')
-
         self.x_raw = x_raw
         self.y_raw = y_raw
         self.data_type = data_type

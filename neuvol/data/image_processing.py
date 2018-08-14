@@ -11,15 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .image_pairing import CrosserImage
-from .text_pairing import CrosserText
+from keras.utils import to_categorical
+
+from .base_processing import ProcessingBase
 
 
-def pairing(data_type):
+class ProcessingImage(ProcessingBase):
     """
-    Interface of Crosser for different type of data
+    Data processing class for visual data
     """
-    if data_type == 'text':
-        return CrosserText
-    elif data_type == 'image':
-        return CrosserImage
+    @staticmethod
+    def data(x_raw, y_raw, data_processing, create_tokens):
+        x = x_raw
+        y = to_categorical(y_raw, num_classes=data_processing['classes'])
+
+        return x, y

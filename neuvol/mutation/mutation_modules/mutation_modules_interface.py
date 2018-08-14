@@ -22,11 +22,18 @@ def perform_mutation(individ, mutation_type):
     """
     Perform specific mutation according mutation type
     """
+    if individ.data_type == 'text':
+        # start slice and end slice
+        limitations = [2, 1]
+
+    else:
+        limitations = [1, 1]
+
     if mutation_type == 'architecture_part':
-        return architecture_part(individ)
+        return architecture_part(individ, limitations)
 
     elif mutation_type == 'architecture_parameters':
-        return architecture_parameters(individ)
+        return architecture_parameters(individ, limitations)
 
     elif mutation_type == 'training_all':
         return training_all(individ)
@@ -34,12 +41,18 @@ def perform_mutation(individ, mutation_type):
     elif mutation_type == 'training_part':
         return training_part(individ)
 
+    elif mutation_type == 'architecture_add':
+        return architecture_add_layer(individ, limitations)
 
-def architecture_part(individ):
+    elif mutation_type == 'architecture_remove':
+        return architecture_remove_layer(individ, limitations)
+
+
+def architecture_part(individ, limitations):
     """
     select layer except the first and second one and the last one - input, embedding and dense(*)
     """
-    mutation_layer = np.random.choice([i for i in range(2, len(individ.architecture) - 1)])
+    mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
 
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
@@ -51,11 +64,11 @@ def architecture_part(individ):
     return individ
 
 
-def architecture_parameters(individ):
+def architecture_parameters(individ, limitations):
     """
     select layer except the first and second one and the last one - input, embedding and dense(*)
     """
-    mutation_layer = np.random.choice([i for i in range(2, len(individ.architecture) - 1)])
+    mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
 
     # find next layer to avoid incopabilities in neural architecture
     next_layer = individ.architecture[mutation_layer + 1]
@@ -81,5 +94,38 @@ def training_part(individ):
     """
     mutation_parameter = np.random.choice(list(TRAINING))
     individ.training_parameters[mutation_parameter] = Distribution.training_parameters(mutation_parameter)
+
+    return individ
+
+
+def architecture_add_layer(individ, limitations):
+    """
+    Select random place of new layer and add
+    """
+    mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
+
+    # find next layer to avoid incopabilities in neural architecture
+    next_layer = individ.architecture[mutation_layer + 1]
+    new_layer = Distribution.layer()
+    block = Block(new_layer, next_block=next_layer, **individ.options)
+
+    tmp = individ.architecture
+    tmp.insert(mutation_layer, block)
+
+    individ.architecture = tmp
+
+    return individ
+
+
+def architecture_remove_layer(individ, limitations):
+    """
+    Remove random layer from architecture
+    """
+    mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
+
+    tmp = individ.architecture
+    del tmp[mutation_layer]
+
+    individ.architecture = tmp
 
     return individ

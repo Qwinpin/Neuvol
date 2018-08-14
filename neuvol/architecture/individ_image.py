@@ -18,13 +18,13 @@ from ..layer.block import Block
 from ..probabilty_pool import Distribution
 
 
-class IndividText(IndividBase):
+class IndividImage(IndividBase):
     """
-    Invidiv class for text data types
+    Invidiv class for image data types
     """
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
         IndividBase.__init__(self, stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
-        self._data_processing_type = 'text'
+        self._data_processing_type = 'image'
 
     def _random_init_architecture(self):
         """
@@ -64,10 +64,6 @@ class IndividText(IndividBase):
             block = Block(layer, layers_in_block_number, previous_layer, next_layer, **self.options)
             architecture.append(block)
 
-        # Push embedding for texts
-        block = Block('embedding', layers_number=1, **self.options)
-        architecture.insert(0, block)
-
         # Push input layer for functional keras api
         block = Block('input', layers_number=1, **self.options)
         architecture.insert(0, block)
@@ -86,8 +82,6 @@ class IndividText(IndividBase):
             raise Exception('Not initialized yet')
 
         data_tmp = {}
-        data_tmp['vocabular'] = self._architecture[1].config['vocabular']
-        data_tmp['sentences_length'] = self.options.get('shape', [10])[0]
         data_tmp['classes'] = self.options.get('classes', 2)
 
         return data_tmp

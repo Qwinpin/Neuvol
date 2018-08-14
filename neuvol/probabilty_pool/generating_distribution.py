@@ -87,6 +87,7 @@ class Distribution():
     _layers_number_probability = parse_layers_number()
     _training_parameters_probability = parse_training_const()
     _appeareance_increases_probability = True
+    _diactivated_layers = []
 
     def _increase_layer_probability(self, layer):
         self._layers_probability[layer] += 1
@@ -100,7 +101,7 @@ class Distribution():
 
         for i, value in enumerate(a):
             self._layers_parameters_probability[layer][parameter][value] += kernel(i)
-    
+
     def _increase_training_parameters(self, parameter, value):
         a = list(self._training_parameters_probability[parameter])
 
@@ -116,10 +117,13 @@ class Distribution():
         """
         Get the random layer's type
         """
-        a = list(cls._layers_probability)
+        # We use dictionary of probabilities and exclude disactivated layers
+        tmp = {key: value for key, value in cls._layers_probability.items() if key not in cls._diactivated_layers}
+        a = list(tmp)
 
         # we should normalize list of probabilities
-        p = np.array(list(cls._layers_probability.values()))
+        p = np.array(list(tmp.values()))
+
         p = p / p.sum()
 
         choice = np.random.choice(a, p=p)
@@ -225,6 +229,19 @@ class Distribution():
             cls._increase_training_parameters(cls, parameter, individ.training_parameters[parameter])
 
     @classmethod
-    def print_probability(cls):
-        print(cls._layers_parameters_probability)
-        print(cls._layers_probability)
+    def get_probability(cls):
+        """
+        Get dictionary of probabilities
+        """
+        return cls._layers_parameters_probability, cls._layers_probability
+
+    @classmethod
+    def set_layer_status(cls, layer, active=True):
+        """
+        Activate or disactivate one type of layer in case of incompatibilities this data type or task
+        """
+        if layer in cls._diactivated_layers and active is True:
+            cls._diactivated_layers.remove(layer)
+
+        elif layer not in cls._diactivated_layers and active is False:
+            cls._diactivated_layers.append(layer)

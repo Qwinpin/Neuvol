@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from .individ_image import IndividImage
 from .individ_text import IndividText
 
 
@@ -20,3 +21,5 @@ def cradle(stage, data_type='text', task_type='classification', parents=None, fr
     """
     if data_type == 'text':
         return IndividText(stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
+    elif data_type == 'image':
+        return IndividImage(stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)

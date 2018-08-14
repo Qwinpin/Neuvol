@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.layers import (Bidirectional, Conv1D, Dense, Dropout,
-                          Embedding, Flatten, Input)
+from keras.layers import (Bidirectional, Conv1D, Conv2D, Dense, Dropout,
+                          Embedding, Flatten, Input, MaxPool1D, MaxPool2D)
 from keras.layers.recurrent import LSTM
-import numpy as np
 
 from ..constants import LAYERS_POOL, SPECIAL
 from ..probabilty_pool import Distribution
@@ -77,7 +76,7 @@ class Layer():
         elif self.type == 'last_dense':
             self.config['units'] = self.options['classes']
 
-        elif self.type == 'cnn':
+        elif self.type == 'cnn' or self.type == 'cnn2':
             if self.config['padding'] == 'causal':
                 self.config['strides'] = 1
                 if self.config['dilation_rate'] == 1:
@@ -129,6 +128,27 @@ def init_layer(layer):
             padding=layer.config['padding'],
             dilation_rate=tuple([layer.config['dilation_rate']]),
             activation=layer.config['activation'])
+
+    elif layer.type == 'cnn2':
+        layer_tf = Conv2D(
+            filters=layer.config['filters'],
+            kernel_size=[layer.config['kernel_size'], layer.config['kernel_size']],
+            strides=[layer.config['strides'], layer.config['strides']],
+            padding=layer.config['padding'],
+            dilation_rate=tuple([layer.config['dilation_rate'], layer.config['dilation_rate']]),
+            activation=layer.config['activation'])
+
+    elif layer.type == 'max_pool':
+        layer_tf = MaxPool1D(
+            pool_size=[layer.config['pool_size']],
+            strides=[layer.config['strides']],
+            padding=layer.config['padding'])
+
+    elif layer.type == 'max_pool2':
+        layer_tf = MaxPool2D(
+            pool_size=[layer.config['pool_size'], layer.config['pool_size']],
+            strides=[layer.config['strides'], layer.config['strides']],
+            padding=layer.config['padding'])
 
     elif layer.type == 'dropout':
         layer_tf = Dropout(rate=layer.config['rate'])
