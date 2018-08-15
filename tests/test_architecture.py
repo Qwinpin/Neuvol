@@ -14,22 +14,30 @@
 import unittest
 
 from neuvol.architecture import cradle
+from neuvol.architecture.individ_base import IndividBase
+from neuvol.crossing.pairing_modules import peform_pairing
 from neuvol.layer.block import Block
 
 
 class TestArchitecture(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        print('Hello, we start our tests right now\n')
+        options = {'classes': 10, 'shape': (32,), 'depth': 8}
+        self.individ = cradle(0, **options)
+        print('We created one individ. Its name - {}'.format(self.individ))
 
-    def setUp(self):
-        print('Intitialization of the individ for tests\n')
-        self.individ = cradle(0)
-        print('Its name - {}'.format(self.individ))
+    def test_architecture_initialization_error(self):
+        with self.assertRaises(KeyError):
+            cradle(0)
 
+    @unittest.expectedFailure
     def test_architecture_tf_building(self):
         self.assertEqual(3, len(self.individ.init_tf_graph()))
 
     def test_architecture_block_structure(self):
         for block in self.individ.architecture:
-            self.assertIsInstance(type(block), Block)
+            self.assertIsInstance(block, Block)
 
     def test_architecture_training_parameters(self):
         self.assertIsNotNone(self.individ.training_parameters)
@@ -41,8 +49,23 @@ class TestArchitecture(unittest.TestCase):
         self.assertNotEqual(self.individ.layers_number, 0)
 
     def test_architecture_default_initial_parameters(self):
-        self.assertIsNone(self.individ.options)
+        self.assertIsNotNone(self.individ.options)
 
     def test_architecture_tf_building_error(self):
-        tmp = cradle(0, task_type='magic')
-        self.assertRaises(Exception('Unsupported task type'), tmp.init_tf_graph())
+        options = {'classes': 10, 'shape': (32,), 'depth': 8}
+        with self.assertRaises(TypeError):
+            cradle(0, task_type='magic', **options).init_tf_graph()
+
+    def test_architecture_crossing_text(self):
+        options = {'classes': 10, 'shape': (32,), 'depth': 8}
+        tmp = cradle(0, **options)
+        tmp2 = cradle(0, **options)
+        pairing_type = [
+            'father_architecture',
+            'father_training',
+            'father_architecture_layers',
+            'father_architecture_slice_mmother',
+            'father_architecture_parameter']
+        for t in pairing_type:
+            self.assertIsInstance(
+                peform_pairing(self.individ, tmp, tmp2, t), IndividBase)

@@ -18,3 +18,5 @@ lstm_pop\.txt
 *.ipynb
 
 *.p
+
+\.coverage

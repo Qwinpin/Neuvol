@@ -40,7 +40,7 @@ def peform_pairing(individ, father, mother, pairing_type):
     elif pairing_type == 'father_data_processing':
         return father_data_processing_pairing(individ, father, mother)
     
-    elif pairing_type == 'father_architecture_slice_mmother':
+    elif pairing_type == 'father_architecture_slice_mother':
         return father_architecture_slice_mother(individ, father, mother, limitations)
 
     else:

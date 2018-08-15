@@ -232,7 +232,7 @@ class IndividBase():
             else:
                 loss = 'categorical_crossentropy'
         else:
-            raise Exception('Unsupported task type')
+            raise TypeError('{} value not supported'.format(self._task_type))
 
         return model, optimizer, loss
 

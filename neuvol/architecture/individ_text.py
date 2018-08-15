@@ -77,7 +77,7 @@ class IndividText(IndividBase):
             block = Block('last_dense', layers_number=1, **self.options)
             architecture.append(block)
         else:
-            raise Exception('Unsupported task type')
+            raise TypeError('{} value not supported'.format(self._task_type))
 
         return architecture
 
