@@ -148,6 +148,9 @@ class Evolution():
 
             print('\n\n')
 
+    def population_raw_individ(self):
+        return self._population
+
     @property
     def stages(self):
         return self._stages
