@@ -23,6 +23,7 @@ class Layer():
     """
     Single layer class with compatibility checking
     """
+
     def __init__(self, layer_type, previous_layer=None, next_layer=None, **kwargs):
         self.config = {}
         self.type = layer_type
