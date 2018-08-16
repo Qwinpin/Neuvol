@@ -152,8 +152,7 @@ class IndividBase():
                 output_shape.append(previous_shape[0])
 
                 # *out does not work with python < 3.5
-                for item in out:
-                    output_shape.append(item)
+                output_shape.extend(out)
 
                 output_shape.append(filters)
                 output_shape = tuple(output_shape)
@@ -172,8 +171,7 @@ class IndividBase():
                     output_shape.append(previous_shape[0])
 
                     # *previous_shape[1:-1] does not work with python < 3.5
-                    for item in previous_shape[1:-1]:
-                        output_shape.append(item)
+                    output_shape.extend(previous_shape[1:-1])
 
                     output_shape.append(units * bi)
                     output_shape = tuple(output_shape)
@@ -186,8 +184,7 @@ class IndividBase():
                 output_shape.append(previous_shape[0])
 
                 # *previous_shape[1:-1] does not work with python < 3.5
-                for item in previous_shape[1:-1]:
-                    output_shape.append(item)
+                output_shape.append(previous_shape[1:-1])
 
                 output_shape.append(units)
                 output_shape = tuple(output_shape)
