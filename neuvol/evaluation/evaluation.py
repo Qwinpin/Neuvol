@@ -198,7 +198,7 @@ class Evaluator():
                     predicted_out.extend(predicted)
                     real_out.extend(real)
                 except Exception:
-                    raise
+                    raise ArithmeticError('Tensor could not be compiled')
 
             tf.reset_default_graph()
 
@@ -325,4 +325,4 @@ class Evaluator():
             return np.sum(roc_auc)
 
         else:
-            raise Exception('Unrecognized fitness measure')
+            raise TypeError('Unrecognized fitness measure')
