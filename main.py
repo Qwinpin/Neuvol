@@ -30,8 +30,8 @@ def main():
     evaluator = neuvol.Evaluator(x_train, y_train, kfold_number=1)
     mutator = neuvol.Mutator()
 
-    evaluator.set_create_tokens = False
-    evaluator._fitness_measure = 'f1'
+    evaluator.create_tokens = False
+    evaluator.fitness_measure = 'f1'
     options = {'classes': 2, 'shape': (100,), 'depth': 4}
 
     wop = neuvol.evolution.Evolution(
