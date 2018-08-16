@@ -215,7 +215,7 @@ class IndividBase():
         network_graph = network_graph_input
         try:
             self._check_compatibility()
-        except:
+        except Exception:
             return None, None, None
 
         for block in self._architecture[1:]:

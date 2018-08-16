@@ -14,7 +14,6 @@
 from copy import deepcopy
 
 import numpy as np
-from tqdm import tqdm
 
 from ..architecture import cradle
 from ..probabilty_pool import Distribution
@@ -24,6 +23,7 @@ class Evolution():
     """
     Simple class that performs evolution process
     """
+
     def __init__(
             self,
             stages,

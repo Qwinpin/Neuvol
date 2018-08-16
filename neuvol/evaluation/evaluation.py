@@ -46,6 +46,9 @@ class Evaluator():
             self._device = '/device:CPU:0'
         elif device == 'gpu':
             self._device = '/device:GPU:0'
+        else:
+            raise ValueError("Incorrect \"device\" argument."
+                             "Available values: \"gpu\", \"cpu\"")
         self._generator = generator
         self._create_tokens = True
 
