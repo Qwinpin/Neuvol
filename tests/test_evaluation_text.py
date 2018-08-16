@@ -41,6 +41,10 @@ class TestEvaluationText(unittest.TestCase):
     def test_evaluation_initialization(self):
         self.assertIsInstance(self.evaluator, Evaluator)
 
+    def test_evaluation_init_bad_args(self):
+        with self.assertRaises(ValueError):
+            Evaluator(self.x, self.y, device="jpu")
+
     def test_evaluation_fit(self):
         result = self.evaluator.fit(self.individ)
         self.assertGreaterEqual(result, 0.0)
