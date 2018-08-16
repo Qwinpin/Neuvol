@@ -76,14 +76,12 @@ LAYERS_POOL = {
     'max_pool': {
         'pool_size': [i for i in range(2, 16)],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same']
-    },
+        'padding': ['valid', 'same']},
 
     'max_pool2': {
         'pool_size': [i for i in range(2, 16)],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same']
-    },
+        'padding': ['valid', 'same']},
 
     'dense': {
         'units': [i for i in range(4, 512, 2)],
