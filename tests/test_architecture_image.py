@@ -19,12 +19,12 @@ from neuvol.crossing.pairing_modules import peform_pairing
 from neuvol.layer.block import Block
 
 
-class TestArchitecture(unittest.TestCase):
+class TestArchitectureImage(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         print('Hello, we start our tests right now\n')
         options = {'classes': 10, 'shape': (32,), 'depth': 8}
-        self.individ = cradle(0, **options)
+        self.individ = cradle(0, data_type='image', **options)
         print('We created one individ. Its name - {}'.format(self.individ))
 
     def test_architecture_initialization_error(self):
@@ -54,17 +54,17 @@ class TestArchitecture(unittest.TestCase):
     def test_architecture_tf_building_error(self):
         options = {'classes': 10, 'shape': (32,), 'depth': 8}
         with self.assertRaises(TypeError):
-            cradle(0, task_type='magic', **options).init_tf_graph()
+            cradle(0, data_type='image', task_type='magic', **options).init_tf_graph()
 
     def test_architecture_crossing_text(self):
         options = {'classes': 10, 'shape': (32,), 'depth': 8}
-        tmp = cradle(0, **options)
-        tmp2 = cradle(0, **options)
+        tmp = cradle(0, data_type='image', **options)
+        tmp2 = cradle(0, data_type='image', **options)
         pairing_type = [
             'father_architecture',
             'father_training',
             'father_architecture_layers',
-            'father_architecture_slice_mmother',
+            'father_architecture_slice_mother',
             'father_architecture_parameter']
         for t in pairing_type:
             self.assertIsInstance(
