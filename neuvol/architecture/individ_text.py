@@ -23,7 +23,7 @@ class IndividText(IndividBase):
     Invidiv class for text data types
     """
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
-        IndividBase.__init__(self, stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
+        super().__init__(stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
         self._data_processing_type = 'text'
 
     def _random_init_architecture(self):

@@ -147,7 +147,16 @@ class IndividBase():
                 if any(side <= 0 for size in out):
                     for layer in block:
                         layer.config['padding'] = 'same'
-                output_shape = (previous_shape[0], *out, filters)
+
+                output_shape = []
+                output_shape.append(previous_shape[0])
+
+                # *out does not work with python < 3.5
+                for item in out:
+                    output_shape.append(item)
+
+                output_shape.append(filters)
+                output_shape = tuple(output_shape)
 
             elif block.type == 'lstm' or block.type == 'bi':
                 units = block.config['units']
@@ -159,13 +168,29 @@ class IndividBase():
                 bi = 2 if block.type == 'bi' else 1
 
                 if sequences:
-                    output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
+                    output_shape = []
+                    output_shape.append(previous_shape[0])
+
+                    # *previous_shape[1:-1] does not work with python < 3.5
+                    for item in previous_shape[1:-1]:
+                        output_shape.append(item)
+
+                    output_shape.append(units * bi)
+                    output_shape = tuple(output_shape)
                 else:
                     output_shape = (1, units * bi)
 
             elif block.type == 'dense' or block.type == 'last_dense':
                 units = block.config['units']
-                output_shape = (previous_shape[0], *previous_shape[1:-1], units)
+                output_shape = []
+                output_shape.append(previous_shape[0])
+
+                # *previous_shape[1:-1] does not work with python < 3.5
+                for item in previous_shape[1:-1]:
+                    output_shape.append(item)
+
+                output_shape.append(units)
+                output_shape = tuple(output_shape)
 
             elif block.type == 'flatten':
                 output_shape = (1, np.prod(previous_shape[1:]))
