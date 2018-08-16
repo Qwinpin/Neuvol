@@ -50,11 +50,6 @@ class TestEvolutionText(unittest.TestCase):
         self.evolution.mutation_step()
         self.assertEqual(10, len(self.evolution.population_raw_individ()))
 
-    @unittest.expectedFailure
-    def test_evolution_step(self):
-        self.evolution.step()
-        self.assertEqual(10, len(self.evolution.population_raw_individ()))
-
     def test_evolution_crossing(self):
         self.evolution.crossing_step()
         self.assertEqual(10, len(self.evolution.population_raw_individ()))
