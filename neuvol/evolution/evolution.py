@@ -150,10 +150,16 @@ class Evolution():
             print('\n\n')
 
     def population_raw_individ(self):
+        """
+        Get the whole population itself
+        """
         return self._population
 
     @property
     def stages(self):
+        """
+        Number of stages
+        """
         return self._stages
 
     @stages.setter

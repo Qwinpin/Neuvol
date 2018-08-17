@@ -31,7 +31,7 @@ class TestArchitectureImage(unittest.TestCase):
         with self.assertRaises(KeyError):
             cradle(0)
 
-    @unittest.expectedFailure
+    @unittest.skip('Unstable test')
     def test_architecture_tf_building(self):
         self.assertEqual(3, len(self.individ.init_tf_graph()))
 

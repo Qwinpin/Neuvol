@@ -39,7 +39,7 @@ def peform_pairing(individ, father, mother, pairing_type):
 
     elif pairing_type == 'father_data_processing':
         return father_data_processing_pairing(individ, father, mother)
-    
+
     elif pairing_type == 'father_architecture_slice_mother':
         return father_architecture_slice_mother(individ, father, mother, limitations)
 
@@ -92,7 +92,7 @@ def father_architecture_parameter_pairing(individ, father, mother, limitations):
         individ.architecture = father.architecture
         individ.training_parameters = father.training_parameters
         individ.data_processing = father.data_processing
-    
+
     else:
         intersected_block = np.random.choice(list(intersections))
 
@@ -145,7 +145,7 @@ def father_architecture_slice_mother(individ, father, mother, limitations):
     mother_cut_point = np.random.choice([i for i in range(limitations[0], len(mother.architecture) - limitations[1])])
 
     tmp_individ = father.architecture[:father_cut_point] + mother.architecture[mother_cut_point:]
-    
+
     individ.architecture = tmp_individ
     individ.data_processing = father.data_processing
     individ.training_parameters = father.training_parameters

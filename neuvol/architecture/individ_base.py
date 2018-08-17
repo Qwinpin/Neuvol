@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from copy import deepcopy
+
 from keras.layers import concatenate
 from keras.models import Model
 from keras.optimizers import adam, RMSprop

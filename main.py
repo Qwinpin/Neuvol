@@ -18,14 +18,14 @@ import neuvol
 
 def main():
     (x_train, y_train), (x_test, y_test) = imdb.load_data(
-                                                        path="imdb.npz",
-                                                        num_words=30000,
-                                                        skip_top=0,
-                                                        maxlen=100,
-                                                        seed=113,
-                                                        start_char=1,
-                                                        oov_char=2,
-                                                        index_from=3)
+        path="imdb.npz",
+        num_words=30000,
+        skip_top=0,
+        maxlen=100,
+        seed=113,
+        start_char=1,
+        oov_char=2,
+        index_from=3)
 
     evaluator = neuvol.Evaluator(x_train, y_train, kfold_number=1)
     mutator = neuvol.Mutator()
