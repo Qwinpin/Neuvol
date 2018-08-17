@@ -85,7 +85,8 @@ class Evolution():
         for network in self._population:
             try:
                 network.result = self._evaluator.fit(network)
-            except:
+            # NOTE: maybe ArithmeticError ?
+            except Exception:
                 # sorry, but here i dont care about type of exception
                 network.result = 0.0
 

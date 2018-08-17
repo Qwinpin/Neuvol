@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-import random
-import string
 import unittest
 
 import numpy as np
@@ -39,6 +37,9 @@ class TestEvaluationImage(unittest.TestCase):
         print('We created one individ. Its name - {}'.format(self.individ))
 
     def test_evaluation_initialization(self):
+        self.assertIsInstance(self.evaluator, Evaluator)
+
+    def test_evaluation_initialization_bad_arg_(self):
         self.assertIsInstance(self.evaluator, Evaluator)
 
     def test_evaluation_fit(self):
