@@ -23,19 +23,19 @@ from ..layer.layer import init_layer
 from ..probabilty_pool import Distribution
 
 
-class IndividBase():
-    """
-    Invidiv class
+class IndividBase:
+    """Individ class
     """
     # TODO: add support for different data types
     # TODO: add support for different task types
 
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
-        """
-        Create individ randomly or with its parents
-        parents: set of two individ objects
-        kwargs: dictionary with manualy specified parameters like number of classes,
-        training parameters, etc
+        """Create individ randomly or with its parents
+
+        Attributes:
+            parents (``IndividBase``): set of two individ objects
+            kwargs: dictionary specified parameters like number of classes,
+                    training parameters, etc
         """
         self._stage = stage
         self._data_processing_type = None
