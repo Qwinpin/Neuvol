@@ -20,3 +20,6 @@ lstm_pop\.txt
 *.p
 
 \.coverage
+
+
+docs/build
