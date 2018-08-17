@@ -35,14 +35,14 @@ def main():
     options = {'classes': 2, 'shape': (100,), 'depth': 4}
 
     wop = neuvol.evolution.Evolution(
-                                    stages=10, 
-                                    population_size=10, 
-                                    evaluator=evaluator, 
-                                    mutator=mutator, 
-                                    data_type='text', 
-                                    task_type='classification', 
-                                    active_distribution=True, 
-                                    freeze=None, 
+                                    stages=10,
+                                    population_size=10,
+                                    evaluator=evaluator,
+                                    mutator=mutator,
+                                    data_type='text',
+                                    task_type='classification',
+                                    active_distribution=True,
+                                    freeze=None,
                                     **options)
     wop.cultivate()
 

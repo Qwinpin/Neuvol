@@ -44,7 +44,7 @@ class TestArchitectureImage(unittest.TestCase):
 
     def test_architecture_data_parameters(self):
         self.assertIsNotNone(self.individ.data_processing)
-    
+
     def test_architecture_layers_number(self):
         self.assertNotEqual(self.individ.layers_number, 0)
 
