@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-class MutatorBase():
+class MutatorBase:
     """
     Mutator class for textual data
     """
@@ -23,4 +23,4 @@ class MutatorBase():
         """
         Mutate individ
         """
-        pass
+        raise NotImplementedError("\"mutate\" not implemented")
