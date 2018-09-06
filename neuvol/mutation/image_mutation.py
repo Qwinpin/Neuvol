@@ -11,11 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import numpy as np
+
+from .base_mutation import MutatorBase
+from .mutation_modules import perform_mutation
 
 
-class MutatorBase:
+class MutatorImage(MutatorBase):
     """
-    Mutator class for textual data
+    Mutator class for visual data
     """
 
     @staticmethod
@@ -23,4 +27,15 @@ class MutatorBase:
         """
         Mutate individ
         """
-        raise NotImplementedError("\"mutate\" not implemented")
+        mutation_type = np.random.choice([
+            'architecture_part',
+            'architecture_parameters',
+            'training_all',
+            'training_part',
+            'architecture_add',
+            'architecture_remove'
+        ])
+
+        individ = perform_mutation(individ, mutation_type)
+
+        return individ

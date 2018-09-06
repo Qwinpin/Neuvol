@@ -11,16 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-class MutatorBase:
-    """
-    Mutator class for textual data
-    """
-
-    @staticmethod
-    def mutate(individ):
-        """
-        Mutate individ
-        """
-        raise NotImplementedError("\"mutate\" not implemented")

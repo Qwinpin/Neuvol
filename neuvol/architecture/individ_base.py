@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from copy import deepcopy
+
 from keras.layers import concatenate
 from keras.models import Model
 from keras.optimizers import adam, RMSprop
@@ -22,19 +24,19 @@ from ..layer.layer import init_layer
 from ..probabilty_pool import Distribution
 
 
-class IndividBase():
-    """
-    Invidiv class
+class IndividBase:
+    """Individ class
     """
     # TODO: add support for different data types
     # TODO: add support for different task types
 
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
-        """
-        Create individ randomly or with its parents
-        parents: set of two individ objects
-        kwargs: dictionary with manualy specified parameters like number of classes,
-        training parameters, etc
+        """Create individ randomly or with its parents
+
+        Attributes:
+            parents (``IndividBase``): set of two individ objects
+            kwargs: dictionary specified parameters like number of classes,
+                    training parameters, etc
         """
         self._stage = stage
         self._data_processing_type = None
@@ -97,16 +99,22 @@ class IndividBase():
         """
         previous_shape = []
         shape_structure = []
+        tmp = deepcopy(self._architecture)
+        # use shift to know where to put additional layers
+        shift = 0
+
         # create structure of flow shape
-        for block in self._architecture:
+        for index, block in enumerate(tmp):
             # select only one layer from the block
             # we assume, that their output shape is the same
+            index += shift
+
             if block.type == 'input':
                 output_shape = block.config['shape']
             if block.type == 'embedding':
                 output_shape = (2, block.config['sentences_length'], block.config['embedding_dim'])
 
-            if block.type == 'cnn':
+            if block.type == 'cnn' or block.type == 'cnn2':
                 filters = block.config['filters']
                 kernel_size = [block.config['kernel_size']]
                 padding = block.config['padding']
@@ -114,7 +122,6 @@ class IndividBase():
                 dilation_rate = block.config['dilation_rate']
                 input_layer = previous_shape[1:-1]
                 out = []
-
                 # convolution output shape depends on padding and stride
                 if padding == 'valid':
                     if strides == 1:
@@ -141,7 +148,15 @@ class IndividBase():
                 if any(side <= 0 for size in out):
                     for layer in block:
                         layer.config['padding'] = 'same'
-                output_shape = (previous_shape[0], *out, filters)
+
+                output_shape = []
+                output_shape.append(previous_shape[0])
+
+                # *out does not work with python < 3.5
+                output_shape.extend(out)
+
+                output_shape.append(filters)
+                output_shape = tuple(output_shape)
 
             elif block.type == 'lstm' or block.type == 'bi':
                 units = block.config['units']
@@ -153,13 +168,27 @@ class IndividBase():
                 bi = 2 if block.type == 'bi' else 1
 
                 if sequences:
-                    output_shape = (previous_shape[0], *previous_shape[1:-1], units * bi)
+                    output_shape = []
+                    output_shape.append(previous_shape[0])
+
+                    # *previous_shape[1:-1] does not work with python < 3.5
+                    output_shape.extend(previous_shape[1:-1])
+
+                    output_shape.append(units * bi)
+                    output_shape = tuple(output_shape)
                 else:
                     output_shape = (1, units * bi)
 
             elif block.type == 'dense' or block.type == 'last_dense':
                 units = block.config['units']
-                output_shape = (previous_shape[0], *previous_shape[1:-1], units)
+                output_shape = []
+                output_shape.append(previous_shape[0])
+
+                # *previous_shape[1:-1] does not work with python < 3.5
+                output_shape.append(previous_shape[1:-1])
+
+                output_shape.append(units)
+                output_shape = tuple(output_shape)
 
             elif block.type == 'flatten':
                 output_shape = (1, np.prod(previous_shape[1:]))
@@ -185,7 +214,10 @@ class IndividBase():
 
         network_graph_input = init_layer(self._architecture[0])
         network_graph = network_graph_input
-        self._check_compatibility()
+        try:
+            self._check_compatibility()
+        except Exception:
+            return None, None, None
 
         for block in self._architecture[1:]:
             if block.shape > 1:
@@ -223,7 +255,7 @@ class IndividBase():
             else:
                 loss = 'categorical_crossentropy'
         else:
-            raise Exception('Unsupported task type')
+            raise TypeError('{} value not supported'.format(self._task_type))
 
         return model, optimizer, loss
 

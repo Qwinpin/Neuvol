@@ -11,16 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from keras.utils import to_categorical
+
+from .base_processing import ProcessingBase
 
 
-class MutatorBase:
+class ProcessingImage(ProcessingBase):
     """
-    Mutator class for textual data
+    Data processing class for visual data
     """
-
     @staticmethod
-    def mutate(individ):
-        """
-        Mutate individ
-        """
-        raise NotImplementedError("\"mutate\" not implemented")
+    def data(x_raw, y_raw, data_processing, create_tokens):
+        x = x_raw
+        y = to_categorical(y_raw, num_classes=data_processing['classes'])
+
+        return x, y

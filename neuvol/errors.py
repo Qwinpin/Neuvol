@@ -11,12 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .individ_text import IndividText
 
 
-def cradle(stage, data_type='text', task_type='classification', parents=None, freeze=None, **kwargs):
+class NeuvolError(Exception):
     """
-    Factory method for different data types
+    Base exception class of neuvol library
     """
-    if data_type == 'text':
-        return IndividText(stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
+
+
+class NeuvolArchitectureError(NeuvolError):
+    """
+    Error in architecture related with shape incompatibilities (e.g. negative size output of CNN)
+    """
+
+
+class NeuvolNotImplementedError(NeuvolError):
+    """
+    """

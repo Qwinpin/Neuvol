@@ -1,6 +1,6 @@
 faker
 numpy
 keras
-pandas
 tensorflow
+scipy
 scikit-learn

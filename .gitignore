@@ -14,3 +14,12 @@ train\.csv
 extend_prerpoc\.csv
 
 lstm_pop\.txt
+
+*.ipynb
+
+*.p
+
+\.coverage
+
+
+docs/build
