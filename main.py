@@ -46,7 +46,7 @@ def main():
                                     **options)
     wop.cultivate()
 
-    for individ in wop.population:
+    for individ in wop.population_raw_individ:
         print('Architecture: \n')
         print(individ.schema)
         print('\nScore: ', individ.result)
