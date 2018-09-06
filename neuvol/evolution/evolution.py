@@ -50,7 +50,7 @@ class Evolution():
         self._population = []
         self._mutation_pool_size = 0.2
         self._mortality_rate = 0.2
-        self._current_stage = 0
+        self._current_stage = 1
 
         if self._data_type == 'text':
             Distribution.set_layer_status('cnn2', active=False)
@@ -122,10 +122,10 @@ class Evolution():
         """
         Perform all evolutional steps
         """
-        tmp = self._current_stage
+        tmp = self._current_stage + self._stages - 1
 
-        for i in range(tmp, self._stages):
-            print('\nStage #{} of {}\n'.format(i, self._stages))
+        for i in range(1, self._stages + 1):
+            print('\nStage #{} of {}\n'.format(self._current_stage, tmp))
 
             self.mutation_step()
             self.step()

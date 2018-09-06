@@ -135,6 +135,14 @@ class Evaluator():
         """
         self._device = device
 
+        if device == 'cpu':
+            self._device = '/device:CPU:0'
+        elif device == 'gpu':
+            self._device = '/device:GPU:0'
+        else:
+            raise ValueError("Incorrect \"device\" argument."
+                             "Available values: \"gpu\", \"cpu\"")
+
     def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
         """
         Set multiprocessing parameters for data generator
@@ -198,6 +206,8 @@ class Evaluator():
                     predicted_out.extend(predicted)
                     real_out.extend(real)
                 except Exception:
+                    if self._verbose == 1:
+                        print('Tensor could not be compiled')
                     raise ArithmeticError('Tensor could not be compiled')
 
             tf.reset_default_graph()
