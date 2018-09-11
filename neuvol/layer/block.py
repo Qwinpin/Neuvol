@@ -67,6 +67,32 @@ class Block():
                 for layer in self.layers:
                     layer.config['units'] = output
 
+    def save(self):
+        """
+        Serialization of block
+        """
+        serial = dict()
+        serial['type'] = self.type
+        serial['shape'] = self.shape
+        serial['previous_block'] = self.previous_block
+        serial['next_block'] = self.next_block
+        serial['options'] = self.options
+        serial['layers'] = [layer.save() for layer in self.layers]
+
+        return serial
+
+    def load(self, serial):
+        """
+        Deserialization of block
+        """
+        self.layers = [Layer(serial['type'], serial['previous_block'], serial['next_block'], **serial['options']) for _ in range(serial['shape'])]
+        self.layers = [layer.load(serial['layers'][i]) for i, layer in enumerate(self.layers)]
+        self.type = serial['type']
+        self.shape = serial['shape']
+        self.previous_block = serial['previous_block']
+        self.next_block = serial['next_block']
+        self.options = serial['options']
+
     @property
     def config(self):
         """

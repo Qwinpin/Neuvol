@@ -35,22 +35,27 @@ class Evolution():
             task_type='classification',
             freeze=None,
             active_distribution=True,
+            loaded=None,
             **kwargs):
-        self._stages = stages
-        self._population_size = population_size
         self._evaluator = evaluator
         self._mutator = mutator
         self._crosser = crosser
-        self._data_type = data_type
-        self._task_type = task_type
-        self._freeze = freeze
-        self._active_distribution = active_distribution
-        self._options = kwargs
+        self._stages = stages
+        self._population_size = population_size
 
-        self._population = []
-        self._mutation_pool_size = 0.2
-        self._mortality_rate = 0.2
-        self._current_stage = 1
+        if loaded is not None:
+            self.load(loaded)
+        else:
+            self._data_type = data_type
+            self._task_type = task_type
+            self._freeze = freeze
+            self._active_distribution = active_distribution
+            self._options = kwargs
+
+            self._population = []
+            self._mutation_pool_size = 0.2
+            self._mortality_rate = 0.2
+            self._current_stage = 1
 
         if self._data_type == 'text':
             Distribution.set_layer_status('cnn2', active=False)
@@ -60,7 +65,8 @@ class Evolution():
             Distribution.set_layer_status('bi', active=False)
             Distribution.set_layer_status('max_pool', active=False)
 
-        self._create_population()
+        if loaded is None:
+            self._create_population()
 
     def _create_population(self):
         """
@@ -132,6 +138,39 @@ class Evolution():
             if self._active_distribution:
                 self._population_probability()
             self.crossing_step()
+
+    def save(self):
+        serial = dict()
+        serial['stages'] = self._stages
+        serial['population_size'] = self._population_size
+        serial['data_type'] = self._data_type
+        serial['task_type'] = self._task_type
+        serial['freeze'] = self._freeze
+        serial['active_distribution'] = self._active_distribution
+        serial['options'] = self._options
+
+        serial['population'] = [individ.save() for individ in self._population]
+        serial['mutation_pool_size'] = self._mutation_pool_size
+        serial['mortality_rate'] = self._mortality_rate
+        serial['current_stage'] = self._current_stage
+
+        return serial
+
+    def load(self, serial):
+        self._stages = serial['stages']
+        self._population_size = serial['population_size']
+        self._data_type = serial['data_type']
+        self._task_type = serial['task_type']
+        self._freeze = serial['freeze']
+        self._active_distribution = serial['active_distribution']
+        self._options = serial['options']
+        self._mutation_pool_size = serial['mutation_pool_size']
+        self._mortality_rate = serial['mortality_rate']
+        self._current_stage = serial['current_stage']
+
+        self._population = [cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options)
+            for _ in serial['population']]
+        self._population = [individ.load(serial['population'][i]) for i, individ in enumerate(self._population)]
 
     @property
     def population(self, n=5):

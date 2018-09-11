@@ -85,6 +85,25 @@ class Layer():
             else:
                 self.config['dilation_rate'] = 1
 
+    def save(self):
+        """
+        Serialization of layer
+        """
+        serial = dict()
+        serial['config'] = self.config
+        serial['type'] = self.type
+        serial['options'] = self.options
+
+        return serial
+
+    def load(self, serial):
+        """
+        Deserialization of layer
+        """
+        self.config = serial['config']
+        self.type = serial['type']
+        self.options = serial['options']
+
 
 def init_layer(layer):
     """

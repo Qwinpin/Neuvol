@@ -2,18 +2,17 @@
 
 *Genetic algorithm to find the best neural network architecture with Keras*
 
-Neuvol is a genetic algorithm API for neural networks based on Keras. The main idea is to work with data only, without direct architecture construction (but it is still possible).
+Neuvol is a genetic algorithm API for generating neural networks based on Keras. The main idea is to work with data only, without direct architecture constructing.
 
 ##### Grow your own neural network!
 
 - Data in -> Neural Network Architecture out
-- ~~Set your assumptions about architecture, it will be taken into account!~~ (not yet)
 - A large number of allowed layers types
 
 ### Features:
 
 - Supported data types: texts, images
-- CNN, Dense, LSTM, etc layers are available
+- CNN, Dense, LSTM, Max polling are available
 - Dropout and reshape sub-layers (Flattern) are available too
 
 ### How-to-use
@@ -120,11 +119,43 @@ Short example of usage pipeline.
   evaluator.device = 'gpu'
   ```
 
+### Data format
+
+- Images: 
+
+  X: Array of shape (Number_of_samples, height, width, channels)
+
+  Y: Array classes (Number_of_sample)
+
+  You should specify shape option as (height, width, channels**,**)
+
+- Texts:
+
+  There are two possibilities:
+
+  1. Process data by yourself - convert text into digits and set:
+
+     ```
+     evaluator.create_tokens = False
+     ```
+
+  2. Or use simple keras' tokenizer
+
+     ```
+     evaluator.create_tokens = True
+     ```
+
+  X: Array of shape (Number_of_samples, length_of_sentences)
+
+  Y: Array of shape (Number_of_samples)
+
+  You should specify shape option as (length_of_sentences**,**)
 
 ### TODO
 
 - [x] Architectures distribution generation
 - [x] Images support
+- [ ] Custom text embedding support
 - [ ] Regression models
 - [ ] Generative networks (??? almost impossible)
 - [x] More available layers

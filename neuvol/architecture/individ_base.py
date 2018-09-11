@@ -259,6 +259,44 @@ class IndividBase:
 
         return model, optimizer, loss
 
+    def save(self):
+        serial = dict()
+        serial['stage'] = self._stage
+        serial['data_processing_type'] = self._data_processing_type
+        serial['task_type'] = self._task_type
+        serial['freeze'] = self._freeze
+        serial['parents'] = [parent.save() for parent in self._parents] if self._parents is not None else None
+        serial['options'] = self.options
+        serial['history'] = self._history
+        serial['name'] = self.name
+        serial['architecture'] = [block.save() for block in self._architecture]
+        serial['data_processing'] = self._data_processing
+        serial['training_parameters'] = self._training_parameters
+        serial['layers_number'] = self._layers_number
+        serial['result'] = self._result
+        serial['shape_structure'] = self.shape_structure
+
+        return serial
+
+    def load(self, serial):
+        self._stage = serial['stage']
+        self._data_processing_type = serial['data_processing_type']
+        self._task_type = serial['task_type']
+        self._freeze = serial['freeze']
+        if serial['parents'] is not None:
+            self._parents = [IndividBase(serial['stage'] - 1), IndividBase(serial['stage'] - 1)]
+            self._parents = [parent.load(serial['parents'][i]) for i, parent in enumerate(self._parents)]
+        self.options = serial['options']
+        self._history = serial['history']
+        self._name = serial['name']
+        self._architecture = [Block('input', layers_number=1, **self.options) for i, _ in enumerate(serial['architecture'])]
+        self._architecture = [block.load(serial['architecture'][i]) for i, block in enumerate(self._architecture)]
+        self._data_processing = serial['data_processing']
+        self._training_parameters = serial['training_parameters']
+        self._layers_number = serial['layers_number']
+        self._result = serial['result']
+        self.shape_structure = serial['shape_structure']
+
     @property
     def layers_number(self):
         """
