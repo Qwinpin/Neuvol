@@ -92,3 +92,32 @@ class IndividText(IndividBase):
         data_tmp['classes'] = self.options.get('classes', 2)
 
         return data_tmp
+
+    # @staticmethod
+    # def load(self, serial):
+    #     """
+    #     Load method. Returns individ
+    #     """
+    #     individ = IndividText(serial['stage'])
+
+    #     individ._stage = serial['stage']
+    #     individ._data_processing_type = serial['data_processing_type']
+    #     individ._task_type = serial['task_type']
+    #     individ._freeze = serial['freeze']
+    #     if serial['parents'] is not None:
+    #         individ._parents = [IndividBase(serial['stage'] - 1), IndividBase(serial['stage'] - 1)]
+    #         individ._parents = [parent.load(serial['parents'][i]) for i, parent in enumerate(self._parents)]
+    #     individ.options = serial['options']
+    #     individ._history = serial['history']
+    #     individ._name = serial['name']
+
+    #     individ._architecture = [Block('input', layers_number=1, **self.options) for i, _ in enumerate(serial['architecture'])]
+    #     individ._architecture = [block.load(serial['architecture'][i]) for i, block in enumerate(self._architecture)]
+
+    #     individ._data_processing = serial['data_processing']
+    #     individ._training_parameters = serial['training_parameters']
+    #     individ._layers_number = serial['layers_number']
+    #     individ._result = serial['result']
+    #     individ.shape_structure = serial['shape_structure']
+
+    #     return individ

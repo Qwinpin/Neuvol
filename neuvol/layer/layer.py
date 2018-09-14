@@ -17,6 +17,7 @@ from keras.layers.recurrent import LSTM
 
 from ..constants import LAYERS_POOL, SPECIAL
 from ..probabilty_pool import Distribution
+from ..utils import dump
 
 
 class Layer():
@@ -24,13 +25,16 @@ class Layer():
     Single layer class with compatibility checking
     """
 
-    def __init__(self, layer_type, previous_layer=None, next_layer=None, **kwargs):
+    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, **kwargs):
         self.config = {}
         self.type = layer_type
         self.options = kwargs
+        self.previous_layer = previous_layer
+        self.next_layer = next_layer
 
-        self._init_parameters()
-        self._check_compatibility(previous_layer, next_layer)
+        if layer_type is not None:
+            self._init_parameters()
+            self._check_compatibility()
 
     def _init_parameters(self):
         if self.type == 'input':
@@ -58,18 +62,18 @@ class Layer():
             for parameter in variables:
                 self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
 
-    def _check_compatibility(self, previous_layer, next_layer):
+    def _check_compatibility(self):
         """
         Check data shape in specific case such as lstm or bi-lstm
         """
         if self.type == 'lstm':
-            if next_layer is not None and next_layer != 'last_dense':
+            if self.next_layer is not None and self.next_layer != 'last_dense':
                 self.config['return_sequences'] = True
             else:
                 self.config['return_sequences'] = False
 
         elif self.type == 'bi':
-            if next_layer is not None and next_layer != 'last_dense':
+            if self.next_layer is not None and self.next_layer != 'last_dense':
                 self.config['return_sequences'] = True
             else:
                 self.config['return_sequences'] = False
@@ -93,16 +97,27 @@ class Layer():
         serial['config'] = self.config
         serial['type'] = self.type
         serial['options'] = self.options
+        serial['previous_layer'] = self.previous_layer
+        serial['next_layer'] = self.next_layer
 
         return serial
 
-    def load(self, serial):
+    def dump(self, path):
+        dump(self.save(), path)
+
+    @staticmethod
+    def load(serial):
         """
         Deserialization of layer
         """
-        self.config = serial['config']
-        self.type = serial['type']
-        self.options = serial['options']
+        layer = Layer()
+        layer.config = serial['config']
+        layer.type = serial['type']
+        layer.options = serial['options']
+        layer.previous_layer = serial['previous_layer']
+        layer.next_layer = serial['next_layer']
+
+        return layer
 
 
 def init_layer(layer):

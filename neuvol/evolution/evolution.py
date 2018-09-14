@@ -17,6 +17,7 @@ import numpy as np
 
 from ..architecture import cradle
 from ..probabilty_pool import Distribution
+from ..utils import dump
 
 
 class Evolution():
@@ -27,15 +28,15 @@ class Evolution():
     def __init__(
             self,
             stages,
-            population_size,
             evaluator,
             mutator,
             crosser,
+            population_size=10,
             data_type='text',
             task_type='classification',
             freeze=None,
             active_distribution=True,
-            loaded=None,
+            loaded=False,
             **kwargs):
         self._evaluator = evaluator
         self._mutator = mutator
@@ -43,29 +44,27 @@ class Evolution():
         self._stages = stages
         self._population_size = population_size
 
-        if loaded is not None:
-            self.load(loaded)
-        else:
-            self._data_type = data_type
-            self._task_type = task_type
-            self._freeze = freeze
-            self._active_distribution = active_distribution
-            self._options = kwargs
+        self._data_type = data_type
+        self._task_type = task_type
+        self._freeze = freeze
+        self._active_distribution = active_distribution
+        self._options = kwargs
 
-            self._population = []
-            self._mutation_pool_size = 0.2
-            self._mortality_rate = 0.2
-            self._current_stage = 1
+        self._population = []
+        self._mutation_pool_size = 0.2
+        self._mortality_rate = 0.2
+        self._current_stage = 1
 
         if self._data_type == 'text':
             Distribution.set_layer_status('cnn2', active=False)
+            Distribution.set_layer_status('max_pool2', active=False)
         elif self._data_type == 'image':
             Distribution.set_layer_status('cnn2', active=True)
             Distribution.set_layer_status('lstm', active=False)
             Distribution.set_layer_status('bi', active=False)
             Distribution.set_layer_status('max_pool', active=False)
 
-        if loaded is None:
+        if not loaded:
             self._create_population()
 
     def _create_population(self):
@@ -82,7 +81,11 @@ class Evolution():
         """
         for _ in range(int(self._mutation_pool_size * self._population_size)):
             index = int(np.random.randint(0, len(self._population)))
-            self._population[index] = self._mutator.mutate(self._population[index], self._current_stage)
+            # TODO: more accurate error handling
+            try:
+                self._population[index] = self._mutator.mutate(self._population[index], self._current_stage)
+            except:
+                pass
 
     def step(self):
         """
@@ -97,7 +100,7 @@ class Evolution():
                 network.result = 0.0
 
         best_individs = sorted(self._population, key=lambda individ: (-1) * individ.result)
-        self._population = best_individs[:int(-self._mortality_rate * self._population_size)]
+        self._population = best_individs[:int(self._population_size // (self._mortality_rate * 10))]
 
         self._current_stage += 1
 
@@ -110,9 +113,13 @@ class Evolution():
                 index_father = int(np.random.randint(0, len(self._population)))
                 index_mother = int(np.random.randint(0, len(self._population)))
 
-                new_individ = self._crosser.cross(
-                    deepcopy(self._population[index_father]),
-                    deepcopy(self._population[index_mother]), self._current_stage)
+                # TODO: more accurate error handling
+                try:
+                    new_individ = self._crosser.cross(
+                        deepcopy(self._population[index_father]),
+                        deepcopy(self._population[index_mother]), self._current_stage)
+                except:
+                    new_individ = cradle(0, self._data_type, self._task_type, freeze=self._freeze, **self._options)
 
                 self._population.append(new_individ)
 
@@ -156,21 +163,32 @@ class Evolution():
 
         return serial
 
-    def load(self, serial):
-        self._stages = serial['stages']
-        self._population_size = serial['population_size']
-        self._data_type = serial['data_type']
-        self._task_type = serial['task_type']
-        self._freeze = serial['freeze']
-        self._active_distribution = serial['active_distribution']
-        self._options = serial['options']
-        self._mutation_pool_size = serial['mutation_pool_size']
-        self._mortality_rate = serial['mortality_rate']
-        self._current_stage = serial['current_stage']
+    def dump(self, path):
+        dump(self.save(), path)
 
-        self._population = [cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options)
-            for _ in serial['population']]
-        self._population = [individ.load(serial['population'][i]) for i, individ in enumerate(self._population)]
+    @staticmethod
+    def load(serial, evaluator, mutator, crosser):
+        evolution = Evolution(serial['stages'], evaluator, mutator, crosser, loaded=True)
+
+        evolution._stages = serial['stages']
+        evolution._population_size = serial['population_size']
+        evolution._data_type = serial['data_type']
+        evolution._task_type = serial['task_type']
+        evolution._freeze = serial['freeze']
+        evolution._active_distribution = serial['active_distribution']
+        evolution._options = serial['options']
+        evolution._mutation_pool_size = serial['mutation_pool_size']
+        evolution._mortality_rate = serial['mortality_rate']
+        evolution._current_stage = serial['current_stage']
+
+        # self._population = [cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options)
+        #     for _ in serial['population']]
+        # in order to avoid overhead with creation and replacing of parameters, we use classmethod.
+        # it allow us to create only one object, set data type and then use it as a cradle
+        tempory_individ = cradle(None, evolution._data_type)
+        evolution._population = [tempory_individ.load(data) for data in serial['population']]
+
+        return evolution
 
     @property
     def population(self, n=5):

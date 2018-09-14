@@ -25,3 +25,13 @@ lstm_pop\.txt
 docs/build
 
 data/
+
+data_transorm\.py
+
+tmp\.json
+
+viz/
+
+x_genres\.npy
+
+y_genres\.npy

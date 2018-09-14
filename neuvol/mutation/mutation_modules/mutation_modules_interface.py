@@ -55,7 +55,7 @@ def architecture_part(individ, limitations):
     mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
 
     # find next layer to avoid incopabilities in neural architecture
-    next_layer = individ.architecture[mutation_layer + 1]
+    next_layer = individ.architecture[mutation_layer + 1].type
     new_layer = Distribution.layer()
     block = Block(new_layer, next_block=next_layer, **individ.options)
 
@@ -71,7 +71,7 @@ def architecture_parameters(individ, limitations):
     mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
 
     # find next layer to avoid incopabilities in neural architecture
-    next_layer = individ.architecture[mutation_layer + 1]
+    next_layer = individ.architecture[mutation_layer + 1].type
     new_layer = individ.architecture[mutation_layer].type
 
     individ.architecture[mutation_layer] = Block(new_layer, next_block=next_layer, **individ.options)
@@ -105,7 +105,7 @@ def architecture_add_layer(individ, limitations):
     mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
 
     # find next layer to avoid incopabilities in neural architecture
-    next_layer = individ.architecture[mutation_layer + 1]
+    next_layer = individ.architecture[mutation_layer + 1].type
     new_layer = Distribution.layer()
     block = Block(new_layer, next_block=next_layer, **individ.options)
 
@@ -121,11 +121,13 @@ def architecture_remove_layer(individ, limitations):
     """
     Remove random layer from architecture
     """
-    mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
+    try:
+        mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
+        tmp = individ.architecture
+        del tmp[mutation_layer]
 
-    tmp = individ.architecture
-    del tmp[mutation_layer]
-
-    individ.architecture = tmp
+        individ.architecture = tmp
+    except:
+        pass
 
     return individ

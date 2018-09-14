@@ -22,6 +22,7 @@ from ..constants import EVENT, FAKE, TRAINING
 from ..layer.block import Block
 from ..layer.layer import init_layer
 from ..probabilty_pool import Distribution
+from ..utils import dump
 
 
 class IndividBase:
@@ -54,13 +55,15 @@ class IndividBase:
         self._layers_number = 0
         self._result = 0.0
 
-        if self._parents is None:
-            self._random_init()
-            self._history.append(EVENT('Init', stage))
-        else:
-            self._task_type = parents[0].task_type
-            self._data_processing_type = parents[0].data_type
-            self._history.append(EVENT('Birth', self._stage))
+        # skip initialization, if this is tempory individ, that will be used only for load method
+        if stage is not None:
+            if self._parents is None:
+                self._random_init()
+                self._history.append(EVENT('Init', stage))
+            else:
+                self._task_type = parents[0].task_type
+                self._data_processing_type = parents[0].data_type
+                self._history.append(EVENT('Birth', self._stage))
 
     def __str__(self):
         return self.name
@@ -278,24 +281,37 @@ class IndividBase:
 
         return serial
 
-    def load(self, serial):
-        self._stage = serial['stage']
-        self._data_processing_type = serial['data_processing_type']
-        self._task_type = serial['task_type']
-        self._freeze = serial['freeze']
+    def dump(self, path):
+        dump(self.save(), path)
+
+    @classmethod
+    def load(cls, serial):
+        """
+        Base load method. Returns individ
+        """
+        # replace IndividBase with IndividText or IndividImage according the data type
+        individ = cls(None)
+
+        individ._stage = serial['stage']
+        individ._data_processing_type = serial['data_processing_type']
+        individ._task_type = serial['task_type']
+        individ._freeze = serial['freeze']
         if serial['parents'] is not None:
-            self._parents = [IndividBase(serial['stage'] - 1), IndividBase(serial['stage'] - 1)]
-            self._parents = [parent.load(serial['parents'][i]) for i, parent in enumerate(self._parents)]
-        self.options = serial['options']
-        self._history = serial['history']
-        self._name = serial['name']
-        self._architecture = [Block('input', layers_number=1, **self.options) for i, _ in enumerate(serial['architecture'])]
-        self._architecture = [block.load(serial['architecture'][i]) for i, block in enumerate(self._architecture)]
-        self._data_processing = serial['data_processing']
-        self._training_parameters = serial['training_parameters']
-        self._layers_number = serial['layers_number']
-        self._result = serial['result']
-        self.shape_structure = serial['shape_structure']
+            individ._parents = [IndividBase(serial['stage'] - 1), IndividBase(serial['stage'] - 1)]
+            individ._parents = [parent.load(serial['parents'][i]) for i, parent in enumerate(individ._parents)]
+        individ.options = serial['options']
+        individ._history = serial['history']
+        individ._name = serial['name']
+
+        individ._architecture = [Block.load(block) for block in serial['architecture']]
+
+        individ._data_processing = serial['data_processing']
+        individ._training_parameters = serial['training_parameters']
+        individ._layers_number = serial['layers_number']
+        individ._result = serial['result']
+        individ.shape_structure = serial['shape_structure']
+
+        return individ
 
     @property
     def layers_number(self):

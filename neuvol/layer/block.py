@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .layer import Layer
+from ..utils import dump
 
 
 class Block():
     """
     Block of layers class
     """
-    def __init__(self, layers_type, layers_number=1, previous_block=None, next_block=None, **kwargs):
+    def __init__(self, layers_type=None, layers_number=1, previous_block=None, next_block=None, **kwargs):
         self.layers = None
         self.type = layers_type
         self.shape = layers_number
@@ -26,8 +27,9 @@ class Block():
         self.next_block = next_block
         self.options = kwargs
 
-        self._init_parameters()
-        self._check_compatibility()
+        if layers_type is not None:
+            self._init_parameters()
+            self._check_compatibility()
 
     def _init_parameters(self):
         """
@@ -81,17 +83,24 @@ class Block():
 
         return serial
 
-    def load(self, serial):
+    def dump(self, path):
+        dump(self.save(), path)
+
+    @staticmethod
+    def load(serial):
         """
         Deserialization of block
         """
-        self.layers = [Layer(serial['type'], serial['previous_block'], serial['next_block'], **serial['options']) for _ in range(serial['shape'])]
-        self.layers = [layer.load(serial['layers'][i]) for i, layer in enumerate(self.layers)]
-        self.type = serial['type']
-        self.shape = serial['shape']
-        self.previous_block = serial['previous_block']
-        self.next_block = serial['next_block']
-        self.options = serial['options']
+        print(serial)
+        block = Block()
+        block.layers = [Layer.load(layer) for layer in serial['layers']]
+        block.type = serial['type']
+        block.shape = serial['shape']
+        block.previous_block = serial['previous_block']
+        block.next_block = serial['next_block']
+        block.options = serial['options']
+
+        return block
 
     @property
     def config(self):
