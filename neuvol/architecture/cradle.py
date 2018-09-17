@@ -20,7 +20,7 @@ def cradle(epochs, data_type='text', task_type='classification', parents=None, f
 
     Attributes:
         epochs (``int``): number of stage evolution
-        data_type (``str``): ?
+        data_type (``str``): image or text type
         task_type (``str``): ?
         parents (``IndividBase``): ?
         freeze (``bool``): ?

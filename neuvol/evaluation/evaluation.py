@@ -308,7 +308,7 @@ class Evaluator():
             predicted = np.array(predicted_out).argmax(-1)
             real = np.array(real_out).argmax(-1)
 
-            f1 = f1_score(real, predicted, average=None)
+            f1 = f1_score(real, predicted)
             # precision = precision_score(real, predicted, average=None)
             # recall = recall_score(real, predicted, average=None)
             # accuracy = accuracy_score(real, predicted)

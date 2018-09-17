@@ -32,53 +32,11 @@ class IndividText(IndividBase):
         At first, we set probabilities pool and the we change
         this uniform distribution according to previous layer
         """
-        if self._architecture:
-            self._architecture = []
+        super()._random_init_architecture()
 
-        architecture = []
-
-        # choose number of layers
-        self._layers_number = Distribution.layers_number()
-
-        # layers around current one
-        previous_layer = None
-        next_layer = None
-        tmp_architecture = []
-
-        # generate architecture
-        for i in range(self._layers_number):
-            if i != 0:
-                previous_layer = architecture[i - 1].type
-
-            if i < len(architecture) - 1:
-                next_layer = architecture[i + 1].type
-
-            if i == len(tmp_architecture) - 1:
-                if self._task_type == 'classification':
-                    next_layer = 'last_dense'
-
-            # choose the number of layers in one block (like inception)
-
-            layer = Distribution.layer()
-            layers_in_block_number = np.random.choice(range(1, 5), p=[0.7, 0.1, 0.1, 0.1])
-
-            block = Block(layer, layers_in_block_number, previous_layer, next_layer, **self.options)
-            architecture.append(block)
-
-        # Push embedding for texts
+        # Push embedding for texts after input layer and before others
         block = Block('embedding', layers_number=1, **self.options)
-        architecture.insert(0, block)
-
-        # Push input layer for functional keras api
-        block = Block('input', layers_number=1, **self.options)
-        architecture.insert(0, block)
-
-        if self._task_type == 'classification':
-            # Add last layer according to task type (usually perceptron)
-            block = Block('last_dense', layers_number=1, **self.options)
-            architecture.append(block)
-        else:
-            raise TypeError('{} value not supported'.format(self._task_type))
+        architecture.insert(1, block)
 
         return architecture
 
