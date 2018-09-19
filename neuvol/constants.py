@@ -40,7 +40,12 @@ SPECIAL = {
         'vocabular': [30000],
         'sentences_length': [i for i in range(1, 150, 1)],
         'embedding_dim': [i for i in range(32, 300, 2)],
-        'trainable': [False, True]}}
+        'trainable': [False, True]},
+    'zeropadding1D': {  # set manually
+        'padding': []},
+    'reshape': {  # set manually
+        'target_shape': []
+    }}
 
 LAYERS_POOL = {
     'bi': {

@@ -73,14 +73,10 @@ class IndividBase:
         self._data_processing = self._random_init_data_processing()
         self._training_parameters = self._random_init_training()
 
-    def _random_init_architecture(self):
+    def _random_init_branch(self, ):
         """
-        At first, we set probabilities pool and the we change
-        this uniform distribution according to previous layer
+        Here we create only branches without input and output layers
         """
-        if self._architecture:
-            self._architecture = []
-
         architecture = []
 
         # choose number of layers
@@ -109,6 +105,20 @@ class IndividBase:
 
             block = Block(layer, layers_in_block_number, previous_layer, next_layer, **self.options)
             architecture.append(block)
+
+        return architecture
+
+    def _random_init_architecture(self):
+        """
+        At first, we set probabilities pool and the we change
+        this uniform distribution according to previous layer
+        """
+        if self._architecture:
+            self._architecture = []
+
+        architecture = []
+
+        architecture.extend(self._random_init_branch)
 
         # Push input layer for functional keras api
         block = Block('input', layers_number=1, **self.options)
@@ -436,6 +446,13 @@ class IndividBase:
         return schema
 
     @property
+    def stage(self):
+        """
+        Get the last stage of evaluation
+        """
+        return self._stage
+
+    @property
     def data_processing(self):
         """
         Get the data processing parameters
@@ -469,6 +486,13 @@ class IndividBase:
         Add new event to the history
         """
         self._history.append(event)
+
+    @stage.setter
+    def stage(self, stage):
+        """
+        Change stage
+        """
+        self._stage = stage
 
     def random_init(self):
         """

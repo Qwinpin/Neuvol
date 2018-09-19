@@ -24,7 +24,6 @@ class Evolution():
     """
     Simple class that performs evolution process
     """
-
     def __init__(
             self,
             stages,
@@ -37,6 +36,8 @@ class Evolution():
             freeze=None,
             active_distribution=True,
             loaded=False,
+            multiple_gpu=False,
+            vizualize=False,
             **kwargs):
         self._evaluator = evaluator
         self._mutator = mutator
@@ -54,6 +55,8 @@ class Evolution():
         self._mutation_pool_size = 0.2
         self._mortality_rate = 0.2
         self._current_stage = 1
+
+        self._viz_data = []
 
         if self._data_type == 'text':
             Distribution.set_layer_status('cnn2', active=False)
@@ -91,16 +94,18 @@ class Evolution():
             # TODO: more accurate error handling
             try:
                 self._population[index] = self._mutator.mutate(self._population[index], self._current_stage)
-            except:
+            except Exception:
                 pass
 
     def step(self):
         """
         Perform one step of evolution, that consists of evaluation and death
         """
+        # TODO: parallel execution for multiple gpus
         for network in self._population:
             try:
                 network.result = self._evaluator.fit(network)
+                network.stage = self._current_stage
             # NOTE: maybe ArithmeticError ?
             except Exception:
                 # sorry, but here i dont care about type of exception
@@ -125,7 +130,7 @@ class Evolution():
                     new_individ = self._crosser.cross(
                         deepcopy(self._population[index_father]),
                         deepcopy(self._population[index_mother]), self._current_stage)
-                except:
+                except Exception:
                     new_individ = cradle(0, self._data_type, self._task_type, freeze=self._freeze, **self._options)
 
                 self._population.append(new_individ)
@@ -172,6 +177,24 @@ class Evolution():
 
     def dump(self, path):
         dump(self.save(), path)
+
+    def viz(self):
+        for network in self._population:
+            tmp = deepcopy(network)
+            tmp._name = tmp._name + str(self._current_stage)
+
+            # if individ was created rigth now - we dont remove parents to connect them
+            # if individ was created early - set parents as None to avoid crossconnections
+            if tmp.history[0].type == 'Birth':
+                if len(tmp.history) != 1:
+                    tmp._parents = None
+                else:
+                    tmp._parents[0]._name = tmp._parents[0]._name + str(self._current_stage - 1)
+                    tmp._parents[1]._name = tmp._parents[1]._name + str(self._current_stage - 1)
+            
+            self._viz_data.append(tmp.save())
+
+            
 
     @staticmethod
     def load(serial, evaluator, mutator, crosser):
