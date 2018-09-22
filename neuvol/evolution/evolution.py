@@ -56,7 +56,8 @@ class Evolution():
         self._mortality_rate = 0.2
         self._current_stage = 1
 
-        self._viz_data = []
+        self._viz_data = {}
+        self._viz_data['population'] = []
 
         if self._data_type == 'text':
             Distribution.set_layer_status('cnn2', active=False)
@@ -83,7 +84,7 @@ class Evolution():
         """
         for _ in range(self._population_size):
             self._population.append(
-                cradle(0, self._data_type, self._task_type, freeze=self._freeze, **self._options))
+                cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options))
 
     def mutation_step(self):
         """
@@ -94,6 +95,9 @@ class Evolution():
             # TODO: more accurate error handling
             try:
                 self._population[index] = self._mutator.mutate(self._population[index], self._current_stage)
+
+                # set result as -1 to retrain net
+                self._population[index].result = -1.0
             except Exception:
                 pass
 
@@ -103,41 +107,43 @@ class Evolution():
         """
         # TODO: parallel execution for multiple gpus
         for network in self._population:
-            try:
-                network.result = self._evaluator.fit(network)
-                network.stage = self._current_stage
-            # NOTE: maybe ArithmeticError ?
-            except Exception:
-                # sorry, but here i dont care about type of exception
-                network.result = 0.0
+            network.stage = self._current_stage
+
+            # train net only if we did not do this before
+            if network.result == -1:
+                try:
+                    network.result = self._evaluator.fit(network)
+                # NOTE: maybe ArithmeticError ?
+                except Exception:
+                    # sorry, but here i dont care about type of exception
+                    network.result = 0.0
 
         best_individs = sorted(self._population, key=lambda individ: (-1) * individ.result)
         self._population = best_individs[:int(self._population_size // (self._mortality_rate * 10))]
-
-        self._current_stage += 1
 
     def crossing_step(self):
         """
         Cross two individs and create new one
         """
-        for _ in range(self._population_size - len(self._population)):
+        old_population_size = len(self._population)
+        for _ in range(old_population_size):
             if np.random.choice([0, 1]):
-                index_father = int(np.random.randint(0, len(self._population)))
-                index_mother = int(np.random.randint(0, len(self._population)))
+                index_father = int(np.random.randint(0, old_population_size))
+                index_mother = int(np.random.randint(0, old_population_size))
 
                 # TODO: more accurate error handling
                 try:
                     new_individ = self._crosser.cross(
                         deepcopy(self._population[index_father]),
-                        deepcopy(self._population[index_mother]), self._current_stage)
+                        deepcopy(self._population[index_mother]), self._current_stage + 1)
                 except Exception:
-                    new_individ = cradle(0, self._data_type, self._task_type, freeze=self._freeze, **self._options)
+                    new_individ = cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options)
 
                 self._population.append(new_individ)
 
             else:
                 self._population.append(
-                    cradle(0, self._data_type, self._task_type, freeze=self._freeze, **self._options))
+                    cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options))
 
     def _population_probability(self):
         for individ in self._population[:3]:
@@ -157,6 +163,8 @@ class Evolution():
             if self._active_distribution:
                 self._population_probability()
             self.crossing_step()
+            self.viz()
+            self._current_stage += 1
 
     def save(self):
         serial = dict()
@@ -181,7 +189,7 @@ class Evolution():
     def viz(self):
         for network in self._population:
             tmp = deepcopy(network)
-            tmp._name = tmp._name + str(self._current_stage)
+            index = self._current_stage
 
             # if individ was created rigth now - we dont remove parents to connect them
             # if individ was created early - set parents as None to avoid crossconnections
@@ -189,12 +197,21 @@ class Evolution():
                 if len(tmp.history) != 1:
                     tmp._parents = None
                 else:
-                    tmp._parents[0]._name = tmp._parents[0]._name + str(self._current_stage - 1)
-                    tmp._parents[1]._name = tmp._parents[1]._name + str(self._current_stage - 1)
-            
-            self._viz_data.append(tmp.save())
+                    index += 1
+                    tmp._parents[0]._name = '_'.join([tmp._parents[0]._name, str(self._current_stage)])
+                    tmp._parents[1]._name = '_'.join([tmp._parents[1]._name, str(self._current_stage)])
 
-            
+            if tmp.history[0].stage < self._current_stage:
+                tmp.options['previous_train'] = '_'.join([tmp._name, str(index-1)])
+            else:
+                tmp.options['previous_train'] = None
+
+            tmp._name = '_'.join([tmp._name, str(index)])
+            self._viz_data['population'].append(tmp.save())
+
+        self._viz_data['current_stage'] = self._current_stage
+        
+        dump(self._viz_data, './viz_data.json')
 
     @staticmethod
     def load(serial, evaluator, mutator, crosser):

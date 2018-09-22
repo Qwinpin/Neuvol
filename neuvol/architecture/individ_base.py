@@ -53,7 +53,7 @@ class IndividBase:
         self._training_parameters = None
         self.shape_structure = None
         self._layers_number = 0
-        self._result = 0.0
+        self._result = -1.0
 
         # skip initialization, if this is tempory individ, that will be used only for load method
         if stage is not None:
@@ -118,7 +118,7 @@ class IndividBase:
 
         architecture = []
 
-        architecture.extend(self._random_init_branch)
+        architecture.extend(self._random_init_branch())
 
         # Push input layer for functional keras api
         block = Block('input', layers_number=1, **self.options)
@@ -418,7 +418,7 @@ class IndividBase:
     @property
     def stage(self):
         """
-        Get the stage of birth
+        Get the last stage
         """
         return self._stage
 
@@ -444,13 +444,6 @@ class IndividBase:
         schema = [(i.type, i.config_all) for i in self._architecture]
 
         return schema
-
-    @property
-    def stage(self):
-        """
-        Get the last stage of evaluation
-        """
-        return self._stage
 
     @property
     def data_processing(self):

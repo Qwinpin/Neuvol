@@ -127,7 +127,7 @@ def architecture_remove_layer(individ, limitations):
         del tmp[mutation_layer]
 
         individ.architecture = tmp
-    except:
+    except Exception:
         pass
 
     return individ

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+
 import numpy as np
 
 
@@ -33,4 +34,5 @@ class Custom_Encoder(json.JSONEncoder):
 
 
 def dump(data, file_name):
-    json.dumps(data, file_name, cls=Custom_Encoder)
+    with open(file_name, 'w') as output:
+        json.dump(data, output, cls=Custom_Encoder)
