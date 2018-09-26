@@ -32,7 +32,7 @@ class IndividText(IndividBase):
         At first, we set probabilities pool and the we change
         this uniform distribution according to previous layer
         """
-        super()._random_init_architecture()
+        architecture = super()._random_init_architecture()
 
         # Push embedding for texts after input layer and before others
         block = Block('embedding', layers_number=1, **self.options)

@@ -210,10 +210,6 @@ class Evaluator():
                         print('Tensor could not be compiled')
                     raise ArithmeticError('Tensor could not be compiled')
 
-            tf.reset_default_graph()
-
-            K.clear_session()
-
         training_time -= time.time()
 
         if network.task_type == 'classification':
@@ -308,11 +304,11 @@ class Evaluator():
             predicted = np.array(predicted_out).argmax(-1)
             real = np.array(real_out).argmax(-1)
 
-            f1 = f1_score(real, predicted)
+            f1 = f1_score(real, predicted, average=None)
             # precision = precision_score(real, predicted, average=None)
             # recall = recall_score(real, predicted, average=None)
             # accuracy = accuracy_score(real, predicted)
-            return np.sum(f1)
+            return np.mean(f1)
 
         elif self._fitness_measure == 'AUC':
             fpr = dict()

@@ -39,3 +39,5 @@ y_genres\.npy
 viz_data\.json
 
 viz_data2\.json
+
+*.zip
