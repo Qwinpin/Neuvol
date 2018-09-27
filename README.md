@@ -41,6 +41,7 @@ Short example of usage pipeline.
   
       evaluator = neuvol.Evaluator(x_train, y_train, kfold_number=5)
       mutator = neuvol.Mutator()
+      crosser = neuvol.Crosser()
   
       evaluator.create_tokens = False
       evaluator.fitness_measure = 'f1'
@@ -51,6 +52,7 @@ Short example of usage pipeline.
                                       population_size=10,
                                       evaluator=evaluator,
                                       mutator=mutator,
+                                      crosser=crosser,
                                       data_type='text',
                                       task_type='classification',
                                       active_distribution=True,
@@ -84,6 +86,7 @@ Short example of usage pipeline.
   
       evaluator = neuvol.Evaluator(x_train, y_train, kfold_number=5)
       mutator = neuvol.Mutator()
+      crosser = neuvol.Crosser()
   
       evaluator.create_tokens = False
       evaluator.fitness_measure = 'AUC'
@@ -94,6 +97,7 @@ Short example of usage pipeline.
                                       population_size=10,
                                       evaluator=evaluator,
                                       mutator=mutator,
+                                      crosser=crosser,
                                       data_type='image',
                                       task_type='classification',
                                       active_distribution=False,
