@@ -86,7 +86,8 @@ class Distribution():
     _layers_parameters_probability = parse_layer_parameter_const()
     _layers_number_probability = parse_layers_number()
     _training_parameters_probability = parse_training_const()
-    _appeareance_increases_probability = True
+    # True value of this parameter leads to convergence
+    _appeareance_increases_probability = False
     _diactivated_layers = []
 
     def _increase_layer_probability(self, layer):

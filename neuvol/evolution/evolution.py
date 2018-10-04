@@ -17,7 +17,7 @@ import numpy as np
 
 from ..architecture import cradle
 from ..probabilty_pool import Distribution
-from ..utils import dump
+from ..utils import dump, load
 
 
 class Evolution():
@@ -39,6 +39,7 @@ class Evolution():
             multiple_gpu=False,
             vizualize=False,
             **kwargs):
+        # TODO: methods of changing the parameters
         self._evaluator = evaluator
         self._mutator = mutator
         self._crosser = crosser
@@ -90,16 +91,13 @@ class Evolution():
         """
         Mutate randomly chosen individs
         """
-        for _ in range(int(self._mutation_pool_size * self._population_size)):
-            index = int(np.random.randint(0, len(self._population)))
-            # TODO: more accurate error handling
-            try:
-                self._population[index] = self._mutator.mutate(self._population[index], self._current_stage)
+        for network in self._population:
+            if np.random.choice([0, 1]):
+                # TODO: more accurate error handling
+                network = self._mutator.mutate(network, self._current_stage)
 
                 # set result as -1 to retrain net
-                self._population[index].result = -1.0
-            except Exception:
-                pass
+                network.result = -1.0
 
     def step(self):
         """
@@ -114,9 +112,12 @@ class Evolution():
                 try:
                     network.result = self._evaluator.fit(network)
                 # NOTE: maybe ArithmeticError ?
-                except Exception:
+                except Exception as e:
                     # sorry, but here i dont care about type of exception
+                    print(e)
                     network.result = 0.0
+
+        self.viz()
 
         best_individs = sorted(self._population, key=lambda individ: (-1) * individ.result)
         self._population = best_individs[:int(self._population_size // (self._mortality_rate * 10))]
@@ -125,19 +126,16 @@ class Evolution():
         """
         Cross two individs and create new one
         """
-        old_population_size = len(self._population)
+        old_population_size = self._population_size - len(self._population)
         for _ in range(old_population_size):
             if np.random.choice([0, 1]):
                 index_father = int(np.random.randint(0, old_population_size))
                 index_mother = int(np.random.randint(0, old_population_size))
 
                 # TODO: more accurate error handling
-                try:
-                    new_individ = self._crosser.cross(
-                        deepcopy(self._population[index_father]),
-                        deepcopy(self._population[index_mother]), self._current_stage + 1)
-                except Exception:
-                    new_individ = cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options)
+                new_individ = self._crosser.cross(
+                    deepcopy(self._population[index_father]),
+                    deepcopy(self._population[index_mother]), self._current_stage + 1)
 
                 self._population.append(new_individ)
 
@@ -153,17 +151,36 @@ class Evolution():
         """
         Perform all evolutional steps
         """
+        # tmp = self._current_stage + self._stages - 1
+
+        # for i in range(1, self._stages + 1):
+        #     print('\nStage #{} of {}\n'.format(self._current_stage, tmp))
+
+        #     self.mutation_step()
+        #     self.step()
+        #     if self._active_distribution:
+        #         self._population_probability()
+        #     self.crossing_step()
+        #     self.viz()
+        #     self._current_stage += 1
         tmp = self._current_stage + self._stages - 1
 
         for i in range(1, self._stages + 1):
             print('\nStage #{} of {}\n'.format(self._current_stage, tmp))
 
-            self.mutation_step()
-            self.step()
-            if self._active_distribution:
-                self._population_probability()
-            self.crossing_step()
-            self.viz()
+            if i == 1:
+                self.step()
+                if self._active_distribution:
+                    self._population_probability()
+            else:
+                self.crossing_step()
+                self.mutation_step()
+                self.step()
+                if self._active_distribution:
+                    self._population_probability()
+
+            print('\nBest result: {}\n'.format(self._population[0].result))
+
             self._current_stage += 1
 
     def save(self):
@@ -189,7 +206,6 @@ class Evolution():
     def viz(self):
         for network in self._population:
             tmp = deepcopy(network)
-            index = self._current_stage
 
             # if individ was created rigth now - we dont remove parents to connect them
             # if individ was created early - set parents as None to avoid crossconnections
@@ -197,24 +213,24 @@ class Evolution():
                 if len(tmp.history) != 1:
                     tmp._parents = None
                 else:
-                    index += 1
-                    tmp._parents[0]._name = '_'.join([tmp._parents[0]._name, str(self._current_stage)])
-                    tmp._parents[1]._name = '_'.join([tmp._parents[1]._name, str(self._current_stage)])
+                    tmp._parents[0]._name = '_'.join([tmp._parents[0]._name, str(self._current_stage - 1)])
+                    tmp._parents[1]._name = '_'.join([tmp._parents[1]._name, str(self._current_stage - 1)])
 
             if tmp.history[0].stage < self._current_stage:
-                tmp.options['previous_train'] = '_'.join([tmp._name, str(index-1)])
+                tmp.options['previous_train'] = '_'.join([tmp._name, str(self._current_stage - 1)])
             else:
                 tmp.options['previous_train'] = None
 
-            tmp._name = '_'.join([tmp._name, str(index)])
+            tmp._name = '_'.join([tmp._name, str(self._current_stage)])
             self._viz_data['population'].append(tmp.save())
 
         self._viz_data['current_stage'] = self._current_stage
-        
+
         dump(self._viz_data, './viz_data.json')
 
     @staticmethod
-    def load(serial, evaluator, mutator, crosser):
+    def load(file_name, evaluator, mutator, crosser):
+        serial = load(file_name)
         evolution = Evolution(serial['stages'], evaluator, mutator, crosser, loaded=True)
 
         evolution._stages = serial['stages']
@@ -237,23 +253,7 @@ class Evolution():
 
         return evolution
 
-    @property
-    def population(self, n=5):
-        """
-        Get the architecture of n individs
-        """
-        if n > self._population_size:
-            n = self._population_size
-
-        for i in range(n):
-            print('Name: ', self._population[i], '\n')
-            for block in self._population[i].architecture:
-                print('Block: \t ', block.type)
-                print('Config: \t', block.config_all, '\n')
-
-            print('\n\n')
-
-    def population_raw_individ(self):
+    def population(self):
         """
         Get the whole population itself
         """

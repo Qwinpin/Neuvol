@@ -11,22 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
-import random
-import string
 import unittest
 
 import numpy as np
 
-from neuvol.architecture import cradle
 from neuvol.crossing import Crosser
 from neuvol.evaluation import Evaluator
 from neuvol.evolution import Evolution
 from neuvol.mutation import Mutator
-from neuvol.layer.block import Block
 
 
-class TestEvolutionText(unittest.TestCase):
+class TestEvolutionImage(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         print('Hello, we start our tests right now\n')
@@ -41,15 +36,15 @@ class TestEvolutionText(unittest.TestCase):
         self.mutator = Mutator()
         self.crosser = Crosser()
 
-        self.evolution = Evolution(1, 10, self.evaluator, self.mutator, self.crosser, 'image', **options)
+        self.evolution = Evolution(1, self.evaluator, self.mutator, self.crosser, 10, 'image', **options)
 
     def test_evolution_initialization(self):
         self.assertIsInstance(self.evolution, Evolution)
 
     def test_evolution_mutation(self):
         self.evolution.mutation_step()
-        self.assertEqual(10, len(self.evolution.population_raw_individ()))
+        self.assertEqual(10, len(self.evolution.population()))
 
     def test_evolution_crossing(self):
         self.evolution.crossing_step()
-        self.assertEqual(10, len(self.evolution.population_raw_individ()))
+        self.assertEqual(10, len(self.evolution.population()))

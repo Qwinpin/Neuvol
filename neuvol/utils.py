@@ -36,3 +36,10 @@ class Custom_Encoder(json.JSONEncoder):
 def dump(data, file_name):
     with open(file_name, 'w') as output:
         json.dump(data, output, cls=Custom_Encoder)
+
+
+def load(file_name):
+    with open(file_name, 'rb') as inp:
+        data = json.load(inp)
+
+    return data

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from keras.datasets import imdb
-
 import neuvol
 
 
@@ -29,6 +28,7 @@ def main():
 
     evaluator = neuvol.Evaluator(x_train, y_train, kfold_number=1)
     mutator = neuvol.Mutator()
+    crosser = neuvol.Crosser()
 
     evaluator.create_tokens = False
     evaluator.fitness_measure = 'f1'
@@ -39,6 +39,7 @@ def main():
                                     population_size=10,
                                     evaluator=evaluator,
                                     mutator=mutator,
+                                    crosser=crosser,
                                     data_type='text',
                                     task_type='classification',
                                     active_distribution=True,

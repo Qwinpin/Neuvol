@@ -110,7 +110,7 @@ class Layer():
         """
         Deserialization of layer
         """
-        layer = Layer()
+        layer = Layer(None)
         layer.config = serial['config']
         layer.type = serial['type']
         layer.options = serial['options']

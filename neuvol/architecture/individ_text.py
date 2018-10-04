@@ -11,11 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import numpy as np
-
 from .individ_base import IndividBase
 from ..layer.block import Block
-from ..probabilty_pool import Distribution
 
 
 class IndividText(IndividBase):

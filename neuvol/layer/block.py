@@ -35,8 +35,8 @@ class Block():
         """
         Initialize block
         """
-        previous_layers = self.previous_block if self.previous_block is not None else None
-        next_layer = self.next_block if self.next_block is not None else None
+        previous_layers = self.previous_block
+        next_layer = self.next_block
 
         tmp_kwargs = self.options
         self.layers = [Layer(self.type, previous_layers, next_layer, **tmp_kwargs) for _ in range(self.shape)]
@@ -91,7 +91,6 @@ class Block():
         """
         Deserialization of block
         """
-        print(serial)
         block = Block()
         block.layers = [Layer.load(layer) for layer in serial['layers']]
         block.type = serial['type']

@@ -86,23 +86,27 @@ class IndividBase:
         previous_layer = None
         next_layer = None
 
-        # generate architecture
+        # generate architecture temporary - we need to know the previous and the next layers
+        tmp_architecture = []
+
         for i in range(self._layers_number):
+            layer = Distribution.layer()
+            tmp_architecture.append(layer)
+
+        # generate actual architecture
+        for i, layer in enumerate(tmp_architecture):
             if i != 0:
-                previous_layer = architecture[i - 1].type
+                previous_layer = tmp_architecture[i - 1]
 
-            if i < len(architecture) - 1:
-                next_layer = architecture[i + 1].type
+            if i < len(tmp_architecture) - 1:
+                next_layer = tmp_architecture[i + 1]
 
-            if i == len(architecture) - 1:
+            if i == len(tmp_architecture) - 1:
                 if self._task_type == 'classification':
                     next_layer = 'last_dense'
 
             # choose the number of layers in one block (like inception)
-
-            layer = Distribution.layer()
             layers_in_block_number = np.random.choice(range(1, 5), p=[0.7, 0.1, 0.1, 0.1])
-
             block = Block(layer, layers_in_block_number, previous_layer, next_layer, **self.options)
             architecture.append(block)
 
@@ -166,7 +170,7 @@ class IndividBase:
         # create structure of flow shape
         for index, block in enumerate(tmp):
             # select only one layer from the block
-            # we assume, that their output shape is the same
+            # we assume their output shape to be the same
             index += shift
 
             if block.type == 'input':
@@ -354,10 +358,10 @@ class IndividBase:
         individ._task_type = serial['task_type']
         individ._freeze = serial['freeze']
         if serial['parents'] is not None:
-            individ._parents = [IndividBase(serial['stage'] - 1), IndividBase(serial['stage'] - 1)]
+            individ._parents = [IndividBase(None), IndividBase(None)]
             individ._parents = [parent.load(serial['parents'][i]) for i, parent in enumerate(individ._parents)]
         individ.options = serial['options']
-        individ._history = serial['history']
+        individ._history = [EVENT(*event) for event in serial['history']]
         individ._name = serial['name']
 
         individ._architecture = [Block.load(block) for block in serial['architecture']]
