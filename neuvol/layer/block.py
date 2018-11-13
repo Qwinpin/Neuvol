@@ -84,6 +84,9 @@ class Block():
         return serial
 
     def dump(self, path):
+        """
+        Dump block info
+        """
         dump(self.save(), path)
 
     @staticmethod

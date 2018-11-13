@@ -18,6 +18,9 @@ import numpy as np
 
 # in general, json does not handle numpy types
 class Custom_Encoder(json.JSONEncoder):
+    """
+    Custom encoder with numpy handling
+    """
     def default(self, obj):
         if isinstance(obj, np.integer):
             return int(obj)
@@ -34,11 +37,17 @@ class Custom_Encoder(json.JSONEncoder):
 
 
 def dump(data, file_name):
+    """
+    Save chosen object to the file
+    """
     with open(file_name, 'w') as output:
         json.dump(data, output, cls=Custom_Encoder)
 
 
 def load(file_name):
+    """
+    Load object from the file
+    """
     with open(file_name, 'rb') as inp:
         data = json.load(inp)
 

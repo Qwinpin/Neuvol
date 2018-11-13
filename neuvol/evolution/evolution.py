@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from copy import deepcopy
+import os
 
 import numpy as np
 
@@ -92,7 +93,7 @@ class Evolution():
         Mutate randomly chosen individs
         """
         for network in self._population:
-            if np.random.choice([0, 1]):
+            if np.random.randint(0, 1) > 0.3:
                 # TODO: more accurate error handling
                 network = self._mutator.mutate(network, self._current_stage)
 
@@ -103,7 +104,6 @@ class Evolution():
         """
         Perform one step of evolution, that consists of evaluation and death
         """
-        # TODO: parallel execution for multiple gpus
         for network in self._population:
             network.stage = self._current_stage
 
@@ -151,18 +151,6 @@ class Evolution():
         """
         Perform all evolutional steps
         """
-        # tmp = self._current_stage + self._stages - 1
-
-        # for i in range(1, self._stages + 1):
-        #     print('\nStage #{} of {}\n'.format(self._current_stage, tmp))
-
-        #     self.mutation_step()
-        #     self.step()
-        #     if self._active_distribution:
-        #         self._population_probability()
-        #     self.crossing_step()
-        #     self.viz()
-        #     self._current_stage += 1
         tmp = self._current_stage + self._stages - 1
 
         for i in range(1, self._stages + 1):
@@ -182,8 +170,12 @@ class Evolution():
             print('\nBest result: {}\n'.format(self._population[0].result))
 
             self._current_stage += 1
+            self.dump('tmp.json')
 
     def save(self):
+        """
+        Serialize object for further dump
+        """
         serial = dict()
         serial['stages'] = self._stages
         serial['population_size'] = self._population_size
@@ -201,9 +193,18 @@ class Evolution():
         return serial
 
     def dump(self, path):
+        """
+        Dump evolution states including individs
+        """
         dump(self.save(), path)
 
     def viz(self):
+        """
+        Serialize the whole story of evolution for further visualization
+        """
+        if os.path.isfile('./viz_data.json'):
+            self._viz_data = load('viz_data.json')
+
         for network in self._population:
             tmp = deepcopy(network)
 
@@ -227,9 +228,13 @@ class Evolution():
         self._viz_data['current_stage'] = self._current_stage
 
         dump(self._viz_data, './viz_data.json')
+        self._viz_data = None
 
     @staticmethod
     def load(file_name, evaluator, mutator, crosser):
+        """
+        Load evolution state from the file and additional information: evaluator, mutator and crosser
+        """
         serial = load(file_name)
         evolution = Evolution(serial['stages'], evaluator, mutator, crosser, loaded=True)
 
@@ -244,8 +249,6 @@ class Evolution():
         evolution._mortality_rate = serial['mortality_rate']
         evolution._current_stage = serial['current_stage']
 
-        # self._population = [cradle(self._current_stage, self._data_type, self._task_type, freeze=self._freeze, **self._options)
-        #     for _ in serial['population']]
         # in order to avoid overhead with creation and replacing of parameters, we use classmethod.
         # it allow us to create only one object, set data type and then use it as a cradle
         tempory_individ = cradle(None, evolution._data_type)

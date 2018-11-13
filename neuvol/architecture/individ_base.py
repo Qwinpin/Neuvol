@@ -26,7 +26,8 @@ from ..utils import dump
 
 
 class IndividBase:
-    """Individ class
+    """
+    Individ class
     """
     # TODO: add support for different data types
     # TODO: add support for different task types
@@ -280,7 +281,7 @@ class IndividBase:
         network_graph = network_graph_input
         try:
             self._check_compatibility()
-        except Exception:
+        except Exception as e:
             return None, None, None
 
         for block in self._architecture[1:]:
@@ -324,6 +325,9 @@ class IndividBase:
         return model, optimizer, loss
 
     def save(self):
+        """
+        Serialize the whole object for further dump
+        """
         serial = dict()
         serial['stage'] = self._stage
         serial['data_processing_type'] = self._data_processing_type
@@ -343,6 +347,9 @@ class IndividBase:
         return serial
 
     def dump(self, path):
+        """
+        Dump individ as a json object
+        """
         dump(self.save(), path)
 
     @classmethod

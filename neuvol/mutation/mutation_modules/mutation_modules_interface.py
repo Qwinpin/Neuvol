@@ -47,6 +47,9 @@ def perform_mutation(individ, mutation_type):
     elif mutation_type == 'architecture_remove':
         return architecture_remove_layer(individ, limitations)
 
+    else:
+        return architecture_part(individ, limitations)
+
 
 def architecture_part(individ, limitations):
     """

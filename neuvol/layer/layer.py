@@ -103,6 +103,9 @@ class Layer():
         return serial
 
     def dump(self, path):
+        """
+        Dump layer info
+        """
         dump(self.save(), path)
 
     @staticmethod
