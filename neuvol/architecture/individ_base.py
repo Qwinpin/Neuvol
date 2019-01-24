@@ -62,6 +62,10 @@ class IndividBase:
                 self._random_init()
                 self._history.append(EVENT('Init', stage))
             else:
+                # okay, we need some hack to avoid memory leak
+                self._parents[0]._parents = None
+                self._parents[1]._parents = None
+
                 self._task_type = parents[0].task_type
                 self._data_processing_type = parents[0].data_type
                 self._history.append(EVENT('Birth', self._stage))
@@ -82,6 +86,8 @@ class IndividBase:
 
         # choose number of layers
         self._layers_number = Distribution.layers_number()
+        if self._layers_number > self.options['depth']:
+            self._layers_number = self.options['depth']
 
         # layers around current one
         previous_layer = None
@@ -162,6 +168,7 @@ class IndividBase:
         """
         Check shapes compatibilities of different layers, modify layer if it is necessary
         """
+        # TODO: REWRITE AT ALL
         previous_shape = []
         shape_structure = []
         tmp = deepcopy(self._architecture)
@@ -176,6 +183,7 @@ class IndividBase:
 
             if block.type == 'input':
                 output_shape = block.config['shape']
+
             if block.type == 'embedding':
                 output_shape = (2, block.config['sentences_length'], block.config['embedding_dim'])
 
@@ -295,7 +303,6 @@ class IndividBase:
 
             else:
                 # we need just to add new layer
-
                 network_graph = init_layer(block)(network_graph)
             # except ValueError:
             # in some cases shape of previous output could be less than kernel size of cnn

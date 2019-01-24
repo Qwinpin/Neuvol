@@ -178,7 +178,9 @@ class Evaluator():
             # create list of indexes
             # to work without cross-validation and avoid code duplication
             # we imitate kfold behaviour and return two lists of indexes
-            kfold_generator = [[list(range(self._x.shape[0]))] * 2]
+            tmp = list(range(self._x.shape[0]))
+            np.random.shuffle(tmp)
+            kfold_generator = [[tmp] * 2]
 
         global graph
         graph = tf.get_default_graph()

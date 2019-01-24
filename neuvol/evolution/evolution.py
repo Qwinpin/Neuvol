@@ -92,13 +92,14 @@ class Evolution():
         """
         Mutate randomly chosen individs
         """
-        for network in self._population:
+        # mutate only previous elements in the population
+        for network in range(round(self._population_size * (1 - self._mortality_rate))):
             if np.random.randint(0, 1) > 0.3:
                 # TODO: more accurate error handling
-                network = self._mutator.mutate(network, self._current_stage)
+                self._population[network] = self._mutator.mutate(self._population[network], self._current_stage + 1)
 
                 # set result as -1 to retrain net
-                network.result = -1.0
+                self._population[network].result = -1.0
 
     def step(self):
         """
@@ -151,12 +152,12 @@ class Evolution():
         """
         Perform all evolutional steps
         """
-        tmp = self._current_stage + self._stages - 1
+        tmp = self._stages + self._current_stage
 
-        for i in range(1, self._stages + 1):
-            print('\nStage #{} of {}\n'.format(self._current_stage, tmp))
+        for i in range(self._stages):
+            print('\nStage #{} of {}\n'.format(self._current_stage, tmp - 1))
 
-            if i == 1:
+            if self._current_stage == 0:
                 self.step()
                 if self._active_distribution:
                     self._population_probability()
@@ -204,6 +205,9 @@ class Evolution():
         """
         if os.path.isfile('./viz_data.json'):
             self._viz_data = load('viz_data.json')
+        else:
+            self._viz_data = {}
+            self._viz_data['population'] = []
 
         for network in self._population:
             tmp = deepcopy(network)

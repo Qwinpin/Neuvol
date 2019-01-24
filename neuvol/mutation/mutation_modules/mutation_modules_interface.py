@@ -13,6 +13,7 @@
 # limitations under the License.
 import numpy as np
 
+from ...constants import EVENT
 from ...constants import TRAINING
 from ...layer.block import Block
 from ...probabilty_pool import Distribution
@@ -30,25 +31,29 @@ def perform_mutation(individ, mutation_type):
         limitations = [1, 1]
 
     if mutation_type == 'architecture_part':
-        return architecture_part(individ, limitations)
+        individ = architecture_part(individ, limitations)
 
     elif mutation_type == 'architecture_parameters':
-        return architecture_parameters(individ, limitations)
+        individ = architecture_parameters(individ, limitations)
 
     elif mutation_type == 'training_all':
-        return training_all(individ)
+        individ = training_all(individ)
 
     elif mutation_type == 'training_part':
-        return training_part(individ)
+        individ = training_part(individ)
 
     elif mutation_type == 'architecture_add':
-        return architecture_add_layer(individ, limitations)
+        individ = architecture_add_layer(individ, limitations)
 
     elif mutation_type == 'architecture_remove':
-        return architecture_remove_layer(individ, limitations)
+        individ = architecture_remove_layer(individ, limitations)
 
     else:
-        return architecture_part(individ, limitations)
+        individ = architecture_part(individ, limitations)
+
+    individ.history = EVENT('Mutation: {}'.format(mutation_type), individ.stage)
+
+    return individ
 
 
 def architecture_part(individ, limitations):

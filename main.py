@@ -29,28 +29,32 @@ def main():
     evaluator = neuvol.Evaluator(x_train, y_train, kfold_number=1)
     mutator = neuvol.Mutator()
     crosser = neuvol.Crosser()
-
+    # imdb dataset contains processed texts in form of indexes
     evaluator.create_tokens = False
     evaluator.fitness_measure = 'f1'
-    options = {'classes': 2, 'shape': (100,), 'depth': 4}
+    # evaluator.device = 'gpu'
+
+    options = {'classes': 2, 'shape': (100,), 'depth': 10}
 
     wop = neuvol.evolution.Evolution(
-                                    stages=10,
-                                    population_size=10,
-                                    evaluator=evaluator,
-                                    mutator=mutator,
-                                    crosser=crosser,
-                                    data_type='text',
-                                    task_type='classification',
-                                    active_distribution=True,
-                                    freeze=None,
-                                    **options)
+        stages=10,
+        population_size=10,
+        evaluator=evaluator,
+        mutator=mutator,
+        crosser=crosser,
+        data_type='text',
+        task_type='classification',
+        active_distribution=True,
+        freeze=None,
+        **options)
     wop.cultivate()
 
     for individ in wop.population:
         print('Architecture: \n')
         print(individ.schema)
         print('\nScore: ', individ.result)
+
+    wop.dump('population.json')
 
 
 if __name__ == "__main__":

@@ -82,12 +82,9 @@ class Layer():
             self.config['units'] = self.options['classes']
 
         elif self.type == 'cnn' or self.type == 'cnn2':
-            if self.config['padding'] == 'causal':
+            # control dilation constraints
+            if self.config['dilation_rate'] != 1:
                 self.config['strides'] = 1
-                if self.config['dilation_rate'] == 1:
-                    self.config['padding'] = 'same'
-            else:
-                self.config['dilation_rate'] = 1
 
     def save(self):
         """

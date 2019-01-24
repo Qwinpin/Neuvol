@@ -27,15 +27,15 @@ class MutatorImage(MutatorBase):
         """
         Mutate individ
         """
-        super().mutate()
+        super(MutatorImage, MutatorImage).mutate(individ)
 
         mutation_type = np.random.choice([
             'architecture_part',
             'architecture_parameters',
-            'training_all',
-            'training_part',
             'architecture_add',
-            'architecture_remove'
+            'architecture_remove',
+            'training_all',
+            'training_part'
         ])
 
         individ = perform_mutation(individ, mutation_type)

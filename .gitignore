@@ -45,3 +45,7 @@ viz_data2\.json
 viz_data\(7\)\.json
 
 viz_data_imdb_2\.json
+
+*.png
+
+*.json

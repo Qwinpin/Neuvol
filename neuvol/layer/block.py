@@ -51,18 +51,16 @@ class Block():
                 pass
 
             elif self.type == 'cnn' or self.type == 'cnn2':
-                strides = self.layers[0].config['strides']
-                dilation_rate = self.layers[0].config['dilation_rate']
+                # note that same padding and strides != 1 is inconsistent in keras
                 for layer in self.layers:
                     layer.config['padding'] = 'same'
-                    layer.config['strides'] = strides
-                    layer.config['dilation_rate'] = dilation_rate
+                    layer.config['strides'] = 1
 
             elif self.type == 'max_pool' or self.type == 'max_pool2':
-                strides = self.layers[0].config['strides']
+                # note that same padding and strides != 1 is inconsistent in keras
                 for layer in self.layers:
                     layer.config['padding'] = 'same'
-                    layer.config['strides'] = strides
+                    layer.config['strides'] = 1
 
             else:
                 output = self.layers[0].config['units']

@@ -27,7 +27,7 @@ class MutatorText(MutatorBase):
         """
         Mutate individ
         """
-        super().mutate()
+        super(MutatorText, MutatorText).mutate(individ)
 
         mutation_type = np.random.choice([
             'architecture_part',

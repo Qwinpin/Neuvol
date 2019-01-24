@@ -86,19 +86,20 @@ class Distribution():
     _layers_parameters_probability = parse_layer_parameter_const()
     _layers_number_probability = parse_layers_number()
     _training_parameters_probability = parse_training_const()
-    # True value of this parameter leads to convergence
+    # True value of this parameter leads to fast convergence
+    # TODO: options
     _appeareance_increases_probability = False
     _diactivated_layers = []
 
     def _increase_layer_probability(self, layer):
-        self._layers_probability[layer] += 1
+        self._layers_probability[layer] += 0.1
 
     def _increase_layer_parameters_probability(self, layer, parameter, value):
         a = list(self._layers_parameters_probability[layer][parameter])
 
         a.sort()
         index_of_selected_value = a.index(value)
-        kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
+        kernel = lambda x: 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
 
         for i, value in enumerate(a):
             self._layers_parameters_probability[layer][parameter][value] += kernel(i)
@@ -108,7 +109,7 @@ class Distribution():
 
         a.sort()
         index_of_selected_value = a.index(value)
-        kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
+        kernel = lambda x: 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
 
         for i, value in enumerate(a):
             self._training_parameters_probability[parameter][value] += kernel(i)
@@ -131,7 +132,7 @@ class Distribution():
 
         if cls._appeareance_increases_probability:
             # now we increase the probability of this layer to be appear
-            cls._layers_probability[choice] += 1
+            cls._increase_layer_probability(cls, choice)
 
         return choice
 
@@ -152,12 +153,7 @@ class Distribution():
             # now one important thing - imagine parameters as a field of values
             # we chose one value, and now we want to increase the probability of this value
             # but we also should increase probabilities of near values
-            a.sort()
-            index_of_selected_value = a.index(choice)
-            kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
-
-            for i, value in enumerate(a):
-                cls._layers_parameters_probability[layer][parameter][value] += kernel(i)
+            cls._increase_layer_parameters_probability(cls, layer, parameter, choice)
 
         return choice
 
@@ -180,7 +176,7 @@ class Distribution():
             # but we also should increase probabilities of near values
             a.sort()
             index_of_selected_value = a.index(choice)
-            kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
+            kernel = lambda x: 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
 
             for i, value in enumerate(a):
                 cls._layers_number_probability[value] += kernel(i)
@@ -204,12 +200,7 @@ class Distribution():
             # now one important thing - imagine parameters as a field of values
             # we chose one value, and now we want to increase the probability of this value
             # but we also should increase probabilities of near values
-            a.sort()
-            index_of_selected_value = a.index(choice)
-            kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
-
-            for i, value in enumerate(a):
-                cls._training_parameters_probability[parameter][value] += kernel(i)
+            cls._increase_training_parameters(cls, parameter, choice)
 
         return choice
 

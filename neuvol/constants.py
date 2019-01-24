@@ -28,9 +28,9 @@ GENERAL = {
 
 # Training parameters
 TRAINING = {
-    'batchs': [i for i in range(8, 512, 32)],
-    'epochs': [i for i in range(1, 100) if i % 2],
-    'optimizer': ['adam', 'RMSprop'],
+    'batchs': [4],  # [i for i in range(8, 512, 32)],
+    'epochs': [200],  # [i for i in range(1, 100) if i % 2],
+    'optimizer': ['adam'],  # ['adam', 'RMSprop'],
     'optimizer_decay': [FLOAT32(i / 10000) for i in range(1, 500, 1)],
     'optimizer_lr': [FLOAT32(i / 10000) for i in range(1, 500, 1)]}
 
@@ -68,15 +68,15 @@ LAYERS_POOL = {
         'strides': [1, 2, 3],
         'padding': ['valid', 'same', 'causal'],
         'activation': ['tanh', 'relu'],
-        'dilation_rate': [1, 2, 3]},
+        'dilation_rate': [0, 1, 2, 3]},
 
     'cnn2': {
-        'filters': [i for i in range(4, 128, 2)],
-        'kernel_size': [i for i in range(1, 9, 1)],
+        'filters': [i for i in range(1, 128, 1)],
+        'kernel_size': [i for i in range(1, 11, 1)],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same'],
         'activation': ['tanh', 'relu'],
-        'dilation_rate': [1, 2, 3]},
+        'dilation_rate': [0, 1, 2, 3]},
 
     'max_pool': {
         'pool_size': [i for i in range(2, 16)],
