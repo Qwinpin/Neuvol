@@ -142,6 +142,8 @@ class Distribution():
         Get random parameters for the layer
         """
         a = list(cls._layers_parameters_probability[layer][parameter])
+        if not a:
+            return None
 
         # we should normalize list of probabilities
         p = np.array(list(cls._layers_parameters_probability[layer][parameter].values()))

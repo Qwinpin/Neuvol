@@ -17,3 +17,4 @@ from .evaluation import Evaluator
 from .evolution import Evolution
 from .mutation import Mutator
 from .probabilty_pool import Distribution
+from .layer import block, layer

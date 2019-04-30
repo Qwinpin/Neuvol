@@ -40,6 +40,7 @@ class Layer():
         if self.type == 'input':
             # set shape of the input - shape of the data
             self.config['shape'] = self.options['shape']
+            self.config['rank'] = self.options['rank']
 
         elif self.type == 'embedding':
             variables = list(SPECIAL[self.type])
@@ -48,6 +49,11 @@ class Layer():
 
             # select the first element in the shape tuple
             self.config['sentences_length'] = self.options['shape'][0]
+
+        elif self.type == 'reshape':
+            variables = list(SPECIAL[self.type])
+            for parameter in variables:
+                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
 
         elif self.type == 'last_dense':
             variables = list(LAYERS_POOL['dense'])

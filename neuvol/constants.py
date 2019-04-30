@@ -23,7 +23,8 @@ FLOAT32 = np.float32
 
 # General parameters
 GENERAL = {
-    'layers_number': [i for i in range(1, 10)]
+    'layers_number': [i for i in range(1, 10)],
+    'splitter_type': ['split', 'merge', 'uno']
 }
 
 # Training parameters
@@ -37,18 +38,22 @@ TRAINING = {
 # Specific parameters
 SPECIAL = {
     'embedding': {
+        'input_rank': [],
         'vocabular': [30000],
         'sentences_length': [i for i in range(1, 150, 1)],
         'embedding_dim': [i for i in range(32, 300, 2)],
         'trainable': [False, True]},
-    'zeropadding1D': {  # set manually
+    'zeropadding1D': {
+        'input_rank': [],  # set manually
         'padding': []},
     'reshape': {  # set manually
+        'input_rank': [],
         'target_shape': []
     }}
 
 LAYERS_POOL = {
     'bi': {
+        'input_rank': [3],
         'units': [i for i in range(1, 32, 1)],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
         'activation': ['tanh', 'relu'],
@@ -56,6 +61,7 @@ LAYERS_POOL = {
         'return_sequences': [True, False]},
 
     'lstm': {
+        'input_rank': [3],
         'units': [i for i in range(1, 32, 1)],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
         'activation': ['tanh', 'relu'],
@@ -63,35 +69,42 @@ LAYERS_POOL = {
         'return_sequences': [True, False]},
 
     'cnn': {
+        'input_rank': [3],
         'filters': [i for i in range(4, 128, 2)],
         'kernel_size': [i for i in range(1, 9, 1)],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same', 'causal'],
         'activation': ['tanh', 'relu'],
-        'dilation_rate': [0, 1, 2, 3]},
+        'dilation_rate': [1, 2, 3]},
 
     'cnn2': {
+        'input_rank': [4],
         'filters': [i for i in range(1, 128, 1)],
         'kernel_size': [i for i in range(1, 11, 1)],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same'],
         'activation': ['tanh', 'relu'],
-        'dilation_rate': [0, 1, 2, 3]},
+        'dilation_rate': [1, 2, 3]},
 
     'max_pool': {
+        'input_rank': [3],
         'pool_size': [i for i in range(2, 16)],
         'strides': [i for i in range(2, 8)],
         'padding': ['valid', 'same']},
 
     'max_pool2': {
+        'input_rank': [4],
         'pool_size': [i for i in range(2, 16)],
         'strides': [i for i in range(2, 8)],
         'padding': ['valid', 'same']},
 
     'dense': {
+        'input_rank': [],
         'units': [i for i in range(4, 512, 2)],
         'activation': ['softmax', 'sigmoid']},
 
-    'dropout': {'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]}}
+    'dropout': {
+        'input_rank': [],
+        'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]}}
 
 POOL_SIZE = len(LAYERS_POOL)
