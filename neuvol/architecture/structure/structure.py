@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ...layer.reshaper import calculate_shape, reshaper
+from ...layer.reshaper import calculate_shape, reshaper, merger
 
 
 class Structure:
@@ -37,7 +37,7 @@ class StructureText(Structure):
         self.current_width = 1
         self.branch_count = 1
 
-        self.tree = {'root': 'embedding'}
+        self.tree = {'root': ['embedding']}
         self.branchs_end = {1: 'embedding'}
 
 
@@ -46,31 +46,43 @@ class StructureText(Structure):
 
         self.current_depth += 1
 
-    def add_layer(self, layer, branch):
-        if layer is not None:
-            add_to = self.branchs_end[branch]
+    def add_layer(self, layer, branch, branch_out=None):
+        # branch_out used if you add new layer as a separate branch
+        if layer is None:
+            return None
+
+        add_to = self.branchs_end[branch]
+        add_to_object = self.layers[add_to]
+
+        # check if new shape is known or not
+        # for instance, shape is already known for embedding, input, reshape layers
+        new_shape = layer.config.get('shape', None)
+        if new_shape is None:
+            layer.config['rank'], layer.config['shape'] = calculate_shape(add_to_object, layer)
+        
+        modifier_reshaper = reshaper(add_to_object, layer)
+        if modifier_reshaper is not None:
+            # now we want to connect new layer through the reshaper
+            add_to = self.add_layer(modifier_reshaper, branch, branch_out=branch_out)
             add_to_object = self.layers[add_to]
+            layer.config['rank'], layer.config['shape'] = calculate_shape(add_to_object, layer)
 
-            # check if new shape is known or not
-            # for instance, shape is already known for embedding, input, reshape layers
-            new_shape = layer.config.get('shape', None)
-            if new_shape is None:
-                layer.config['rank'], layer.config['shape'] = calculate_shape(add_to_object, layer)
-            
-            modifier_reshaper = reshaper(add_to_object, layer)
-            if modifier_reshaper is not None:
-                # now we want to connect new layer through the reshaper
-                add_to = self.add_layer(modifier_reshaper, branch)
-                add_to_object = self.layers[add_to]
-                layer.config['rank'], layer.config['shape'] = calculate_shape(add_to_object, layer)
+        # if not None - we want to create a new branch
+        if branch_out is not None:
+            branch = branch_out
 
-            self.tree[add_to] = '{}_{}'.format(self.current_depth, branch)
-            self.branchs_end[branch] = self.tree[add_to]
-            self.layers[self.tree[add_to]] = layer
+        new_name = '{}_{}'.format(self.current_depth, branch)
 
-            self.current_depth += 1
+        if self.tree.get(add_to) is None:
+            self.tree[add_to] = []
 
-            return self.tree[add_to]
+        self.tree[add_to].append(new_name)
+        self.branchs_end[branch] = new_name
+        self.layers[new_name] = layer
+
+        self.current_depth += 1
+
+        return new_name
 
     def merge_branch(self, layer, left_branch, right_branch):
         left_to = self.branchs_end[left_branch]
@@ -79,22 +91,37 @@ class StructureText(Structure):
         left_to_object = self.layers[left_to]
         right_to_object = self.layers[right_to]
 
-        left_modifier_reshaper = reshaper(left_to_object, layer)
-        right_modifier_reshaper = reshaper(right_to_object, layer)
+        left_modifier_reshaper, left_shape_modifier = merger(left_to_object, layer)
+
+        self.add_layer(left_shape_modifier, left_to_object)
+        self.add_layer(right_shape_modifier, right_to_object)
 
         self.add_layer(left_modifier_reshaper, left_to_object)
         self.add_layer(right_modifier_reshaper, right_to_object)
 
-        self.tree[left_to] = '{}_{}'.format(self.current_depth, left_branch)
-        self.tree[right_to] = '{}_{}'.format(self.current_depth, left_branch)
+        new_name = '{}_{}'.format(self.current_depth, left_branch)
+
+        if self.tree.get(left_to) is None:
+            self.tree[left_to] = []
+
+        if self.tree.get(right_to) is None:
+            self.tree[right_to] = []
+
+        self.tree[left_to].append(new_name)
+        self.tree[right_to].append(new_name)
 
         self.branch_count -= 1
         del self.branchs_end[right_branch]
-        self.branchs_end[left_branch] = self.tree[left_to]
-        self.layers[self.tree[left_to]] = layer
+        self.branchs_end[left_branch] = new_name
+        self.layers[new_name] = layer
 
         self.current_depth += 1
         self.current_width -= 1
 
     def split_branch(self, left_layer, right_layer, branch):
-        pass
+        # call simple add for each branch
+        self.add_layer(right_layer, branch, branch_out=self.branch_count + 10)
+        self.current_depth -= 1
+        self.add_layer(left_layer, branch)
+
+        self.current_depth -= 1  # hm, we use two add layer operation at onces, we need only one (+1) to the depth

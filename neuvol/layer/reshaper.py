@@ -50,6 +50,13 @@ def calculate_shape(prev_layer, layer):
         elif padding == 'causal':
             out = [(i + (2 * (kernel_size // 2) - kernel_size - (kernel_size - 1) * (dilation_rate - 1))) // strides + 1 for i in prev_shape[1:-1]]
 
+        for i in out:
+            # if some of the layer too small - change the padding
+            if i <= 0:
+                layer.config['padding'] = 'same'
+                rank, shape = calculate_shape(prev_layer, layer)
+                return rank, shape
+
         shape = (None, *out, filters)
 
     elif layer.type == 'max_pool' or layer.type == 'max_pool2':
@@ -76,6 +83,9 @@ def calculate_shape(prev_layer, layer):
 
     elif layer.type == 'embedding':
         shape = (None, layer.config['sentences_length'], layer.config['embedding_dim'])
+
+    elif layer.type == 'flatten':
+        shape = (None, np.prod(*prev_shape[1:]))
 
     else:
         shape = prev_shape
@@ -129,8 +139,21 @@ def merger(left_layer, right_layer):
     # usually two branches has different shapes, so we need to flatten them
     shape_modifier = None
     if left_layer.config['shape'][:-1] != right_layer.config['shape']:
-        shape_modifier = Layer('flatten')
+        left_shape_modifier = Layer('flatten')
+        right_shape_modifier = Layer('flattne')
+    else:
+        left_shape_modifier = None
+        right_shape_modifier = None
 
     modifier = Layer('concat')
+    
+    if shape_modifier is not None:
+        _, left_shape = calculate_shape(left_layer, modifier)
+        _, right_shape = calculate_shape(right_layer, modifier)
 
-    return modifier, shape_modifier
+        modifier.config['shape'] = (None, left_shape + right_shape)
+
+    else:
+        modifier.config['shape'] = (None, *left_layer.config['shape'][1:-1], left_layer.config['shape'][-1] + right_layer.config['shape'][-1])
+
+    return modifier, left_shape_modifier, right_shape_modifier
