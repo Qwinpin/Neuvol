@@ -78,72 +78,6 @@ class IndividBase:
         self._data_processing = self._random_init_data_processing()
         self._training_parameters = self._random_init_training()
 
-    # def _random_init_branch(self, ):
-    #     """
-    #     Here we create only branches without input and output layers
-    #     """
-    #     architecture = []
-
-    #     # choose number of layers
-    #     self._layers_number = Distribution.layers_number()
-    #     if self._layers_number > self.options['depth']:
-    #         self._layers_number = self.options['depth']
-
-    #     # layers around current one
-    #     previous_layer = None
-    #     next_layer = None
-
-    #     # generate architecture temporary - we need to know the previous and the next layers
-    #     tmp_architecture = []
-
-    #     for i in range(self._layers_number):
-    #         layer = Distribution.layer()
-    #         tmp_architecture.append(layer)
-
-    #     # generate actual architecture
-    #     for i, layer in enumerate(tmp_architecture):
-    #         if i != 0:
-    #             previous_layer = tmp_architecture[i - 1]
-
-    #         if i < len(tmp_architecture) - 1:
-    #             next_layer = tmp_architecture[i + 1]
-
-    #         if i == len(tmp_architecture) - 1:
-    #             if self._task_type == 'classification':
-    #                 next_layer = 'last_dense'
-
-    #         # choose the number of layers in one block (like inception)
-    #         layers_in_block_number = np.random.choice(range(1, 5), p=[0.7, 0.1, 0.1, 0.1])
-    #         block = Block(layer, layers_in_block_number, previous_layer, next_layer, **self.options)
-    #         architecture.append(block)
-
-    #     return architecture
-
-    # def _random_init_architecture(self):
-    #     """
-    #     At first, we set probabilities pool and the we change
-    #     this uniform distribution according to previous layer
-    #     """
-    #     if self._architecture:
-    #         self._architecture = []
-
-    #     architecture = []
-
-    #     architecture.extend(self._random_init_branch())
-
-    #     # Push input layer for functional keras api
-    #     block = Block('input', layers_number=1, **self.options)
-    #     architecture.insert(0, block)
-
-    #     if self._task_type == 'classification':
-    #         # Add last layer according to task type (usually perceptron)
-    #         block = Block('last_dense', layers_number=1, **self.options)
-    #         architecture.append(block)
-    #     else:
-    #         raise TypeError('{} value not supported'.format(self._task_type))
-
-    #     return architecture
-
     def _random_init_architecture(self):
         """
         """
@@ -178,119 +112,30 @@ class IndividBase:
         """
         pass
 
-    # def _check_compatibility(self):
-    #     """
-    #     Check shapes compatibilities of different layers, modify layer if it is necessary
-    #     """
-    #     # TODO: REWRITE AT ALL
-    #     previous_shape = []
-    #     shape_structure = []
-    #     tmp = deepcopy(self._architecture)
-    #     # use shift to know where to put additional layers
-    #     shift = 0
+    def layers_imposer(self, net_tail, net_map, head, layers_map):
+        net = None
+        buffer = None
+        buffer_ids = None
+        state = net_map
 
-    #     # create structure of flow shape
-    #     for index, block in enumerate(tmp):
-    #         # select only one layer from the block
-    #         # we assume their output shape to be the same
-    #         index += shift
+        for source, target in net_map:
+            if len(target) > 1:
+                buffer = [self.layers_imposer(net, net_map, branch, layers_map) for branch in target]
 
-    #         if block.type == 'input':
-    #             output_shape = block.config['shape']
+            if 'm' in target[0]:
+                if buffer_ids is None:
+                    buffer_ids = [source]
+                else:
+                    buffer_ids.append(source)
+                
+                continue
+            
+            if buffer is not None:
+                net = concatenate(buffer)
+            
+            net = layers_map[target](net)
 
-    #         if block.type == 'embedding':
-    #             output_shape = (2, block.config['sentences_length'], block.config['embedding_dim'])
-
-    #         if block.type == 'cnn' or block.type == 'cnn2':
-    #             filters = block.config['filters']
-    #             kernel_size = [block.config['kernel_size']]
-    #             padding = block.config['padding']
-    #             strides = block.config['strides']
-    #             dilation_rate = block.config['dilation_rate']
-    #             input_layer = previous_shape[1:-1]
-    #             out = []
-    #             # convolution output shape depends on padding and stride
-    #             if padding == 'valid':
-    #                 if strides == 1:
-    #                     for i, side in enumerate(input_layer):
-    #                         out.append(side - kernel_size[i] + 1)
-    #                 else:
-    #                     for i, side in enumerate(input_layer):
-    #                         out.append((side - kernel_size[i]) // strides + 1)
-
-    #             elif padding == 'same':
-    #                 if strides == 1:
-    #                     for i, side in enumerate(input_layer):
-    #                         out.append(side - kernel_size[i] + (2 * (kernel_size[i] // 2)) + 1)
-    #                 else:
-    #                     for i, side in enumerate(input_layer):
-    #                         out.append((side - kernel_size[i] + (2 * (kernel_size[i] // 2))) // strides + 1)
-
-    #             elif padding == 'causal':
-    #                 for i, side in enumerate(input_layer):
-    #                     out.append((side + (2 * (kernel_size[i] // 2)) - kernel_size[i] - (kernel_size[i] - 1) * (
-    #                         dilation_rate - 1)) // strides + 1)
-
-    #             # check for negative values
-    #             if any(side <= 0 for size in out):
-    #                 for layer in block:
-    #                     layer.config['padding'] = 'same'
-
-    #             output_shape = []
-    #             output_shape.append(previous_shape[0])
-
-    #             # *out does not work with python < 3.5
-    #             output_shape.extend(out)
-
-    #             output_shape.append(filters)
-    #             output_shape = tuple(output_shape)
-
-    #         elif block.type == 'lstm' or block.type == 'bi':
-    #             units = block.config['units']
-
-    #             # if we return sequence, output has 3-dim
-    #             sequences = block.config['return_sequences']
-
-    #             # bidirectional lstm returns double basic lstm output
-    #             bi = 2 if block.type == 'bi' else 1
-
-    #             if sequences:
-    #                 output_shape = []
-    #                 output_shape.append(previous_shape[0])
-
-    #                 # *previous_shape[1:-1] does not work with python < 3.5
-    #                 output_shape.extend(previous_shape[1:-1])
-
-    #                 output_shape.append(units * bi)
-    #                 output_shape = tuple(output_shape)
-    #             else:
-    #                 output_shape = (1, units * bi)
-
-    #         elif block.type == 'dense' or block.type == 'last_dense':
-    #             units = block.config['units']
-    #             output_shape = []
-    #             output_shape.append(previous_shape[0])
-
-    #             # *previous_shape[1:-1] does not work with python < 3.5
-    #             output_shape.append(previous_shape[1:-1])
-
-    #             output_shape.append(units)
-    #             output_shape = tuple(output_shape)
-
-    #         elif block.type == 'flatten':
-    #             output_shape = (1, np.prod(previous_shape[1:]))
-
-    #         previous_shape = output_shape
-    #         shape_structure.append(output_shape)
-
-    #     if self._task_type == 'classification':
-    #         # Reshape data flow in case of dimensional incompatibility
-    #         # output shape for classifier must be 2-dim
-    #         if shape_structure[-1][0] != 1:
-    #             new_layer = Block('flatten', previous_block=None, next_block=None, layers_number=1)
-    #             self._architecture.insert(-1, new_layer)
-
-    #     self.shape_structure = shape_structure
+        return net
 
     def init_tf_graph(self):
         """
@@ -299,12 +144,20 @@ class IndividBase:
         if not self._architecture:
             raise Exception('Non initialized net')
 
+        # initialize all layers
+        layers_map = {}
+        for key, layer in self._architecture.layers.items():
+            keras_layer_instance = init_layer(layer)
+            layers_map[key] = keras_layer_instance
+
+        starter = 'input'
+        network_input = layers_map[starter]
+
+
+
+
         network_graph_input = init_layer(self._architecture[0])
         network_graph = network_graph_input
-        try:
-            self._check_compatibility()
-        except Exception as e:
-            return None, None, None
 
         for block in self._architecture[1:]:
             if block.shape > 1:
@@ -358,7 +211,8 @@ class IndividBase:
         serial['options'] = self.options
         serial['history'] = self._history
         serial['name'] = self.name
-        serial['architecture'] = [block.save() for block in self._architecture]
+        # TODO: rewrite architectures saver
+        # serial['architecture'] = [block.save() for block in self._architecture]
         serial['data_processing'] = self._data_processing
         serial['training_parameters'] = self._training_parameters
         serial['layers_number'] = self._layers_number
@@ -392,7 +246,8 @@ class IndividBase:
         individ._history = [EVENT(*event) for event in serial['history']]
         individ._name = serial['name']
 
-        individ._architecture = [Block.load(block) for block in serial['architecture']]
+        # TODO: rewrite architectures saver
+        # individ._architecture = [Block.load(block) for block in serial['architecture']]
 
         individ._data_processing = serial['data_processing']
         individ._training_parameters = serial['training_parameters']

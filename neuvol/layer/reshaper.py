@@ -85,7 +85,7 @@ def calculate_shape(prev_layer, layer):
         shape = (None, layer.config['sentences_length'], layer.config['embedding_dim'])
 
     elif layer.type == 'flatten':
-        shape = (None, np.prod(*prev_shape[1:]))
+        shape = (None, np.prod(prev_shape[1:]))
 
     else:
         shape = prev_shape
@@ -139,21 +139,33 @@ def merger(left_layer, right_layer):
     # usually two branches has different shapes, so we need to flatten them
     shape_modifier = None
     if left_layer.config['shape'][:-1] != right_layer.config['shape']:
-        left_shape_modifier = Layer('flatten')
-        right_shape_modifier = Layer('flattne')
+        shape_modifier = Layer('flatten')
     else:
-        left_shape_modifier = None
-        right_shape_modifier = None
+        shape_modifier = None
 
     modifier = Layer('concat')
     
     if shape_modifier is not None:
-        _, left_shape = calculate_shape(left_layer, modifier)
-        _, right_shape = calculate_shape(right_layer, modifier)
+        _, left_shape = calculate_shape(left_layer, shape_modifier)
+        _, right_shape = calculate_shape(right_layer, shape_modifier)
 
         modifier.config['shape'] = (None, left_shape + right_shape)
+        modifier.config['rank'] = 2
 
     else:
         modifier.config['shape'] = (None, *left_layer.config['shape'][1:-1], left_layer.config['shape'][-1] + right_layer.config['shape'][-1])
+        modifier.config['rank'] = left_layer.config['rank']
 
-    return modifier, left_shape_modifier, right_shape_modifier
+    return modifier, shape_modifier
+
+def merger_mass(layers):
+    shape_modifier = Layer('flatten')
+
+    modifier = Layer('concat')
+
+    shapes = [calculate_shape(layer, shape_modifier)[1][1] for layer in layers]
+
+    modifier.config['shape'] = (None, np.sum(shapes))
+    modifier.config['rank'] = 2
+
+    return modifier, shape_modifier

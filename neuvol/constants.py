@@ -48,7 +48,11 @@ SPECIAL = {
         'padding': []},
     'reshape': {  # set manually
         'input_rank': [],
-        'target_shape': []
+        'target_shape': []},
+    'flatten': {
+        'input_rank': [],},
+    'concat': {
+        'input_rank': [],
     }}
 
 LAYERS_POOL = {

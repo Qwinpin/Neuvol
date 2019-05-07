@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.layers import (Bidirectional, Conv1D, Conv2D, Dense, Dropout,
+from keras.layers import (Bidirectional, concatenate, Conv1D, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, MaxPool1D, MaxPool2D)
 from keras.layers.recurrent import LSTM
 
@@ -42,6 +42,7 @@ class Layer():
             self.config['shape'] = self.options['shape']
             self.config['rank'] = self.options['rank']
 
+        # TODO: refactor
         elif self.type == 'embedding':
             variables = list(SPECIAL[self.type])
             for parameter in variables:
@@ -61,7 +62,14 @@ class Layer():
                 self.config[parameter] = Distribution.layer_parameters('dense', parameter)
 
         elif self.type == 'flatten':
-            pass
+            variables = list(SPECIAL[self.type])
+            for parameter in variables:
+                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
+
+        elif self.type == 'concat':
+            variables = list(SPECIAL[self.type])
+            for parameter in variables:
+                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
 
         else:
             variables = list(LAYERS_POOL[self.type])
