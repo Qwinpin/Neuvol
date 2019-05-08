@@ -75,7 +75,7 @@ LAYERS_POOL = {
     'cnn': {
         'input_rank': [3],
         'filters': [i for i in range(4, 128, 2)],
-        'kernel_size': [i for i in range(1, 9, 1)],
+        'kernel_size': [i for i in range(1, 11, 2)],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same', 'causal'],
         'activation': ['tanh', 'relu'],
@@ -84,7 +84,7 @@ LAYERS_POOL = {
     'cnn2': {
         'input_rank': [4],
         'filters': [i for i in range(1, 128, 1)],
-        'kernel_size': [i for i in range(1, 11, 1)],
+        'kernel_size': [i for i in range(1, 11, 2)],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same'],
         'activation': ['tanh', 'relu'],

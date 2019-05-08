@@ -22,6 +22,7 @@ from ..constants import EVENT, FAKE, TRAINING
 from ..layer.block import Block
 from ..layer.layer import init_layer
 from ..probabilty_pool import Distribution
+from .structure import Structure
 from ..utils import dump
 
 
@@ -84,13 +85,7 @@ class IndividBase:
         if self._architecture:
             self._architecture = []
 
-        architecture = []
-
-        # initial layer as a baseline
-        layer = Distribution.layer()
-
-        # TODO: architecture class
-        pass
+        return ...
 
     def _random_init_training(self):
         """
@@ -110,32 +105,60 @@ class IndividBase:
         """
         Initialize data processing parameters
         """
-        pass
+        return ...
 
-    def layers_imposer(self, net_tail, net_map, head, layers_map):
-        net = None
-        buffer = None
-        buffer_ids = None
-        state = net_map
+    def layers_imposer(self, net_tail, head, layers_map, arch_map):
+        net = net_tail
+        source = head
 
-        for source, target in net_map:
-            if len(target) > 1:
-                buffer = [self.layers_imposer(net, net_map, branch, layers_map) for branch in target]
+        try:
+            target = arch_map[source]
+        except KeyError:
+            return net, ''
 
-            if 'm' in target[0]:
-                if buffer_ids is None:
-                    buffer_ids = [source]
-                else:
-                    buffer_ids.append(source)
-                
-                continue
+        # if the next layer is merger - return its net tail
+        if target[0][0] == 'm':
+            return [net], target[0]
+
+        if len(target) > 1:
+            buffer_tails = {branch: layers_map[branch](net) for branch in target}
+            buffer = [self.layers_imposer(buffer_tails[branch], branch, layers_map, arch_map) for branch in target]
             
-            if buffer is not None:
-                net = concatenate(buffer)
+            buffer_tmp = []
+            #unpack
+            for sub_branch in buffer:
+                sub_net_tails = sub_branch[0]
+                for sub_net_tail in sub_net_tails:
+                    buffer_tmp.append((sub_net_tail, sub_branch[1]))
+
+            buffer = buffer_tmp
+            new_head = buffer[0][1]
             
+            lenghts = int(new_head.split('_')[-1])
+            if len(buffer) < lenghts:
+                return [branch[0] for branch in buffer], new_head
+
+            # check consistency
+            for i in buffer:
+                for j in buffer:
+                    if i[1] != j[1]:
+                        raise ValueError('Inconsistent merger')
+
+            net = concatenate([branch[0] for branch in buffer])
+            
+            net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
+
+        if 'f' in target[0]:
             net = layers_map[target](net)
+            return net, target[0]
+        
+        if len(target) == 1:
+            new_head = target[0]
+            net = layers_map[target[0]](net)
 
-        return net
+            net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
+
+        return net, new_head
 
     def init_tf_graph(self):
         """
@@ -150,34 +173,12 @@ class IndividBase:
             keras_layer_instance = init_layer(layer)
             layers_map[key] = keras_layer_instance
 
-        starter = 'input'
+        starter = 'root'
         network_input = layers_map[starter]
 
+        network_graph = self.layers_imposer(network_input, 'root', layers_map, self._architecture.tree)
 
-
-
-        network_graph_input = init_layer(self._architecture[0])
-        network_graph = network_graph_input
-
-        for block in self._architecture[1:]:
-            if block.shape > 1:
-                # we need to create list of layers and concatenate them
-                tmp_block = []
-                for layer in block.layers:
-                    tmp_block.append(init_layer(layer)(network_graph))
-
-                network_graph = concatenate(tmp_block, axis=-1)
-
-            else:
-                # we need just to add new layer
-                network_graph = init_layer(block)(network_graph)
-            # except ValueError:
-            # in some cases shape of previous output could be less than kernel size of cnn
-            # it leads to a negative dimension size error
-            # add same padding to avoid this problem
-            #    layer.config['padding'] = 'same'
-            #    network_graph.add(init_layer(layer))
-        model = Model(inputs=[network_graph_input], outputs=[network_graph])
+        model = Model(inputs=[network_input], outputs=[network_graph])
 
         if self._training_parameters['optimizer'] == 'adam':
             optimizer = adam(

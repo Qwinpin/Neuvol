@@ -115,16 +115,16 @@ class Structure:
         add_to = [self.branchs_end[branch] for branch in branches]
         add_to_objects = [self.layers[to] for to in add_to]
 
-        modifier, shape_modifier = merger_mass(add_to_objects)
+        modifier, shape_modifiers = merger_mass(add_to_objects)
 
-        if shape_modifier is not None:
-            add_to = [self.add_layer(shape_modifier, branch) for branch in branches]
+        if shape_modifiers is not None:
+            add_to = [self.add_layer(shape_modifiers[i], branch) for i, branch in enumerate(branches)]
 
         for to in add_to:
             if self.tree.get(to) is None:
                 self.tree[to] = []
 
-        modifier_name =  'm{}_{}'.format(self.current_depth, branches[0])
+        modifier_name =  'm{}_{}_{}'.format(self.current_depth, branches[0], len(branches))
 
         for to in add_to:
             self.tree[to].append(modifier_name)

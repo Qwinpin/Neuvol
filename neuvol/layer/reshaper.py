@@ -37,18 +37,25 @@ def calculate_shape(prev_layer, layer):
     if layer.type == 'cnn' or layer.type == 'cnn2':
         filters = layer.config['filters']
         kernel_size = layer.config['kernel_size']
+        if kernel_size % 2 == 0:
+            align = 1
+        else:
+            align = 0
         padding = layer.config['padding']
         strides = layer.config['strides']
         dilation_rate = layer.config['dilation_rate']
 
         if padding == 'valid':
-            out = [((i - kernel_size) // strides + 1) for i in prev_shape[1:-1]]
+            if dilation_rate != 1:
+                out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align for i in prev_shape[1:-1]]
+            else:
+                out = [((i - kernel_size) // strides + 1 - align) for i in prev_shape[1:-1]]
         
         elif padding == 'same':
-            out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1) for i in prev_shape[1:-1]]
+            out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in prev_shape[1:-1]]
 
         elif padding == 'causal':
-            out = [(i + (2 * (kernel_size // 2) - kernel_size - (kernel_size - 1) * (dilation_rate - 1))) // strides + 1 for i in prev_shape[1:-1]]
+            out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align for i in prev_shape[1:-1]]
 
         for i in out:
             # if some of the layer too small - change the padding
@@ -62,8 +69,12 @@ def calculate_shape(prev_layer, layer):
     elif layer.type == 'max_pool' or layer.type == 'max_pool2':
         kernel_size = layer.config['pool_size']
         strides = layer.config['strides']
+        padding = layer.config['padding']
 
-        out = [((i - kernel_size) // strides + 1) for i in prev_shape[1:-1]]
+        if padding == 'same':
+            out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1) for i in prev_shape[1:-1]]
+        else:
+            out = [((i - kernel_size) // strides + 1) for i in prev_shape[1:-1]]
 
         shape = (None, *out, prev_shape[-1])
 
@@ -111,7 +122,7 @@ def reshaper(prev_layer, layer):
         new_shape = (None, *prev_layer.config['shape'][1:-(difference + 2)], np.prod(prev_layer.config['shape'][-(difference + 2): -1]), prev_layer.config['shape'][-1])
 
         modifier = Layer('reshape')
-        modifier.config['target_shape'] = new_shape
+        modifier.config['target_shape'] = new_shape[1:]
         modifier.config['shape'] = new_shape
         modifier.config['input_rank'] = prev_layer.config['rank']
         modifier.config['rank'] = layer.config['input_rank']
@@ -122,7 +133,7 @@ def reshaper(prev_layer, layer):
         new_shape = (None, *prev_layer.config['shape'][1:], *tmp)
 
         modifier = Layer('reshape')
-        modifier.config['target_shape'] = new_shape
+        modifier.config['target_shape'] = new_shape[1:]
         modifier.config['shape'] = new_shape
         modifier.config['input_rank'] = prev_layer.config['rank']
         modifier.config['rank'] = layer.config['input_rank']
@@ -159,13 +170,22 @@ def merger(left_layer, right_layer):
     return modifier, shape_modifier
 
 def merger_mass(layers):
-    shape_modifier = Layer('flatten')
+    shape_modifiers = []
+    for layer in layers:
+        new_shape = (None, np.prod(layer.config['shape'][1:]))
+
+        reshape = Layer('reshape')
+        reshape.config['target_shape'] = new_shape[1:]
+        reshape.config['shape'] = new_shape
+        reshape.config['input_rank'] = layer.config['rank']
+        reshape.config['rank'] = 2
+
+        shape_modifiers.append(reshape)
 
     modifier = Layer('concat')
 
-    shapes = [calculate_shape(layer, shape_modifier)[1][1] for layer in layers]
-
+    shapes = [shape_modifiers[i].config['shape'][1:] for i, layer in enumerate(layers)]
     modifier.config['shape'] = (None, np.sum(shapes))
     modifier.config['rank'] = 2
 
-    return modifier, shape_modifier
+    return modifier, shape_modifiers
