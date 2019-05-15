@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from copy import deepcopy
-
 from keras.layers import concatenate
 from keras.models import Model
 from keras.optimizers import adam, RMSprop
-import numpy as np
 
 from ..constants import EVENT, FAKE, TRAINING
-from ..layer.block import Block
+from ..layer.block import Layer
 from ..layer.layer import init_layer
 from ..probabilty_pool import Distribution
 from .structure import Structure
@@ -114,7 +111,7 @@ class IndividBase:
         try:
             target = arch_map[source]
         except KeyError:
-            return net, ''
+            return [net], ''
 
         # if the next layer is merger - return its net tail
         if target[0][0] == 'm':
@@ -123,9 +120,9 @@ class IndividBase:
         if len(target) > 1:
             buffer_tails = {branch: layers_map[branch](net) for branch in target}
             buffer = [self.layers_imposer(buffer_tails[branch], branch, layers_map, arch_map) for branch in target]
-            
+
             buffer_tmp = []
-            #unpack
+            # unpack
             for sub_branch in buffer:
                 sub_net_tails = sub_branch[0]
                 for sub_net_tail in sub_net_tails:
@@ -133,7 +130,7 @@ class IndividBase:
 
             buffer = buffer_tmp
             new_head = buffer[0][1]
-            
+
             lenghts = int(new_head.split('_')[-1])
             if len(buffer) < lenghts:
                 return [branch[0] for branch in buffer], new_head
@@ -145,20 +142,20 @@ class IndividBase:
                         raise ValueError('Inconsistent merger')
 
             net = concatenate([branch[0] for branch in buffer])
-            
+
             net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
 
         if 'f' in target[0]:
             net = layers_map[target](net)
-            return net, target[0]
-        
+            return [net], target[0]
+
         if len(target) == 1:
             new_head = target[0]
-            net = layers_map[target[0]](net)
+            net = layers_map[target[0]](net[0])
 
             net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
 
-        return net, new_head
+        return [net], new_head
 
     def init_tf_graph(self):
         """

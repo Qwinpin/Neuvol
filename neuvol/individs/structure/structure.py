@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from ...layer.reshaper import calculate_shape, reshaper, merger, merger_mass
+from ...layer.reshaper import calculate_shape, reshaper, merger_mass
 
 
 class Structure:
@@ -45,7 +45,7 @@ class Structure:
         new_shape = layer.config.get('shape', None)
         if new_shape is None:
             layer.config['rank'], layer.config['shape'] = calculate_shape(add_to_object, layer)
-        
+
         modifier_reshaper = reshaper(add_to_object, layer)
         if modifier_reshaper is not None:
             # now we want to connect new layer through the reshaper
@@ -70,47 +70,6 @@ class Structure:
 
         return new_name
 
-    def merge_branch(self, layer, left_branch, right_branch):
-        """
-        Merge two branchs to a new layer
-        
-        Args:
-            layer (instance of the Layer)
-            left_branch (int)
-            right_branch (int)
-        """
-        left_to = self.branchs_end[left_branch]
-        right_to = self.branchs_end[right_branch]
-
-        left_to_object = self.layers[left_to]
-        right_to_object = self.layers[right_to]
-
-        modifier, shape_modifier = merger(left_to_object, right_to_object)
-
-        if shape_modifier is not None:
-            left_to = self.add_layer(shape_modifier, left_branch)
-            right_to = self.add_layer(shape_modifier, right_branch)
-        
-        if self.tree.get(left_to) is None:
-            self.tree[left_to] = []
-
-        if self.tree.get(right_to) is None:
-            self.tree[right_to] = []
-
-        modifier_name = '{}_{}'.format(self.current_depth, left_branch)
-        self.tree[left_to].append(modifier_name)
-        self.tree[right_to].append(modifier_name)
-
-        self.branchs_end[left_branch] = modifier_name
-        self.layers[modifier_name] = modifier
-        self.current_depth += 1
-
-        del self.branchs_end[right_branch]
-        self.branch_count -= 1
-
-        new_name = self.add_layer(layer, left_branch)
-        return new_name
-
     def merge_branches(self, layer, branches=None):
         add_to = [self.branchs_end[branch] for branch in branches]
         add_to_objects = [self.layers[to] for to in add_to]
@@ -124,7 +83,7 @@ class Structure:
             if self.tree.get(to) is None:
                 self.tree[to] = []
 
-        modifier_name =  'm{}_{}_{}'.format(self.current_depth, branches[0], len(branches))
+        modifier_name = 'm{}_{}_{}'.format(self.current_depth, branches[0], len(branches))
 
         for to in add_to:
             self.tree[to].append(modifier_name)
@@ -136,7 +95,7 @@ class Structure:
         for branch in branches[1:]:
             del self.branchs_end[branch]
             self.branch_count -= 1
-        
+
         new_name = self.add_layer(layer, branches[0])
         return new_name
 
@@ -160,7 +119,7 @@ class StructureText(Structure):
     def __init__(self, root, embedding):
         """
         Initialize the architecture of the individual
-        
+
         Args:
             root (instance of the Layer) - input layer type
             embedding (instance of the Layer) - embedding layer type

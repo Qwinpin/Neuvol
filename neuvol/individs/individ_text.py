@@ -66,7 +66,8 @@ class IndividText(IndividBase):
     #     individ._history = serial['history']
     #     individ._name = serial['name']
 
-    #     individ._architecture = [Block('input', layers_number=1, **self.options) for i, _ in enumerate(serial['architecture'])]
+    #     individ._architecture = [Block('input', layers_number=1, **self.options) \
+    #         for i, _ in enumerate(serial['architecture'])]
     #     individ._architecture = [block.load(serial['architecture'][i]) for i, block in enumerate(self._architecture)]
 
     #     individ._data_processing = serial['data_processing']

@@ -41,7 +41,8 @@ def parse_layer_parameter_const():
         # for each layer's parameter we set probability of its value
         for parameter in LAYERS_POOL[layer]:
             tmp_probability = 1  # / len(LAYERS_POOL[layer][parameter])
-            layers_parameters_probability[layer][parameter] = {value: tmp_probability for value in LAYERS_POOL[layer][parameter]}
+            layers_parameters_probability[layer][parameter] = {value: tmp_probability
+                                                               for value in LAYERS_POOL[layer][parameter]}
 
     for layer in SPECIAL:
         layers_parameters_probability[layer] = {}
@@ -49,7 +50,8 @@ def parse_layer_parameter_const():
         # for each layer's parameter we set probability of its value
         for parameter in SPECIAL[layer]:
             tmp_probability = 1  # / len(SPECIAL[layer][parameter])
-            layers_parameters_probability[layer][parameter] = {value: tmp_probability for value in SPECIAL[layer][parameter]}
+            layers_parameters_probability[layer][parameter] = {value: tmp_probability
+                                                               for value in SPECIAL[layer][parameter]}
 
     return layers_parameters_probability
 
@@ -77,6 +79,21 @@ def parse_training_const():
     return training_parameters_probability
 
 
+def kernel(x, index_of_selected_value, coef=0.423):
+    """
+    Allows to change the distribution of the element according to the
+    distance to selected element
+
+    Arguments:
+        x {int} -- index of element in the distribution
+        index_of_selected_value {int} -- index of element, which is selected in the distribution
+
+    Returns:
+        float -- coefficient for the x element probability
+    """
+    return 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
+
+
 class Distribution():
     """
     Here we evolve our own distribution for all population. At the end of the evolution
@@ -99,20 +116,18 @@ class Distribution():
 
         a.sort()
         index_of_selected_value = a.index(value)
-        kernel = lambda x: 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
 
         for i, value in enumerate(a):
-            self._layers_parameters_probability[layer][parameter][value] += kernel(i)
+            self._layers_parameters_probability[layer][parameter][value] += kernel(i, index_of_selected_value)
 
     def _increase_training_parameters(self, parameter, value):
         a = list(self._training_parameters_probability[parameter])
 
         a.sort()
         index_of_selected_value = a.index(value)
-        kernel = lambda x: 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
 
         for i, value in enumerate(a):
-            self._training_parameters_probability[parameter][value] += kernel(i)
+            self._training_parameters_probability[parameter][value] += kernel(i, index_of_selected_value)
 
     @classmethod
     def layer(cls):
@@ -178,10 +193,9 @@ class Distribution():
             # but we also should increase probabilities of near values
             a.sort()
             index_of_selected_value = a.index(choice)
-            kernel = lambda x: 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
 
             for i, value in enumerate(a):
-                cls._layers_number_probability[value] += kernel(i)
+                cls._layers_number_probability[value] += kernel(i, index_of_selected_value)
 
         return choice
 
@@ -212,7 +226,10 @@ class Distribution():
         Parse architecture and increase the probability of its elements
         """
         for block in individ.architecture:
-            if block.type != 'input' and block.type != 'embedding' and block.type != 'last_dense' and block.type != 'flatten':
+            if block.type != 'input' and \
+               block.type != 'embedding' and \
+               block.type != 'last_dense' and \
+               block.type != 'flatten':
                 cls._increase_layer_probability(cls, block.type)
 
                 for layer in block.layers:

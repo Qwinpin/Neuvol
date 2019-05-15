@@ -134,7 +134,9 @@ def architecture_remove_layer(individ, limitations):
         return individ
 
     try:
-        mutation_layer = np.random.choice([i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
+        mutation_layer = np.random.choice(
+            [i for i in range(limitations[0], len(individ.architecture) - limitations[1])])
+
         tmp = individ.architecture
         del tmp[mutation_layer]
 

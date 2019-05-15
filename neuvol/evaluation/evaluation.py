@@ -194,7 +194,7 @@ class Evaluator():
                 except Exception as e:
                     # if self._verbose == 1:
                     #     print('Tensor could not be compiled, ', e)
-                    raise ArithmeticError('Tensor could not be compiled')
+                    raise ArithmeticError('Tensor could not be compiled: {}'.format(e))
                 else:
                     early_stopping = EarlyStopping(
                         monitor='val_loss',

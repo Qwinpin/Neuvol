@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.layers import (Bidirectional, concatenate, Conv1D, Conv2D, Dense, Dropout,
+from keras.layers import (Bidirectional, Conv1D, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape)
 from keras.layers.recurrent import LSTM
 
@@ -211,10 +211,10 @@ def init_layer(layer):
 
     elif layer.type == 'flatten':
         layer_tf = Flatten()
-    
+
     elif layer.type == 'concat':
         layer_tf = None
-    
+
     elif layer.type == 'reshape':
         layer_tf = Reshape(
             target_shape=layer.config['target_shape'],

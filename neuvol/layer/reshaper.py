@@ -47,15 +47,17 @@ def calculate_shape(prev_layer, layer):
 
         if padding == 'valid':
             if dilation_rate != 1:
-                out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align for i in prev_shape[1:-1]]
+                out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
+                       for i in prev_shape[1:-1]]
             else:
                 out = [((i - kernel_size) // strides + 1 - align) for i in prev_shape[1:-1]]
-        
+
         elif padding == 'same':
             out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in prev_shape[1:-1]]
 
         elif padding == 'causal':
-            out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align for i in prev_shape[1:-1]]
+            out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
+                   for i in prev_shape[1:-1]]
 
         for i in out:
             # if some of the layer too small - change the padding
@@ -113,61 +115,37 @@ def reshaper(prev_layer, layer):
     else:
         difference = (prev_layer.config['rank'] - layer.config['input_rank'])
 
+    if difference == 0:
+        return None
+
     if difference > 0:
         # new shape is a dimensions flatten together, if we need to move from rank 5 to 2
         # we should take all dim from 1 (first - batch size, always None) and till the
         # difference + 1
         # (None, 12, 124, 124, 10) -> rank 2 -> (None, 12*124*124*10)
         # (None, 12, 124, 124, 10) -> rank 4 -> (None, 12, 124*124, 10)
-        new_shape = (None, *prev_layer.config['shape'][1:-(difference + 2)], np.prod(prev_layer.config['shape'][-(difference + 2): -1]), prev_layer.config['shape'][-1])
-
-        modifier = Layer('reshape')
-        modifier.config['target_shape'] = new_shape[1:]
-        modifier.config['shape'] = new_shape
-        modifier.config['input_rank'] = prev_layer.config['rank']
-        modifier.config['rank'] = layer.config['input_rank']
+        new_shape = (
+            None,
+            *prev_layer.config['shape'][1:-(difference + 2)],
+            np.prod(prev_layer.config['shape'][-(difference + 2): -1]),
+            prev_layer.config['shape'][-1])
 
     elif difference < 0:
         # simple reshape with 1 dims
-        tmp = [1] * abs(difference)
-        new_shape = (None, *prev_layer.config['shape'][1:], *tmp)
+        # add new dims to remove the difference
+        new_shape = (
+            None,
+            *prev_layer.config['shape'][1:],
+            *([1] * abs(difference)))
 
-        modifier = Layer('reshape')
-        modifier.config['target_shape'] = new_shape[1:]
-        modifier.config['shape'] = new_shape
-        modifier.config['input_rank'] = prev_layer.config['rank']
-        modifier.config['rank'] = layer.config['input_rank']
-    
-    else:
-        modifier = None
-    
+    modifier = Layer('reshape')
+    modifier.config['target_shape'] = new_shape[1:]
+    modifier.config['shape'] = new_shape
+    modifier.config['input_rank'] = prev_layer.config['rank']
+    modifier.config['rank'] = layer.config['input_rank']
+
     return modifier
 
-def merger(left_layer, right_layer):
-    """
-    Insert merge layer between two branchs and new layer
-    """
-    # usually two branches has different shapes, so we need to flatten them
-    shape_modifier = None
-    if left_layer.config['shape'][:-1] != right_layer.config['shape']:
-        shape_modifier = Layer('flatten')
-    else:
-        shape_modifier = None
-
-    modifier = Layer('concat')
-    
-    if shape_modifier is not None:
-        _, left_shape = calculate_shape(left_layer, shape_modifier)
-        _, right_shape = calculate_shape(right_layer, shape_modifier)
-
-        modifier.config['shape'] = (None, left_shape + right_shape)
-        modifier.config['rank'] = 2
-
-    else:
-        modifier.config['shape'] = (None, *left_layer.config['shape'][1:-1], left_layer.config['shape'][-1] + right_layer.config['shape'][-1])
-        modifier.config['rank'] = left_layer.config['rank']
-
-    return modifier, shape_modifier
 
 def merger_mass(layers):
     shape_modifiers = []

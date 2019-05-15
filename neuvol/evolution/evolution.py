@@ -16,7 +16,7 @@ import os
 
 import numpy as np
 
-from ..architecture import cradle
+from ..individs import cradle
 from ..probabilty_pool import Distribution
 from ..utils import dump, load
 

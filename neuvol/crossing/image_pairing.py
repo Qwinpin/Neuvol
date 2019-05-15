@@ -15,7 +15,7 @@ import numpy as np
 
 from .base_pairing import CrosserBase
 from .pairing_modules import peform_pairing
-from ..architecture.individ_image import IndividImage
+from ..individs.individ_image import IndividImage
 
 
 class CrosserImage(CrosserBase):

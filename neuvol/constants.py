@@ -50,7 +50,7 @@ SPECIAL = {
         'input_rank': [],
         'target_shape': []},
     'flatten': {
-        'input_rank': [],},
+        'input_rank': [], },
     'concat': {
         'input_rank': [],
     }}
