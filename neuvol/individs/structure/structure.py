@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import numpy as np
+
 from ...layer.reshaper import calculate_shape, reshaper, merger_mass
 
 
@@ -21,8 +23,12 @@ class Structure:
         self.branch_count = 1
 
         self.tree = {}
+        self.matrix = None
         self.branchs_end = {}
         self.layers = {}
+        self.layers_indexes = {}
+        self.layers_indexes_reverse = {}
+        self.layers_counter = 0
 
     def add_layer(self, layer, branch, branch_out=None):
         """
@@ -62,6 +68,15 @@ class Structure:
         if self.tree.get(add_to) is None:
             self.tree[add_to] = []
 
+        tmp_matrix = np.zeros((self.matrix.shape[0] + 1, self.matrix.shape[1] + 1))
+        tmp_matrix[:self.matrix.shape[0], :self.matrix.shape[1]] = self.matrix
+
+        self.layers_indexes[new_name] = len(self.layers_indexes)
+        self.layers_indexes_reverse[len(self.layers_indexes_reverse)] = new_name
+
+        tmp_matrix[self.layers_indexes[add_to], self.layers_indexes[new_name]] = 1
+        self.matrix = tmp_matrix
+
         self.tree[add_to].append(new_name)
         self.branchs_end[branch] = new_name
         self.layers[new_name] = layer
@@ -83,10 +98,19 @@ class Structure:
             if self.tree.get(to) is None:
                 self.tree[to] = []
 
+        tmp_matrix = np.zeros((self.matrix.shape[0] + 1, self.matrix.shape[1] + 1))
+        tmp_matrix[:self.matrix.shape[0], :self.matrix.shape[1]] = self.matrix
+
         modifier_name = 'm{}_{}_{}'.format(self.current_depth, branches[0], len(branches))
+
+        self.layers_indexes[modifier_name] = len(self.layers_indexes)
+        self.layers_indexes_reverse[len(self.layers_indexes_reverse)] = modifier_name
 
         for to in add_to:
             self.tree[to].append(modifier_name)
+            tmp_matrix[self.layers_indexes[to], self.layers_indexes[modifier_name]] = 1
+
+        self.matrix = tmp_matrix
 
         self.branchs_end[branches[0]] = modifier_name
         self.layers[modifier_name] = modifier
@@ -132,6 +156,18 @@ class StructureText(Structure):
         embedding.config['rank'], embedding.config['shape'] = calculate_shape(root, embedding)
         self.layers['root'] = root
         self.layers['embedding'] = embedding
+
+        # add new layers to the indexes
+        self.layers_indexes['root'] = len(self.layers_indexes)
+        self.layers_indexes_reverse[len(self.layers_indexes_reverse)] = 'root'
+        # each new layer has increased index, no matter the exact position in the graph
+
+        self.layers_indexes['embedding'] = len(self.layers_indexes)
+        self.layers_indexes_reverse[len(self.layers_indexes_reverse)] = 'embedding'
+
+        # using layers indexes we can fill the matrix of the graph
+        self.matrix = np.zeros((2, 2))
+        self.matrix[self.layers_indexes['root'], self.layers_indexes['embedding']] = 1
 
         self.current_depth += 1
 
