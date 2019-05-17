@@ -106,6 +106,34 @@ def calculate_shape(prev_layer, layer):
     return rank, shape
 
 
+def reshaper_shape(difference, prev_layer):
+    if difference > 0:
+        # new shape is a dimensions flatten together, if we need to move from rank 5 to 2
+        # we should take all dim from 1 (first - batch size, always None) and till the
+        # difference + 1
+        # (None, 12, 124, 124, 10) -> rank 2 -> (None, 12*124*124*10)
+        # (None, 12, 124, 124, 10) -> rank 4 -> (None, 12, 124*124, 10)
+        print(prev_layer.config['shape'], difference)
+        new_shape = (
+            None,
+            *prev_layer.config['shape'][1:-(difference + 2)],
+            np.prod(prev_layer.config['shape'][-(difference + 1): -1]),
+            prev_layer.config['shape'][-1])
+
+    elif difference < 0:
+        # simple reshape with 1 dims
+        # add new dims to remove the difference
+        new_shape = (
+            None,
+            *prev_layer.config['shape'][1:],
+            *([1] * abs(difference)))
+
+    else:
+        new_shape = prev_layer.config['shape']
+
+    return new_shape
+
+
 def reshaper(prev_layer, layer):
     """
     Restore compability between layer with diff ranks
@@ -118,25 +146,7 @@ def reshaper(prev_layer, layer):
     if difference == 0:
         return None
 
-    if difference > 0:
-        # new shape is a dimensions flatten together, if we need to move from rank 5 to 2
-        # we should take all dim from 1 (first - batch size, always None) and till the
-        # difference + 1
-        # (None, 12, 124, 124, 10) -> rank 2 -> (None, 12*124*124*10)
-        # (None, 12, 124, 124, 10) -> rank 4 -> (None, 12, 124*124, 10)
-        new_shape = (
-            None,
-            *prev_layer.config['shape'][1:-(difference + 2)],
-            np.prod(prev_layer.config['shape'][-(difference + 2): -1]),
-            prev_layer.config['shape'][-1])
-
-    elif difference < 0:
-        # simple reshape with 1 dims
-        # add new dims to remove the difference
-        new_shape = (
-            None,
-            *prev_layer.config['shape'][1:],
-            *([1] * abs(difference)))
+    new_shape = reshaper_shape(difference, prev_layer)
 
     modifier = Layer('reshape')
     modifier.config['target_shape'] = new_shape[1:]
