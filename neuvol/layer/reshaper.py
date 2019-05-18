@@ -19,6 +19,13 @@ from .layer import Layer
 def calculate_shape(prev_layer, layer):
     """
     Calculate shape and rank of the output tensor
+
+    Args:
+        prev_layer {instance of the Layer} - layer to which we connect the new
+        layer {instance of the Layer} - layer which we connect
+
+    Returns:
+        {tuple} - (rank, shape) of the new layer
     """
     prev_shape = prev_layer.config['shape']
     prev_rank = prev_layer.config['rank']
