@@ -14,13 +14,47 @@
 from keras.layers import (Bidirectional, Conv1D, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape)
 from keras.layers.recurrent import LSTM
+import numpy as np
 
 from ..constants import LAYERS_POOL, SPECIAL
 from ..probabilty_pool import Distribution
 from ..utils import dump
 
 
-class Layer():
+class Layer:
+    """
+    Factory of layers instances
+    """
+    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, **kwargs):
+        if layer_type == 'input':
+            return LayerInput(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'lstm':
+            return LayerLSTM(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'bi':
+            return LayerBiLSTM(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'cnn':
+            return LayerCNN1D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'cnn2':
+            return LayerCNN2D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'max_pool':
+            return LayerMaxPool1D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'max_pool2':
+            return LayerMaxPool2D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'dense':
+            return LayerDense(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'embedding':
+            return LayerEmbedding(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'flatten':
+            return LayerFlatten(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'concat':
+            return LayerConcat(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        elif layer_type == 'reshape':
+            return LayerReshape(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
+        else:
+            raise TypeError()
+
+
+class LayerBase:
     """
     Single layer class with compatibility checking
     """
@@ -36,69 +70,34 @@ class Layer():
             self._init_parameters()
             self._check_compatibility()
 
+    def __call__(self, net):
+        layer_instance = self.init_layer()
+        new_net = layer_instance(net)
+
+        return new_net
+
     def _init_parameters(self):
-        if self.type == 'input':
-            # set shape of the input - shape of the data
-            self.config['shape'] = self.options['shape']
-            self.config['rank'] = self.options['rank']
+        variables = list(LAYERS_POOL[self.type])
+        for parameter in variables:
+            self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
 
-        # TODO: refactor
-        elif self.type == 'embedding':
-            variables = list(SPECIAL[self.type])
-            for parameter in variables:
-                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
-
-            # select the first element in the shape tuple
-            self.config['sentences_length'] = self.options['shape'][0]
-
-        elif self.type == 'reshape':
-            variables = list(SPECIAL[self.type])
-            for parameter in variables:
-                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
-
-        elif self.type == 'last_dense':
-            variables = list(LAYERS_POOL['dense'])
-            for parameter in variables:
-                self.config[parameter] = Distribution.layer_parameters('dense', parameter)
-
-        elif self.type == 'flatten':
-            variables = list(SPECIAL[self.type])
-            for parameter in variables:
-                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
-
-        elif self.type == 'concat':
-            variables = list(SPECIAL[self.type])
-            for parameter in variables:
-                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
-
-        else:
-            variables = list(LAYERS_POOL[self.type])
-            for parameter in variables:
-                self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
-
-    def _check_compatibility(self):
+    def calculate_shape(self, previous_layer):
         """
-        Check data shape in specific case such as lstm or bi-lstm
+        Shape calculator for the output
+
+        Arguments:
+            previous_layer {[type]} -- [description]
         """
-        if self.type == 'lstm':
-            if self.next_layer is not None and self.next_layer != 'last_dense':
-                self.config['return_sequences'] = True
-            else:
-                self.config['return_sequences'] = False
+        previous_shape = previous_layer.shape
+        new_shape = previous_shape
 
-        elif self.type == 'bi':
-            if self.next_layer is not None and self.next_layer != 'last_dense':
-                self.config['return_sequences'] = True
-            else:
-                self.config['return_sequences'] = False
+        return new_shape
 
-        elif self.type == 'last_dense':
-            self.config['units'] = self.options['classes']
+    def calculate_rank(self, previous_layer):
+        previous_rank = previous_layer.rank
+        new_rank = previous_rank
 
-        elif self.type == 'cnn' or self.type == 'cnn2':
-            # control dilation constraints
-            if self.config['dilation_rate'] != 1:
-                self.config['strides'] = 1
+        return new_rank
 
     def save(self):
         """
@@ -119,12 +118,28 @@ class Layer():
         """
         dump(self.save(), path)
 
+    @property
+    def shape(self):
+        return self.config['shape']
+
+    @property
+    def rank(self):
+        return self.config['rank']
+
+    @shape.setter
+    def shape(self, value):
+        self.config['shape'] = value
+
+    @rank.setter
+    def rank(self, value):
+        self.config['shape'] = value
+
     @staticmethod
     def load(serial):
         """
         Deserialization of layer
         """
-        layer = Layer(None)
+        layer = LayerBase(None)
         layer.config = serial['config']
         layer.type = serial['type']
         layer.options = serial['options']
@@ -134,90 +149,268 @@ class Layer():
         return layer
 
 
-def init_layer(layer):
-    """
-    Return layer according its configs as keras object
-    """
-    if layer.type == 'input':
-        layer_tf = Input(
-            shape=layer.config['shape'])
+class LayerSpecialBase(LayerBase):
+    def _init_parameters(self):
+        variables = list(SPECIAL[self.type])
+        for parameter in variables:
+            self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
 
-    elif layer.type == 'lstm':
+
+class LayerComplex(LayerBase):
+    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, **kwargs):
+        raise NotImplementedError
+
+
+class LayerLSTM(LayerBase):
+    def _check_compatibility(self):
+        if self.next_layer is not None and self.next_layer != 'last_dense':
+            self.config['return_sequences'] = True
+        else:
+            self.config['return_sequences'] = False
+
+    def init_layer(self):
         layer_tf = LSTM(
-            units=layer.config['units'],
-            recurrent_dropout=layer.config['recurrent_dropout'],
-            activation=layer.config['activation'],
-            implementation=layer.config['implementation'],
-            return_sequences=layer.config['return_sequences'])
+            units=self.config['units'],
+            recurrent_dropout=self.config['recurrent_dropout'],
+            activation=self.config['activation'],
+            implementation=self.config['implementation'],
+            return_sequences=self.config['return_sequences'])
 
-    elif layer.type == 'bi':
+        return layer_tf
+
+    def calculate_rank(self, previous_layer):
+        if self.config['return_sequences']:
+            rank = 3
+        else:
+            rank = 2
+
+        return rank
+
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
+
+        if self.config['return_sequences']:
+            shape = (None, previous_shape[1:-1], self.config['units'])
+        else:
+            shape = (None, self.config['units'])
+
+        return shape
+
+
+class LayerBiLSTM(LayerLSTM):
+    def init_layer(self):
         layer_tf = Bidirectional(
             LSTM(
-                units=layer.config['units'],
-                recurrent_dropout=layer.config['recurrent_dropout'],
-                activation=layer.config['activation'],
-                implementation=layer.config['implementation'],
-                return_sequences=layer.config['return_sequences']))
+                units=self.config['units'],
+                recurrent_dropout=self.config['recurrent_dropout'],
+                activation=self.config['activation'],
+                implementation=self.config['implementation'],
+                return_sequences=self.config['return_sequences']))
 
-    elif layer.type == 'dense':
-        layer_tf = Dense(
-            units=layer.config['units'],
-            activation=layer.config['activation'])
+        return layer_tf
 
-    elif layer.type == 'last_dense':
-        layer_tf = Dense(
-            units=layer.config['units'],
-            activation=layer.config['activation'])
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
 
-    elif layer.type == 'cnn':
+        if self.config['return_sequences']:
+            shape = (None, previous_shape[1:-1], 2*self.config['units'])
+        else:
+            shape = (None, 2*self.config['units'])
+
+        return shape
+
+
+class LayerCNN1D(LayerBase):
+    def init_layer(self):
         layer_tf = Conv1D(
-            filters=layer.config['filters'],
-            kernel_size=[layer.config['kernel_size']],
-            strides=[layer.config['strides']],
-            padding=layer.config['padding'],
-            dilation_rate=tuple([layer.config['dilation_rate']]),
-            activation=layer.config['activation'])
+            filters=self.config['filters'],
+            kernel_size=[self.config['kernel_size']],
+            strides=[self.config['strides']],
+            padding=self.config['padding'],
+            dilation_rate=tuple([self.config['dilation_rate']]),
+            activation=self.config['activation'])
 
-    elif layer.type == 'cnn2':
+        return layer_tf
+
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
+        filters = self.config['filters']
+        kernel_size = self.config['kernel_size']
+
+        if kernel_size % 2 == 0:
+            align = 1
+        else:
+            align = 0
+
+        padding = self.config['padding']
+        strides = self.config['strides']
+        dilation_rate = self.config['dilation_rate']
+
+        if padding == 'valid':
+            if dilation_rate != 1:
+                out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
+                       for i in previous_shape[1:-1]]
+            else:
+                out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
+
+        elif padding == 'same':
+            out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in previous_shape[1:-1]]
+
+        elif padding == 'causal':
+            out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
+                   for i in previous_shape[1:-1]]
+
+        for i in out:
+            # if some of the layer too small - change the padding
+            if i <= 0:
+                self.config['padding'] = 'same'
+                shape = self.calculate_shape(previous_shape)
+                return shape
+
+        shape = (None, *out, filters)
+
+        return shape
+
+
+class LayerCNN2D(LayerCNN1D):
+    def init_layer(self):
         layer_tf = Conv2D(
-            filters=layer.config['filters'],
-            kernel_size=[layer.config['kernel_size'], layer.config['kernel_size']],
-            strides=[layer.config['strides'], layer.config['strides']],
-            padding=layer.config['padding'],
-            dilation_rate=tuple([layer.config['dilation_rate'], layer.config['dilation_rate']]),
-            activation=layer.config['activation'])
+            filters=self.config['filters'],
+            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
+            strides=[self.config['strides'], self.config['strides']],
+            padding=self.config['padding'],
+            dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
+            activation=self.config['activation'])
 
-    elif layer.type == 'max_pool':
+        return layer_tf
+
+
+class LayerMaxPool1D(LayerBase):
+    def init_layer(self):
         layer_tf = MaxPool1D(
-            pool_size=[layer.config['pool_size']],
-            strides=[layer.config['strides']],
-            padding=layer.config['padding'])
+            pool_size=[self.config['pool_size']],
+            strides=[self.config['strides']],
+            padding=self.config['padding'])
 
-    elif layer.type == 'max_pool2':
+        return layer_tf
+
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
+
+        kernel_size = self.config['pool_size']
+        strides = self.config['strides']
+        padding = self.config['padding']
+
+        if padding == 'same':
+            out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1) for i in previous_shape[1:-1]]
+        else:
+            out = [((i - kernel_size) // strides + 1) for i in previous_shape[1:-1]]
+
+        shape = (None, *out, previous_shape[-1])
+
+        return shape
+
+
+class LayerMaxPool2D(LayerMaxPool1D):
+    def init_layer(self):
         layer_tf = MaxPool2D(
-            pool_size=[layer.config['pool_size'], layer.config['pool_size']],
-            strides=[layer.config['strides'], layer.config['strides']],
-            padding=layer.config['padding'])
+            pool_size=[self.config['pool_size'], self.config['pool_size']],
+            strides=[self.config['strides'], self.config['strides']],
+            padding=self.config['padding'])
 
-    elif layer.type == 'dropout':
-        layer_tf = Dropout(rate=layer.config['rate'])
+        return layer_tf
 
-    elif layer.type == 'embedding':
+
+class LayerDense(LayerBase):
+    def _init_parameters(self):
+        if self.type == 'last_dense':
+            variables = list(LAYERS_POOL['dense'])
+            for parameter in variables:
+                self.config[parameter] = Distribution.layer_parameters('dense', parameter)
+        else:
+            super()._init_parameters()
+
+    def init_layer(self):
+        layer_tf = Dense(
+            units=self.config['units'],
+            activation=self.config['activation'])
+
+        return layer_tf
+
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
+        shape = (*previous_shape[:-1], self.config['units'])
+
+        return shape
+
+
+class LayerInput(LayerBase):
+    def _init_parameters(self):
+        self.config['shape'] = self.options['shape']
+        self.config['rank'] = self.options['rank']
+
+    def init_layer(self):
+        layer_tf = Input(
+            shape=self.config['shape'])
+
+        return layer_tf
+
+
+class LayerEmbedding(LayerSpecialBase):
+    def _init_parameters(self):
+        return super()._init_parameters()
+        self.config['sentences_length'] = self.options['shape'][0]
+
+    def init_layer(self):
         layer_tf = Embedding(
-            input_dim=layer.config['vocabular'],
-            output_dim=layer.config['embedding_dim'],
-            input_length=layer.config['sentences_length'],
-            trainable=layer.config['trainable'])
+            input_dim=self.config['vocabular'],
+            output_dim=self.config['embedding_dim'],
+            input_length=self.config['sentences_length'],
+            trainable=self.config['trainable'])
 
-    elif layer.type == 'flatten':
+        return layer_tf
+
+    def calculate_rank(self, previous_layer):
+        rank = 3
+
+        return rank
+
+    def calculate_shape(self, previous_layer):
+        shape = (None, self.config['sentences_length'], self.config['embedding_dim'])
+
+        return shape
+
+
+class LayerFlatten(LayerSpecialBase):
+    def init_layer(self):
         layer_tf = Flatten()
 
-    elif layer.type == 'concat':
+        return layer_tf
+
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
+        shape = (None, np.prod(previous_shape[1:]))
+
+        return shape
+
+
+class LayerConcat(LayerSpecialBase):
+    def init_layer(self):
         layer_tf = None
 
-    elif layer.type == 'reshape':
-        layer_tf = Reshape(
-            target_shape=layer.config['target_shape'],
-        )
+        return layer_tf
 
-    return layer_tf
+
+class LayerReshape(LayerSpecialBase):
+    def init_layer(self):
+        layer_tf = Reshape(
+            target_shape=self.config['target_shape'],)
+
+        return layer_tf
+
+
+class LayerDropout(LayerBase):
+    def init_layer(self):
+        layer_tf = Dropout(rate=self.config['rate'])
+
+        return layer_tf

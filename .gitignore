@@ -49,3 +49,5 @@ viz_data_imdb_2\.json
 *.png
 
 *.json
+
+\.VSCodeCounter/

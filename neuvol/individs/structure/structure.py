@@ -120,7 +120,7 @@ class Structure:
             branches {list{int}} -- list of branches to concat (default: {None})
 
         Returns:
-            [type] -- [description]
+            str -- return the name of new common ending of the branches
         """
         # now we prepare list if branch endings: names and objects itself
         add_to = [self.branchs_end[branch] for branch in branches]
@@ -200,7 +200,6 @@ class Structure:
                     source_object.config['shape'] = self._recalculate_shapes(self.layers_indexes_reverse[source_index])
 
                 if target_object.type == 'reshape':
-                    print('reshaper', self.layers_indexes_reverse[target_index])
                     difference_rank = source_object.config['rank'] - target_object.config['rank']
 
                     new_shape = reshaper_shape(difference=difference_rank, prev_layer=source_object)
@@ -209,8 +208,8 @@ class Structure:
                     target_object.config['target_shape'] = new_shape[1:]
 
                 elif self.layers_indexes_reverse[target_index][0] != 'm':
-                    target_object.config['rank'], target_object.config['shape'] = calculate_shape(source_object,
-                                                                                                  target_object)
+                    target_object.config['rank'] = target_object.calculate_rank(source_object)
+                    target_object.config['shape'] = target_object.calculate_shape(source_object)
 
         self.layers[self.layers_indexes_reverse[target_index]].config['shape'] = target_object.config['shape']
         return target_object.config['shape']

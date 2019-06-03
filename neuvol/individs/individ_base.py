@@ -17,7 +17,6 @@ from keras.optimizers import adam, RMSprop
 
 from ..constants import EVENT, FAKE, TRAINING
 from ..layer.block import Layer
-from ..layer.layer import init_layer
 from ..probabilty_pool import Distribution
 from .structure import Structure
 from ..utils import dump
@@ -164,16 +163,10 @@ class IndividBase:
         if not self._architecture:
             raise Exception('Non initialized net')
 
-        # initialize all layers
-        layers_map = {}
-        for key, layer in self._architecture.layers.items():
-            keras_layer_instance = init_layer(layer)
-            layers_map[key] = keras_layer_instance
-
         starter = 'root'
-        network_input = layers_map[starter]
+        network_input = self._architecture.layers[starter]
 
-        network_graph = self.layers_imposer(network_input, 'root', layers_map, self._architecture.tree)
+        network_graph = self.layers_imposer(network_input, 'root', self._architecture.layers, self._architecture.tree)
 
         model = Model(inputs=[network_input], outputs=[network_graph])
 

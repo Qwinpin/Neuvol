@@ -24,3 +24,9 @@ class MutatorBase:
         Mutate individ
         """
         pass
+
+    @staticmethod
+    def grown(individ):
+        # number_of_branches = individ.architecture.branch_count
+
+        raise NotImplementedError
