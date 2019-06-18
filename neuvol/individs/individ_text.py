@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .individ_base import IndividBase
-from ..layer.block import Block
+from ..layer.block import Layer
+from .structure import StructureText
 
 
 class IndividText(IndividBase):
@@ -29,20 +30,19 @@ class IndividText(IndividBase):
         At first, we set probabilities pool and the we change
         this uniform distribution according to previous layer
         """
-        architecture = super()._random_init_architecture()
+        input_layer = Layer('input', **self.options)
+        embed = Layer('embedding', **self.options)
 
-        # Push embedding for texts after input layer and before others
-        block = Block('embedding', layers_number=1, **self.options)
-        architecture.insert(1, block)
+        architecture = StructureText(input_layer, embed)
 
         return architecture
 
     def _random_init_data_processing(self):
-        if not self._architecture:
-            raise Exception('Not initialized yet')
-
+        """
+        Init structure of the individ
+        """
         data_tmp = {}
-        data_tmp['vocabular'] = self._architecture[1].config['vocabular']
+        data_tmp['vocabular'] = self._architecture.layers['embedding'].config['vocabular']
         data_tmp['sentences_length'] = self.options.get('shape', [10])[0]
         data_tmp['classes'] = self.options.get('classes', 2)
 

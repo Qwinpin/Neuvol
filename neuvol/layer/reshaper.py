@@ -79,11 +79,15 @@ def calculate_shape(prev_layer, layer):
         kernel_size = layer.config['pool_size']
         strides = layer.config['strides']
         padding = layer.config['padding']
+        if kernel_size % 2 == 0:
+            align = 1
+        else:
+            align = 0
 
         if padding == 'same':
-            out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1) for i in prev_shape[1:-1]]
+            out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1 - align) for i in prev_shape[1:-1]]
         else:
-            out = [((i - kernel_size) // strides + 1) for i in prev_shape[1:-1]]
+            out = [((i - kernel_size) // strides + 1 - align) for i in prev_shape[1:-1]]
 
         shape = (None, *out, prev_shape[-1])
 
@@ -120,11 +124,10 @@ def reshaper_shape(difference, prev_layer):
         # difference + 1
         # (None, 12, 124, 124, 10) -> rank 2 -> (None, 12*124*124*10)
         # (None, 12, 124, 124, 10) -> rank 4 -> (None, 12, 124*124, 10)
-        print(prev_layer.config['shape'], difference)
         new_shape = (
             None,
             *prev_layer.config['shape'][1:-(difference + 2)],
-            np.prod(prev_layer.config['shape'][-(difference + 1): -1]),
+            np.prod(prev_layer.config['shape'][-(difference + 2): -1]),
             prev_layer.config['shape'][-1])
 
     elif difference < 0:

@@ -76,14 +76,14 @@ class Structure:
         # for instance, shape is already known for embedding, input, reshape layers
         new_shape = layer.config.get('shape', None)
         if new_shape is None:
-            layer.config['rank'], layer.config['shape'] = calculate_shape(add_to_object, layer)
+            layer.config['rank'], layer.config['shape'] = layer.calculate_rank(add_to_object), layer.calculate_shape(add_to_object)
 
         modifier_reshaper = reshaper(add_to_object, layer)
         if modifier_reshaper is not None:
             # now we want to connect new layer through the reshaper
             add_to = self.add_layer(modifier_reshaper, branch, branch_out=branch_out)
             add_to_object = self.layers[add_to]
-            layer.config['rank'], layer.config['shape'] = calculate_shape(add_to_object, layer)
+            layer.config['rank'], layer.config['shape'] = layer.calculate_rank(add_to_object), layer.calculate_shape(add_to_object)
 
         # if not None - we want to create a new branch
         if branch_out is not None:
@@ -229,7 +229,7 @@ class StructureText(Structure):
         self.tree['root'] = ['embedding']
         self.branchs_end[1] = 'embedding'
 
-        embedding.config['rank'], embedding.config['shape'] = calculate_shape(root, embedding)
+        embedding.config['rank'], embedding.config['shape'] = embedding.calculate_rank(root), embedding.calculate_shape(root)
         self.layers['root'] = root
         self.layers['embedding'] = embedding
 

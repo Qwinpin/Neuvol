@@ -21,37 +21,12 @@ from ..probabilty_pool import Distribution
 from ..utils import dump
 
 
-class Layer:
-    """
-    Factory of layers instances
-    """
-    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, **kwargs):
-        if layer_type == 'input':
-            return LayerInput(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'lstm':
-            return LayerLSTM(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'bi':
-            return LayerBiLSTM(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'cnn':
-            return LayerCNN1D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'cnn2':
-            return LayerCNN2D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'max_pool':
-            return LayerMaxPool1D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'max_pool2':
-            return LayerMaxPool2D(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'dense':
-            return LayerDense(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'embedding':
-            return LayerEmbedding(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'flatten':
-            return LayerFlatten(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'concat':
-            return LayerConcat(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        elif layer_type == 'reshape':
-            return LayerReshape(layer_type=None, previous_layer=None, next_layer=None, **kwargs)
-        else:
-            raise TypeError()
+def Layer(layer_type=None, previous_layer=None, next_layer=None, **kwargs):
+    print(layer_type)
+    if layer_type in LAYERS_MAP:
+        return LAYERS_MAP[layer_type](layer_type=layer_type, previous_layer=previous_layer, next_layer=next_layer, **kwargs)
+    else:
+        raise TypeError()
 
 
 class LayerBase:
@@ -80,6 +55,9 @@ class LayerBase:
         variables = list(LAYERS_POOL[self.type])
         for parameter in variables:
             self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
+
+    def _check_compatibility(self):
+        pass
 
     def calculate_shape(self, previous_layer):
         """
@@ -232,6 +210,14 @@ class LayerCNN1D(LayerBase):
 
         return layer_tf
 
+    def _check_compatibility(self):
+        super()._check_compatibility()
+        if self.config['dilation_rate'] > 1:
+            self.config['strides'] = 1
+
+        elif self.config['dilation_rate'] == 1 and self.config['padding'] == 'causal':
+            self.config['padding'] = 'same'
+
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
         filters = self.config['filters']
@@ -257,14 +243,15 @@ class LayerCNN1D(LayerBase):
             out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in previous_shape[1:-1]]
 
         elif padding == 'causal':
-            out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
-                   for i in previous_shape[1:-1]]
+            out = [i for i in previous_shape[1:-1]]
+            # out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
+            #        for i in previous_shape[1:-1]]
 
         for i in out:
             # if some of the layer too small - change the padding
             if i <= 0:
                 self.config['padding'] = 'same'
-                shape = self.calculate_shape(previous_shape)
+                shape = self.calculate_shape(previous_layer)
                 return shape
 
         shape = (None, *out, filters)
@@ -300,11 +287,23 @@ class LayerMaxPool1D(LayerBase):
         kernel_size = self.config['pool_size']
         strides = self.config['strides']
         padding = self.config['padding']
+        if kernel_size % 2 == 0:
+            align = 1
+        else:
+            align = 0
 
         if padding == 'same':
-            out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1) for i in previous_shape[1:-1]]
+            out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
         else:
-            out = [((i - kernel_size) // strides + 1) for i in previous_shape[1:-1]]
+            print('WOPWOWPOW')
+            out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
+
+        for i in out:
+            # if some of the layer too small - change the padding
+            if i <= 0:
+                self.config['padding'] = 'same'
+                shape = self.calculate_shape(previous_layer)
+                return shape
 
         shape = (None, *out, previous_shape[-1])
 
@@ -347,7 +346,7 @@ class LayerDense(LayerBase):
 class LayerInput(LayerBase):
     def _init_parameters(self):
         self.config['shape'] = self.options['shape']
-        self.config['rank'] = self.options['rank']
+        self.config['rank'] = len(self.options['shape']) + 1
 
     def init_layer(self):
         layer_tf = Input(
@@ -358,7 +357,7 @@ class LayerInput(LayerBase):
 
 class LayerEmbedding(LayerSpecialBase):
     def _init_parameters(self):
-        return super()._init_parameters()
+        super()._init_parameters()
         self.config['sentences_length'] = self.options['shape'][0]
 
     def init_layer(self):
@@ -414,3 +413,20 @@ class LayerDropout(LayerBase):
         layer_tf = Dropout(rate=self.config['rate'])
 
         return layer_tf
+
+
+LAYERS_MAP = {
+    'input': LayerInput,
+    'lstm': LayerLSTM,
+    'bi': LayerBiLSTM,
+    'cnn': LayerCNN1D,
+    'cnn2': LayerCNN2D,
+    'max_pool': LayerMaxPool1D,
+    'max_pool2': LayerMaxPool2D,
+    'dense': LayerDense,
+    'embedding': LayerEmbedding,
+    'flatten': LayerFlatten,
+    'concat': LayerConcat,
+    'reshape': LayerReshape,
+    'dropout': LayerDropout
+}

@@ -77,11 +77,12 @@ class IndividBase:
 
     def _random_init_architecture(self):
         """
+        Init structure of the individ
         """
-        if self._architecture:
-            self._architecture = []
+        input_layer = Layer('input', **self.options)
+        architecture = Structure(input_layer)
 
-        return ...
+        return architecture
 
     def _random_init_training(self):
         """
@@ -106,15 +107,16 @@ class IndividBase:
     def layers_imposer(self, net_tail, head, layers_map, arch_map):
         net = net_tail
         source = head
+        print(source)
 
         try:
             target = arch_map[source]
         except KeyError:
-            return [net], ''
+            return net, ''
 
         # if the next layer is merger - return its net tail
         if target[0][0] == 'm':
-            return [net], target[0]
+            return net, target[0]
 
         if len(target) > 1:
             buffer_tails = {branch: layers_map[branch](net) for branch in target}
@@ -146,15 +148,16 @@ class IndividBase:
 
         if 'f' in target[0]:
             net = layers_map[target](net)
-            return [net], target[0]
+            return net, target[0]
 
         if len(target) == 1:
             new_head = target[0]
-            net = layers_map[target[0]](net[0])
+            net = layers_map[target[0]](net)
+            print(net.shape)
 
             net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
 
-        return [net], new_head
+        return net, new_head
 
     def init_tf_graph(self):
         """
@@ -164,9 +167,9 @@ class IndividBase:
             raise Exception('Non initialized net')
 
         starter = 'root'
-        network_input = self._architecture.layers[starter]
+        network_input = self._architecture.layers[starter].init_layer()
 
-        network_graph = self.layers_imposer(network_input, 'root', self._architecture.layers, self._architecture.tree)
+        network_graph, _ = self.layers_imposer(network_input, 'root', self._architecture.layers, self._architecture.tree)
 
         model = Model(inputs=[network_input], outputs=[network_graph])
 
@@ -375,7 +378,7 @@ class IndividBase:
         """
         Public method for calling the random architecture initialisation
         """
-        return self._random_init_architecture()
+        self._random_init_architecture()
 
     def random_init_data_processing(self):
         """
@@ -409,3 +412,51 @@ class IndividBase:
         Set a new architecture
         """
         self._architecture = architecture
+
+    def add_layer(self, layer, branch, branch_out=None):
+        self._architecture.add_layer(layer, branch, branch_out=branch_out)
+
+    def merge_branches(self, layer, branches=None):
+        self._architecture.merge_branches(layer, branches=branches)
+
+    def split_branch(self, left_layer, right_layer, branch):
+        self._architecture.split_branch(left_layer, right_layer, branch)
+
+    def recalculate_shapes(self):
+        self._architecture.recalculate_shapes()
+
+    @property
+    def branchs_end(self):
+        return self._architecture.branchs_end
+
+    @property
+    def tree(self):
+        return self._architecture.tree
+
+    @property
+    def layers(self):
+        return self._architecture.layers
+
+    @property
+    def layers_indexes(self):
+        return self._architecture.layers_indexes
+
+    @property
+    def layers_indexes_reverse(self):
+        return self._architecture.layers_indexes_reverse
+
+    @property
+    def layers_counter(self):
+        return self._architecture.layers_counter
+
+    @property
+    def finisher(self):
+        return self._architecture.finisher
+
+    @property
+    def current_depth(self):
+        return self._architecture.current_depth
+
+    @property
+    def branch_count(self):
+        return self._architecture.branch_count

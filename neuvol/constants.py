@@ -92,13 +92,13 @@ LAYERS_POOL = {
 
     'max_pool': {
         'input_rank': [3],
-        'pool_size': [i for i in range(2, 16)],
+        'pool_size': [i for i in range(1, 16, 2)],
         'strides': [i for i in range(2, 8)],
         'padding': ['valid', 'same']},
 
     'max_pool2': {
         'input_rank': [4],
-        'pool_size': [i for i in range(2, 16)],
+        'pool_size': [i for i in range(1, 16, 2)],
         'strides': [i for i in range(2, 8)],
         'padding': ['valid', 'same']},
 
