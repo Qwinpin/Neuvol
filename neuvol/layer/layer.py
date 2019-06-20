@@ -22,7 +22,6 @@ from ..utils import dump
 
 
 def Layer(layer_type=None, previous_layer=None, next_layer=None, **kwargs):
-    print(layer_type)
     if layer_type in LAYERS_MAP:
         return LAYERS_MAP[layer_type](layer_type=layer_type, previous_layer=previous_layer, next_layer=next_layer, **kwargs)
     else:
@@ -295,7 +294,6 @@ class LayerMaxPool1D(LayerBase):
         if padding == 'same':
             out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
         else:
-            print('WOPWOWPOW')
             out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
 
         for i in out:

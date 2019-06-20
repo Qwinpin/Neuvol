@@ -31,16 +31,18 @@ class MutatorBase:
 
     @staticmethod
     def grown(individ):
-        number_of_branches = individ.architecture.branch_count
+        number_of_branches = len(individ.branchs_end.keys())
 
         merger_dice = 0 if number_of_branches == 1 else np.random.choice([0, 1])
 
         # branches, which was merged should not be splitted or grown after
         branches_exception = []
-        while merger_dice is True:
+        print(number_of_branches)
+        while merger_dice:
+            print('M')
             # TODO: generate distribution according to results of epochs
-            branches_to_merge_number = np.random.randint(len(individ.branchs_end.keys()))
-            branches_to_merge = np.random.choice([i + 1 for i in range(branches_to_merge_number)])
+            branches_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1) if len(individ.branchs_end.keys()) >= 2 else 0
+            branches_to_merge = np.random.choice(list(individ.branchs_end.keys()), branches_to_merge_number, replace=False)
             branches_to_merge = [i for i in branches_to_merge if i not in branches_exception]
 
             if len(branches_to_merge) < 2:
@@ -59,8 +61,20 @@ class MutatorBase:
         free_branches = [i for i in individ.branchs_end.keys() if i not in branches_exception]
 
         for branch in free_branches:
-            new_tail = Layer(Distribution.layer())
+            print(branch)
 
-            individ.add_layer(new_tail, branch)
+            split_dice = np.random.choice([0, 1])
+
+            if split_dice:
+                print('split')
+                number_of_splits = np.random.choice([2, 3, 4, 5], p=[0.6, 0.2, 0.1, 0.1])
+                new_tails = [Layer(Distribution.layer()) for _ in range(number_of_splits)]
+
+                individ.split_branch(new_tails, branch=branch)
+
+            else:
+                new_tail = Layer(Distribution.layer())
+
+                individ.add_layer(new_tail, branch)
 
         return True

@@ -13,9 +13,9 @@
 # limitations under the License.
 import numpy as np
 
-from ...layer.reshaper import calculate_shape, reshaper, reshaper_shape, merger_mass
+from ...layer.reshaper import reshaper, reshaper_shape, merger_mass
 
-
+# TODO: rewrite all structure
 class Structure:
     def __init__(self, root):
         self.current_depth = 0
@@ -109,6 +109,9 @@ class Structure:
 
         return new_name
 
+    def inject_layer(self, layer, before_layer_id, after_layer_id):
+        pass
+
     def merge_branches(self, layer, branches=None):
         """
         Concat a set of branches to one single layer
@@ -122,6 +125,7 @@ class Structure:
         Returns:
             str -- return the name of new common ending of the branches
         """
+        print('bbb', branches)
         # now we prepare list if branch endings: names and objects itself
         add_to = [self.branchs_end[branch] for branch in branches]
         add_to_objects = [self.layers[to] for to in add_to]
@@ -155,22 +159,32 @@ class Structure:
         new_name = self.add_layer(layer, branches[0])
         return new_name
 
-    def split_branch(self, left_layer, right_layer, branch):
+    def split_branch(self, layers, branch):
         """
         Split branch into two new branches
 
         Args:
-            left_layer {instance of the Layer} - layer, which forms a left branch
-            right_layer {instance of the Layer} - layer, which forms a right branch
+            layers {list{instance of the Layer}} - layers, which form new branchs
             branch {int} - branch, which should be splitted
         """
         # call simple add for each branch
-        self.add_layer(right_layer, branch, branch_out=self.branch_count + 1)
-        self.add_layer(left_layer, branch)
+        for i, layer in enumerate(layers):
+            print(layer.type)
 
-        self.branch_count += 1
+            branch_out = list(self.branchs_end.keys())[-1] + 1
+            self.branch_count += 1
+
+            print('b', branch, branch_out)
+            self.add_layer(layer, branch, branch_out=branch_out)
+
+        del self.branchs_end[branch]
+        self.branch_count -= 1
 
     def recalculate_shapes(self):
+        """
+        Call private _recalculate_shapes method
+        For each layer calculate its output shape again (in case of modification)
+        """
         self._recalculate_shapes(self.finisher)
 
     def _recalculate_shapes(self, heap=None):

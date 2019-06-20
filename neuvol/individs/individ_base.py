@@ -112,10 +112,12 @@ class IndividBase:
         try:
             target = arch_map[source]
         except KeyError:
+            print('ERROR', source)
             return net, ''
 
         # if the next layer is merger - return its net tail
         if target[0][0] == 'm':
+            print('wop3')
             return net, target[0]
 
         if len(target) > 1:
@@ -125,14 +127,14 @@ class IndividBase:
             buffer_tmp = []
             # unpack
             for sub_branch in buffer:
-                sub_net_tails = sub_branch[0]
-                for sub_net_tail in sub_net_tails:
-                    buffer_tmp.append((sub_net_tail, sub_branch[1]))
+                sub_net_tail = sub_branch[0]
+                buffer_tmp.append((sub_net_tail, sub_branch[1]))
 
             buffer = buffer_tmp
             new_head = buffer[0][1]
 
             lenghts = int(new_head.split('_')[-1])
+            print(len(buffer), lenghts)
             if len(buffer) < lenghts:
                 return [branch[0] for branch in buffer], new_head
 
@@ -140,8 +142,9 @@ class IndividBase:
             for i in buffer:
                 for j in buffer:
                     if i[1] != j[1]:
-                        raise ValueError('Inconsistent merger')
-
+                        pass
+                        # raise ValueError('Inconsistent merger')
+            print('wop2')
             net = concatenate([branch[0] for branch in buffer])
 
             net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
@@ -151,9 +154,10 @@ class IndividBase:
             return net, target[0]
 
         if len(target) == 1:
+            print(net_tail.shape)
+            print(layers_map[source].config)
             new_head = target[0]
             net = layers_map[target[0]](net)
-            print(net.shape)
 
             net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
 
@@ -414,13 +418,40 @@ class IndividBase:
         self._architecture = architecture
 
     def add_layer(self, layer, branch, branch_out=None):
+        """Forward add_layer method of Structure instance
+
+        Args:
+            layer {instance of the Layer}
+            branch {int} - number of the branch to be connected to
+            branch_out {int} - number of the branch after this new layer: if branch is splitted
+        """
         self._architecture.add_layer(layer, branch, branch_out=branch_out)
 
     def merge_branches(self, layer, branches=None):
+        """
+        Forward merge_branches method of Structure instance
+
+        Args:
+            layer {instance of the Layer}
+
+        Keyword Args:
+            branches {list{int}} -- list of branches to concat (default: {None})
+
+        Returns:
+            str -- return the name of new common ending of the branches
+        """
         self._architecture.merge_branches(layer, branches=branches)
 
-    def split_branch(self, left_layer, right_layer, branch):
-        self._architecture.split_branch(left_layer, right_layer, branch)
+    def split_branch(self, layers, branch):
+        """
+        Forward split_branch method of Structure instance
+
+        Args:
+            left_layer {instance of the Layer} - layer, which forms a left branch
+            right_layer {instance of the Layer} - layer, which forms a right branch
+            branch {int} - branch, which should be splitted
+        """
+        self._architecture.split_branch(layers, branch)
 
     def recalculate_shapes(self):
         self._architecture.recalculate_shapes()
