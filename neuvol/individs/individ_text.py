@@ -42,7 +42,7 @@ class IndividText(IndividBase):
         Init structure of the individ
         """
         data_tmp = {}
-        data_tmp['vocabular'] = self._architecture.layers['embedding'].config['vocabular']
+        data_tmp['vocabular'] = self._architecture.layers_index_reverse[1].config['vocabular']
         data_tmp['sentences_length'] = self.options.get('shape', [10])[0]
         data_tmp['classes'] = self.options.get('classes', 2)
 

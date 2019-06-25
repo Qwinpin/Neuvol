@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.layers import (Bidirectional, Conv1D, Conv2D, Dense, Dropout,
+from keras.layers import (Bidirectional, concatenate, Conv1D, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape)
 from keras.layers.recurrent import LSTM
 import numpy as np
@@ -44,11 +44,42 @@ class LayerBase:
             self._init_parameters()
             self._check_compatibility()
 
-    def __call__(self, net):
-        layer_instance = self.init_layer()
-        new_net = layer_instance(net)
+    def __call__(self, net, previous_layer):
+        # in case of concatenation
+        if isinstance(net, list):
+            concat_layer = Layer('concat')
+            net = concat_layer(net, previous_layer)
+            previous_layer = concat_layer
+
+        reshape_layer = self._init_reshape_layer(previous_layer)
+
+        if reshape_layer is None:
+            self.config['rank'] = self.calculate_rank(previous_layer)
+            self.config['shape'] = self.calculate_shape(previous_layer)
+        else:
+            self.config['rank'] = self.calculate_rank(reshape_layer)
+            self.config['shape'] = self.calculate_shape(reshape_layer)
+
+        if reshape_layer is not None:
+            new_new = reshape_layer(net, previous_layer)
+        else:
+            new_new = net
+
+        layer_instance = self.init_layer(previous_layer)
+        new_net = layer_instance(new_new)
 
         return new_net
+
+    def init_layer(self, previous_layer):
+        return ...
+
+    def _init_reshape_layer(self, previous_layer):
+        if self.config['input_rank'] != previous_layer.rank:
+            reshape_layer = reshaper(previous_layer, self)
+        else:
+            reshape_layer = None
+
+        return reshape_layer
 
     def _init_parameters(self):
         variables = list(LAYERS_POOL[self.type])
@@ -145,7 +176,8 @@ class LayerLSTM(LayerBase):
         else:
             self.config['return_sequences'] = False
 
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = LSTM(
             units=self.config['units'],
             recurrent_dropout=self.config['recurrent_dropout'],
@@ -175,7 +207,8 @@ class LayerLSTM(LayerBase):
 
 
 class LayerBiLSTM(LayerLSTM):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Bidirectional(
             LSTM(
                 units=self.config['units'],
@@ -198,7 +231,8 @@ class LayerBiLSTM(LayerLSTM):
 
 
 class LayerCNN1D(LayerBase):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Conv1D(
             filters=self.config['filters'],
             kernel_size=[self.config['kernel_size']],
@@ -259,7 +293,8 @@ class LayerCNN1D(LayerBase):
 
 
 class LayerCNN2D(LayerCNN1D):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Conv2D(
             filters=self.config['filters'],
             kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
@@ -272,7 +307,8 @@ class LayerCNN2D(LayerCNN1D):
 
 
 class LayerMaxPool1D(LayerBase):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = MaxPool1D(
             pool_size=[self.config['pool_size']],
             strides=[self.config['strides']],
@@ -309,7 +345,8 @@ class LayerMaxPool1D(LayerBase):
 
 
 class LayerMaxPool2D(LayerMaxPool1D):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = MaxPool2D(
             pool_size=[self.config['pool_size'], self.config['pool_size']],
             strides=[self.config['strides'], self.config['strides']],
@@ -327,7 +364,8 @@ class LayerDense(LayerBase):
         else:
             super()._init_parameters()
 
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Dense(
             units=self.config['units'],
             activation=self.config['activation'])
@@ -346,7 +384,7 @@ class LayerInput(LayerBase):
         self.config['shape'] = self.options['shape']
         self.config['rank'] = len(self.options['shape']) + 1
 
-    def init_layer(self):
+    def init_layer(self, previous_layer):
         layer_tf = Input(
             shape=self.config['shape'])
 
@@ -358,7 +396,8 @@ class LayerEmbedding(LayerSpecialBase):
         super()._init_parameters()
         self.config['sentences_length'] = self.options['shape'][0]
 
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Embedding(
             input_dim=self.config['vocabular'],
             output_dim=self.config['embedding_dim'],
@@ -379,7 +418,8 @@ class LayerEmbedding(LayerSpecialBase):
 
 
 class LayerFlatten(LayerSpecialBase):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Flatten()
 
         return layer_tf
@@ -392,14 +432,37 @@ class LayerFlatten(LayerSpecialBase):
 
 
 class LayerConcat(LayerSpecialBase):
-    def init_layer(self):
-        layer_tf = None
+    def __call__(self, nets, previous_layers):
+        reshape_layers = self.merger_mass(previous_layers)
 
-        return layer_tf
+        new_nets = [reshape_layer(nets[i], previous_layers[i]) for i, reshape_layer in enumerate(reshape_layers)]
+        new_net = concatenate(new_nets)
+
+        return new_net
+
+    def merger_mass(self, layers):
+        shape_modifiers = []
+        for layer in layers:
+            new_shape = (None, np.prod(layer.config['shape'][1:]))
+
+            reshape = Layer('reshape')
+            reshape.config['target_shape'] = new_shape[1:]
+            reshape.config['shape'] = new_shape
+            reshape.config['input_rank'] = layer.config['rank']
+            reshape.config['rank'] = 2
+
+            shape_modifiers.append(reshape)
+
+        shapes = [shape_modifiers[i].config['shape'][1:] for i, layer in enumerate(layers)]
+        self.config['shape'] = (None, np.sum(shapes))
+        self.config['rank'] = 2
+
+        return shape_modifiers
 
 
 class LayerReshape(LayerSpecialBase):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Reshape(
             target_shape=self.config['target_shape'],)
 
@@ -407,7 +470,8 @@ class LayerReshape(LayerSpecialBase):
 
 
 class LayerDropout(LayerBase):
-    def init_layer(self):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
         layer_tf = Dropout(rate=self.config['rate'])
 
         return layer_tf
@@ -428,3 +492,53 @@ LAYERS_MAP = {
     'reshape': LayerReshape,
     'dropout': LayerDropout
 }
+
+
+def reshaper_shape(difference, prev_layer):
+    if difference > 0:
+        # new shape is a dimensions flatten together, if we need to move from rank 5 to 2
+        # we should take all dim from 1 (first - batch size, always None) and till the
+        # difference + 1
+        # (None, 12, 124, 124, 10) -> rank 2 -> (None, 12*124*124*10)
+        # (None, 12, 124, 124, 10) -> rank 4 -> (None, 12, 124*124, 10)
+        new_shape = (
+            None,
+            *prev_layer.config['shape'][1:-(difference + 2)],
+            np.prod(prev_layer.config['shape'][-(difference + 2): -1]),
+            prev_layer.config['shape'][-1])
+
+    elif difference < 0:
+        # simple reshape with 1 dims
+        # add new dims to remove the difference
+        new_shape = (
+            None,
+            *prev_layer.config['shape'][1:],
+            *([1] * abs(difference)))
+
+    else:
+        new_shape = prev_layer.config['shape']
+
+    return new_shape
+
+
+def reshaper(prev_layer, layer):
+    """
+    Restore compability between layer with diff ranks
+    """
+    if layer.config['input_rank'] is None:
+        difference = 0
+    else:
+        difference = (prev_layer.config['rank'] - layer.config['input_rank'])
+
+    if difference == 0:
+        return None
+
+    new_shape = reshaper_shape(difference, prev_layer)
+
+    modifier = Layer('reshape')
+    modifier.config['target_shape'] = new_shape[1:]
+    modifier.config['shape'] = new_shape
+    modifier.config['input_rank'] = prev_layer.config['rank']
+    modifier.config['rank'] = layer.config['input_rank']
+
+    return modifier

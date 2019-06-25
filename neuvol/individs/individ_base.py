@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.layers import concatenate
 from keras.models import Model
 from keras.optimizers import adam, RMSprop
+import numpy as np
 
 from ..constants import EVENT, FAKE, TRAINING
 from ..layer.block import Layer
@@ -104,78 +104,41 @@ class IndividBase:
         """
         return ...
 
-    def layers_imposer(self, net_tail, head, layers_map, arch_map):
-        net = net_tail
-        source = head
-        print(source)
+    def layer_imposer(self):
+        tails_map = {}
+        _, columns_number = self.matrix.shape
+        last_non_zero = 0
+        for column in range(columns_number):
+            column_values = self.matrix[:, column]
 
-        try:
-            target = arch_map[source]
-        except KeyError:
-            print('ERROR', source)
-            return net, ''
+            connections = np.where(column_values == 1)[0]
+            if not connections.size > 0:
+                if column == 0:
+                    tails_map[column] = self.layers_index_reverse[column].init_layer(None)
 
-        # if the next layer is merger - return its net tail
-        if target[0][0] == 'm':
-            print('wop3')
-            return net, target[0]
+            elif connections.size > 1:
+                tails_to_call = [tails_map[i] for i in connections]
+                layers_to_call = [self.layers_index_reverse[i] for i in connections]
 
-        if len(target) > 1:
-            buffer_tails = {branch: layers_map[branch](net) for branch in target}
-            buffer = [self.layers_imposer(buffer_tails[branch], branch, layers_map, arch_map) for branch in target]
+                tails_map[column] = self.layers_index_reverse[column](tails_to_call, layers_to_call)
+                last_non_zero = column
+            else:
+                tails_map[column] = self.layers_index_reverse[column](tails_map[connections[0]], self.layers_index_reverse[connections[0]])
+                last_non_zero = column
 
-            buffer_tmp = []
-            # unpack
-            for sub_branch in buffer:
-                sub_net_tail = sub_branch[0]
-                buffer_tmp.append((sub_net_tail, sub_branch[1]))
-
-            buffer = buffer_tmp
-            new_head = buffer[0][1]
-
-            lenghts = int(new_head.split('_')[-1])
-            print(len(buffer), lenghts)
-            if len(buffer) < lenghts:
-                return [branch[0] for branch in buffer], new_head
-
-            # check consistency
-            for i in buffer:
-                for j in buffer:
-                    if i[1] != j[1]:
-                        pass
-                        # raise ValueError('Inconsistent merger')
-            print('wop2')
-            net = concatenate([branch[0] for branch in buffer])
-
-            net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
-
-        if 'f' in target[0]:
-            net = layers_map[target](net)
-            return net, target[0]
-
-        if len(target) == 1:
-            print(net_tail.shape)
-            print(layers_map[source].config)
-            new_head = target[0]
-            net = layers_map[target[0]](net)
-
-            net, new_head = self.layers_imposer(net, new_head, layers_map, arch_map)
-
-        return net, new_head
+        return tails_map[0], tails_map[last_non_zero]
 
     def init_tf_graph(self):
+        # TODO: finisher at the of the network
         """
         Return tensorflow graph, configurated optimizer and loss type of this individ
         """
         if not self._architecture:
             raise Exception('Non initialized net')
 
-        starter = 'root'
-        network_input = self._architecture.layers[starter].init_layer()
+        network_head, network_tail = self.layer_imposer()
 
-        network_graph, _ = self.layers_imposer(network_input, 'root', self._architecture.layers, self._architecture.tree)
-
-        model = Model(inputs=[network_input], outputs=[network_graph])
+        model = Model(inputs=[network_head], outputs=[network_tail])
 
         if self._training_parameters['optimizer'] == 'adam':
             optimizer = adam(
@@ -461,33 +424,17 @@ class IndividBase:
         return self._architecture.branchs_end
 
     @property
-    def tree(self):
-        return self._architecture.tree
-
-    @property
-    def layers(self):
-        return self._architecture.layers
-
-    @property
-    def layers_indexes(self):
-        return self._architecture.layers_indexes
-
-    @property
-    def layers_indexes_reverse(self):
-        return self._architecture.layers_indexes_reverse
+    def layers_index_reverse(self):
+        return self._architecture.layers_index_reverse
 
     @property
     def layers_counter(self):
         return self._architecture.layers_counter
 
     @property
-    def finisher(self):
-        return self._architecture.finisher
+    def branches_counter(self):
+        return self._architecture.branches_counter
 
     @property
-    def current_depth(self):
-        return self._architecture.current_depth
-
-    @property
-    def branch_count(self):
-        return self._architecture.branch_count
+    def matrix(self):
+        return self._architecture.matrix

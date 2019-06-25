@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 import numpy as np
 
 from ..probabilty_pool import Distribution
@@ -31,13 +32,11 @@ class MutatorBase:
 
     @staticmethod
     def grown(individ):
-        number_of_branches = len(individ.branchs_end.keys())
-
-        merger_dice = 0 if number_of_branches == 1 else np.random.choice([0, 1])
+        # TODO: external probabilities for each dice
+        merger_dice = _probability_from_branched(individ)
 
         # branches, which was merged should not be splitted or grown after
         branches_exception = []
-        print(number_of_branches)
         while merger_dice:
             print('M')
             # TODO: generate distribution according to results of epochs
@@ -52,8 +51,7 @@ class MutatorBase:
 
             individ.merge_branches(new_tail, branches_to_merge)
 
-            number_of_branches = individ.architecture.branch_count
-            merger_dice = 0 if len(individ.branchs_end.keys()) == 1 else np.random.choice([0, 1])
+            merger_dice = _probability_from_branched(individ)
 
             branches_exception.append(branches_to_merge[0])
 
@@ -63,7 +61,7 @@ class MutatorBase:
         for branch in free_branches:
             print(branch)
 
-            split_dice = np.random.choice([0, 1])
+            split_dice = 1 - _probability_from_branched(individ)
 
             if split_dice:
                 print('split')
@@ -78,3 +76,15 @@ class MutatorBase:
                 individ.add_layer(new_tail, branch)
 
         return True
+
+
+def _probability_from_branched(individ):
+    number_of_branches = len(individ.branchs_end.keys())
+
+    if number_of_branches > 1:
+        probability = 1 - 1 / math.log(number_of_branches, 1.5)
+        dice = np.random.choice([0, 1], p=[1 - probability, probability])
+    else:
+        dice = 0
+
+    return dice

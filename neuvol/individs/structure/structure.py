@@ -13,48 +13,37 @@
 # limitations under the License.
 import numpy as np
 
-from ...layer.reshaper import reshaper, reshaper_shape, merger_mass
 
 # TODO: rewrite all structure
 class Structure:
     def __init__(self, root):
-        self.current_depth = 0
-        self.branch_count = 1
+        self.matrix = None  # matrix of layers connections
 
-        # dict form of architecture, which is used for initialization of tensor graph
-        self.tree = {}
+        self.branchs_end = {}  # last layers of the each branch (indexes)
+        self.branches_counter = [1]
 
-        # matrix form of architecture, which is used for mutations, crossing, etc
-        self.matrix = None
+        # self.layers_index = {}  # layer index in matrix and its instance
+        self.layers_index_reverse = {}  # the same as previous, reversed key-value
 
-        # current endings (layer) of each branch
-        self.branchs_end = {}
+        self.layers_count = 0
 
-        # layer dict layer_name: layer_object
-        self.layers = {}
-
-        # map layer_name: layer_index, monotonically increasing
-        self.layers_indexes = {}
-        # map layer_index: layer_name
-        self.layers_indexes_reverse = {}
-        self.layers_counter = 0
-
-        # final layer of the whole network
-        self.finisher = None
-
-    def _register_new_layer(self, new_layer_name):
+    def _register_new_layer(self, new_layer):
         """Add new layer to the indexers and increase the size of layers matrix
+        NOTE: New connection will be added in outer scope
 
         Args:
             new_layer_name {str} - name of new layer
         """
+        # create copy of the matrix with shape + 1
         tmp_matrix = np.zeros((self.matrix.shape[0] + 1, self.matrix.shape[1] + 1))
         tmp_matrix[:self.matrix.shape[0], :self.matrix.shape[1]] = self.matrix
 
         self.matrix = tmp_matrix
 
-        self.layers_indexes[new_layer_name] = len(self.layers_indexes)
-        self.layers_indexes_reverse[len(self.layers_indexes_reverse)] = new_layer_name
+        # self.layers_indexes[new_layer] = len(self.layers_indexes)
+        self.layers_index_reverse[len(self.layers_index_reverse)] = new_layer
+
+        return len(self.layers_index_reverse) - 1
 
     def add_layer(self, layer, branch, branch_out=None):
         """
@@ -65,52 +54,27 @@ class Structure:
             branch {int} - number of the branch to be connected to
             branch_out {int} - number of the branch after this new layer: if branch is splitted
         """
-        # branch_out used if you add new layer as a separate branch
-        if layer is None:
-            return None
-
+        # index of the layer to add to
         add_to = self.branchs_end[branch]
-        add_to_object = self.layers[add_to]
 
-        # check if new shape is known or not
-        # for instance, shape is already known for embedding, input, reshape layers
-        new_shape = layer.config.get('shape', None)
-        if new_shape is None:
-            layer.config['rank'], layer.config['shape'] = layer.calculate_rank(add_to_object), layer.calculate_shape(add_to_object)
-
-        modifier_reshaper = reshaper(add_to_object, layer)
-        if modifier_reshaper is not None:
-            # now we want to connect new layer through the reshaper
-            add_to = self.add_layer(modifier_reshaper, branch, branch_out=branch_out)
-            add_to_object = self.layers[add_to]
-            layer.config['rank'], layer.config['shape'] = layer.calculate_rank(add_to_object), layer.calculate_shape(add_to_object)
-
-        # if not None - we want to create a new branch
-        if branch_out is not None:
-            branch = branch_out
-
-        new_name = '{}_{}'.format(self.current_depth, branch)
-
-        # add new layer to the tree form
-        if self.tree.get(add_to) is None:
-            self.tree[add_to] = []
-        self.tree[add_to].append(new_name)
-
-        # increase matrix shape and add new connection
-        self._register_new_layer(new_name)
-        self.matrix[self.layers_indexes[add_to], self.layers_indexes[new_name]] = 1
+        index = self._register_new_layer(layer)
+        self.matrix[add_to, index] = 1
 
         # change branch ending
-        self.branchs_end[branch] = new_name
-        self.layers[new_name] = layer
+        if branch_out is None:
+            branch_out = branch
 
-        self.current_depth += 1
-        self.finisher = new_name
+        self.branchs_end[branch_out] = index
 
-        return new_name
+        self.layers_count += 1
 
-    def inject_layer(self, layer, before_layer_id, after_layer_id):
-        pass
+    def inject_layer(self, layer, before_layer_index, after_layer_index):
+        # TODO: how to resolve acycliс
+        index = self._register_new_layer(layer)
+        self.matrix[before_layer_index, index] = 1
+        self.matrix[index, after_layer_index] = 1
+
+        self.layers_count += 1
 
     def merge_branches(self, layer, branches=None):
         """
@@ -125,39 +89,22 @@ class Structure:
         Returns:
             str -- return the name of new common ending of the branches
         """
-        print('bbb', branches)
-        # now we prepare list if branch endings: names and objects itself
-        add_to = [self.branchs_end[branch] for branch in branches]
-        add_to_objects = [self.layers[to] for to in add_to]
+        adds_to = [self.branchs_end[branch] for branch in branches]
+        index = self._register_new_layer(layer)
 
-        # calculate shapes if necessary
-        modifier, shape_modifiers = merger_mass(add_to_objects)
+        for branch in adds_to:
+            self.matrix[branch, index] = 1
 
-        if shape_modifiers is not None:
-            add_to = [self.add_layer(shape_modifiers[i], branch) for i, branch in enumerate(branches)]
-
-        for to in add_to:
-            if self.tree.get(to) is None:
-                self.tree[to] = []
-
-        modifier_name = 'm{}_{}_{}'.format(self.current_depth, branches[0], len(branches))
-
-        self._register_new_layer(modifier_name)
-
-        for to in add_to:
-            self.tree[to].append(modifier_name)
-            self.matrix[self.layers_indexes[to], self.layers_indexes[modifier_name]] = 1
-
-        self.branchs_end[branches[0]] = modifier_name
-        self.layers[modifier_name] = modifier
-        self.current_depth += 1
-
-        for branch in branches[1:]:
+        for branch in branches:
             del self.branchs_end[branch]
-            self.branch_count -= 1
 
-        new_name = self.add_layer(layer, branches[0])
-        return new_name
+            # now remove this branch from list of branch's numbers
+            tmp_index = self.branches_counter.index(branch)
+            self.branches_counter.pop(tmp_index)
+
+        branch_new = [i for i in range(1, (1 + len(self.branches_counter) + 1)) if i not in self.branches_counter][0]
+        self.branches_counter.append(branch_new)
+        self.branchs_end[branch_new] = index
 
     def split_branch(self, layers, branch):
         """
@@ -167,66 +114,22 @@ class Structure:
             layers {list{instance of the Layer}} - layers, which form new branchs
             branch {int} - branch, which should be splitted
         """
-        # call simple add for each branch
-        for i, layer in enumerate(layers):
-            print(layer.type)
+        add_to = self.branchs_end[branch]
+        indexes = [self._register_new_layer(layer) for layer in layers]
 
-            branch_out = list(self.branchs_end.keys())[-1] + 1
-            self.branch_count += 1
+        list_of_branches_to_create = [i for i in range(1, (len(indexes) + len(self.branches_counter) + 1))
+                                      if i not in self.branches_counter]
+        self.branches_counter.extend(list_of_branches_to_create)
 
-            print('b', branch, branch_out)
-            self.add_layer(layer, branch, branch_out=branch_out)
+        for i, layer_index in enumerate(indexes):
+            self.matrix[add_to, layer_index] = 1
+
+            self.branchs_end[list_of_branches_to_create[i]] = layer_index
 
         del self.branchs_end[branch]
-        self.branch_count -= 1
+        self.branches_counter.pop(self.branches_counter.index(branch))
 
-    def recalculate_shapes(self):
-        """
-        Call private _recalculate_shapes method
-        For each layer calculate its output shape again (in case of modification)
-        """
-        self._recalculate_shapes(self.finisher)
-
-    def _recalculate_shapes(self, heap=None):
-        if heap is None:
-            # if heap is undefined - start it from the known finisher
-            target_index = self.layers_indexes[self.finisher]
-        else:
-            target_index = self.layers_indexes[heap]
-            sources_indexes = np.where(self.matrix[:, target_index] == 1)
-
-        target_object = self.layers[self.layers_indexes_reverse[target_index]]
-        source_objects = [(int(source), self.layers[self.layers_indexes_reverse[int(source)]])
-                          for source in sources_indexes[0]]
-
-        # in case of merger layer
-        if self.layers_indexes_reverse[target_index][0] == 'm':
-            for source_index, source_object in source_objects:
-                if source_object.config['shape'] is None:
-                    source_object.config['shape'] = self._recalculate_shapes(self.layers_indexes_reverse[source_index])
-
-            shapes = [item.config['shape'][1:] for i, item in source_objects]
-            target_object.config['shape'] = (None, np.sum(shapes))
-
-        else:
-            for source_index, source_object in source_objects:
-                if source_object.config['shape'] is None:
-                    source_object.config['shape'] = self._recalculate_shapes(self.layers_indexes_reverse[source_index])
-
-                if target_object.type == 'reshape':
-                    difference_rank = source_object.config['rank'] - target_object.config['rank']
-
-                    new_shape = reshaper_shape(difference=difference_rank, prev_layer=source_object)
-
-                    target_object.config['shape'] = new_shape
-                    target_object.config['target_shape'] = new_shape[1:]
-
-                elif self.layers_indexes_reverse[target_index][0] != 'm':
-                    target_object.config['rank'] = target_object.calculate_rank(source_object)
-                    target_object.config['shape'] = target_object.calculate_shape(source_object)
-
-        self.layers[self.layers_indexes_reverse[target_index]].config['shape'] = target_object.config['shape']
-        return target_object.config['shape']
+        self.layers_count += len(layers)
 
 
 class StructureText(Structure):
@@ -240,32 +143,24 @@ class StructureText(Structure):
         """
         super().__init__(root)
 
-        self.tree['root'] = ['embedding']
-        self.branchs_end[1] = 'embedding'
-
-        embedding.config['rank'], embedding.config['shape'] = embedding.calculate_rank(root), embedding.calculate_shape(root)
-        self.layers['root'] = root
-        self.layers['embedding'] = embedding
-
         self.matrix = np.zeros((2, 2))
 
-        # add new layers to the indexes
-        self._register_new_layer('root')
-        self._register_new_layer('embedding')
+        root_index = self._register_new_layer(root)
+        embedding_index = self._register_new_layer(embedding)
 
-        # using layers indexes we can fill the matrix of the graph
-        self.matrix[self.layers_indexes['root'], self.layers_indexes['embedding']] = 1
+        self.matrix[root_index, embedding_index] = 1
 
-        self.current_depth += 1
+        self.branchs_end[1] = embedding_index
+        self.layers_count += 2
 
 
 class StructureImage(Structure):
     def __init__(self, root):
         super().__init__(root)
 
-        self.layers['root'] = root
-
         self.matrix = np.zeros((1, 1))
 
-        # add new layers to the indexes
-        self._register_new_layer('root')
+        root_index = self._register_new_layer(root)
+
+        self.branchs_end[1] = root_index
+        self.layers_count += 1

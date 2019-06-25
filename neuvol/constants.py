@@ -38,7 +38,7 @@ TRAINING = {
 # Specific parameters
 SPECIAL = {
     'embedding': {
-        'input_rank': [],
+        'input_rank': [2],
         'vocabular': [30000],
         'sentences_length': [i for i in range(1, 150, 1)],
         'embedding_dim': [i for i in range(32, 300, 2)],
