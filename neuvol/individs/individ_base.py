@@ -104,29 +104,58 @@ class IndividBase:
         """
         return ...
 
-    def layer_imposer(self):
-        tails_map = {}
-        _, columns_number = self.matrix.shape
-        last_non_zero = 0
-        for column in range(columns_number):
-            column_values = self.matrix[:, column]
+    # def layer_imposer(self):
+    #     tails_map = {}
+    #     _, columns_number = self.matrix.shape
+    #     last_non_zero = 0
+    #     for column in range(columns_number):
+    #         column_values = self.matrix[:, column]
 
-            connections = np.where(column_values == 1)[0]
-            if not connections.size > 0:
-                if column == 0:
-                    tails_map[column] = self.layers_index_reverse[column].init_layer(None)
+    #         connections = np.where(column_values == 1)[0]
+    #         if not connections.size > 0:
+    #             if column == 0:
+    #                 tails_map[column] = self.layers_index_reverse[column].init_layer(None)
 
-            elif connections.size > 1:
-                tails_to_call = [tails_map[i] for i in connections]
-                layers_to_call = [self.layers_index_reverse[i] for i in connections]
+    #         elif connections.size > 1:
+    #             tails_to_call = [tails_map[i] for i in connections]
+    #             layers_to_call = [self.layers_index_reverse[i] for i in connections]
 
-                tails_map[column] = self.layers_index_reverse[column](tails_to_call, layers_to_call)
-                last_non_zero = column
-            else:
-                tails_map[column] = self.layers_index_reverse[column](tails_map[connections[0]], self.layers_index_reverse[connections[0]])
-                last_non_zero = column
+    #             tails_map[column] = self.layers_index_reverse[column](tails_to_call, layers_to_call)
+    #             last_non_zero = column
+    #         else:
+    #             tails_map[column] = self.layers_index_reverse[column](tails_map[connections[0]], self.layers_index_reverse[connections[0]])
+    #             last_non_zero = column
 
-        return tails_map[0], tails_map[last_non_zero]
+    #     return tails_map[0], tails_map[last_non_zero]
+
+    def rec_imposer(self, column, tails_map):
+        if tails_map.get(column, None) is not None:
+            return None
+
+        column_values = self.matrix[:, column]
+        connections = np.where(column_values == 1)[0]
+
+        for index in connections:
+            if tails_map.get(index, None) is None:
+                self.rec_imposer(index, tails_map)
+
+        if not connections.size > 0:
+            if column == 0:
+                tails_map[column] = self.layers_index_reverse[column].init_layer(None)
+            last_non_zero = column
+
+        elif connections.size > 1:
+            tails_to_call = [tails_map[i] for i in connections]
+            layers_to_call = [self.layers_index_reverse[i] for i in connections]
+
+            tails_map[column] = self.layers_index_reverse[column](tails_to_call, layers_to_call)
+            last_non_zero = column
+
+        else:
+            tails_map[column] = self.layers_index_reverse[column](tails_map[connections[0]], self.layers_index_reverse[connections[0]])
+            last_non_zero = column
+
+        return last_non_zero
 
     def init_tf_graph(self):
         # TODO: finisher at the of the network
@@ -136,7 +165,14 @@ class IndividBase:
         if not self._architecture:
             raise Exception('Non initialized net')
 
-        network_head, network_tail = self.layer_imposer()
+        tails_map = {}
+
+        # walk over all layers and connect them between each other
+        for column in range(self.matrix.shape[1]):
+            last_layer = self.layer_imposer(column, tails_map)
+
+        network_head = tails_map[0]
+        network_tail = tails_map[last_layer]
 
         model = Model(inputs=[network_head], outputs=[network_tail])
 
@@ -159,7 +195,7 @@ class IndividBase:
 
         return model, optimizer, loss
 
-    def save(self):
+    def _serialize(self):
         """
         Serialize the whole object for further dump
         """
@@ -186,7 +222,7 @@ class IndividBase:
         """
         Dump individ as a json object
         """
-        dump(self.save(), path)
+        dump(self._serialize(), path)
 
     @classmethod
     def load(cls, serial):
@@ -425,7 +461,7 @@ class IndividBase:
 
     @property
     def layers_index_reverse(self):
-        return self._architecture.layers_index_reverse
+        return self._architecture._layers_index_reverse
 
     @property
     def layers_counter(self):
@@ -437,4 +473,4 @@ class IndividBase:
 
     @property
     def matrix(self):
-        return self._architecture.matrix
+        return self._architecture._matrix

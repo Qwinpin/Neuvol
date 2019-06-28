@@ -24,7 +24,7 @@ FLOAT32 = np.float32
 # General parameters
 GENERAL = {
     'layers_number': [i for i in range(1, 10)],
-    'splitter_type': ['split', 'merge', 'uno']
+    'mutation_type': ['add_layer', 'add_connection', 'remove_connection']
 }
 
 # Training parameters

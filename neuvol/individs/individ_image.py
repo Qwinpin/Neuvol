@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .individ_base import IndividBase
+from ..layer.block import Layer
+from .structure import StructureImage
 
 
 class IndividImage(IndividBase):
@@ -21,6 +23,13 @@ class IndividImage(IndividBase):
     def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
         super().__init__(stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
         self._data_processing_type = 'image'
+
+    def _random_init_architecture(self):
+        input_layer = Layer('input', **self.options)
+
+        architecture = StructureImage(input_layer)
+
+        return architecture
 
     def _random_init_data_processing(self):
         if not self._architecture:

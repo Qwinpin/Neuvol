@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .cradle import cradle
-from .structure import StructureText
+from .structure import StructureImage, StructureText
 
-__all__ = ['cradle', 'StructureText']
+__all__ = ['cradle', 'StructureText', 'StructureImage']

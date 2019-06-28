@@ -16,6 +16,13 @@ import numpy as np
 from ..constants import GENERAL, LAYERS_POOL, SPECIAL, TRAINING
 
 
+def parse_mutation_const():
+    tmp_probability = 1
+    mutations_probability = {mutation: tmp_probability for mutation in GENERAL['mutation_type']}
+
+    return mutations_probability
+
+
 def parse_layer_const():
     """
     Parse all available layers and set initial probability
@@ -99,6 +106,7 @@ class Distribution():
     Here we evolve our own distribution for all population. At the end of the evolution
     it is possible to generate individs from this distribution
     """
+    _mutations_probability = parse_mutation_const()
     _layers_probability = parse_layer_const()
     _layers_parameters_probability = parse_layer_parameter_const()
     _layers_number_probability = parse_layers_number()
@@ -128,6 +136,22 @@ class Distribution():
 
         for i, value in enumerate(a):
             self._training_parameters_probability[parameter][value] += kernel(i, index_of_selected_value)
+
+    @classmethod
+    def mutation(cls):
+        """
+        Get random mutation type
+        """
+        tmp = {key: value for key, value in cls._mutations_probability.items()}
+        a = list(tmp)
+
+        # we should normalize list of probabilities
+        p = np.array(list(tmp.values()))
+        p = p / p.sum()
+
+        choice = np.random.choice(a, p=p)
+
+        return choice
 
     @classmethod
     def layer(cls):

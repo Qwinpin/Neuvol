@@ -12,7 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .layer import Layer
-from .block import Block
-from .reshaper import calculate_shape, reshaper
 
-__all__ = ['Layer', 'Block', 'calculate_shape', 'reshaper']
+__all__ = ['Layer']

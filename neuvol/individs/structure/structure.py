@@ -17,15 +17,24 @@ import numpy as np
 # TODO: rewrite all structure
 class Structure:
     def __init__(self, root):
-        self.matrix = None  # matrix of layers connections
+        """
+        Class of individ architecture
+        Growing steps is applied to the origin matrix
+        Mutations store as a additional pool, which we be applied for initializatio of the graph
+        This allows to calculate the contribution of each mutation and also remove bad mutations
+        """
+        self._matrix = None  # matrix of layers connections
+        self._matrix_pure = None
 
         self.branchs_end = {}  # last layers of the each branch (indexes)
         self.branches_counter = [1]
 
         # self.layers_index = {}  # layer index in matrix and its instance
-        self.layers_index_reverse = {}  # the same as previous, reversed key-value
+        self._layers_index_reverse = {}  # the same as previous, reversed key-value
 
         self.layers_count = 0
+
+        self.mutations_pool = []  # list of all mutations, which will be applied for initialization
 
     def _register_new_layer(self, new_layer):
         """Add new layer to the indexers and increase the size of layers matrix
@@ -35,15 +44,15 @@ class Structure:
             new_layer_name {str} - name of new layer
         """
         # create copy of the matrix with shape + 1
-        tmp_matrix = np.zeros((self.matrix.shape[0] + 1, self.matrix.shape[1] + 1))
-        tmp_matrix[:self.matrix.shape[0], :self.matrix.shape[1]] = self.matrix
+        tmp_matrix = np.zeros((self._matrix.shape[0] + 1, self._matrix.shape[1] + 1))
+        tmp_matrix[:self._matrix.shape[0], :self._matrix.shape[1]] = self._matrix
 
-        self.matrix = tmp_matrix
+        self._matrix = tmp_matrix
 
         # self.layers_indexes[new_layer] = len(self.layers_indexes)
-        self.layers_index_reverse[len(self.layers_index_reverse)] = new_layer
+        self._layers_index_reverse[len(self._layers_index_reverse)] = new_layer
 
-        return len(self.layers_index_reverse) - 1
+        return len(self._layers_index_reverse) - 1
 
     def add_layer(self, layer, branch, branch_out=None):
         """
@@ -58,7 +67,7 @@ class Structure:
         add_to = self.branchs_end[branch]
 
         index = self._register_new_layer(layer)
-        self.matrix[add_to, index] = 1
+        self._matrix[add_to, index] = 1
 
         # change branch ending
         if branch_out is None:
@@ -71,10 +80,13 @@ class Structure:
     def inject_layer(self, layer, before_layer_index, after_layer_index):
         # TODO: how to resolve acycliс
         index = self._register_new_layer(layer)
-        self.matrix[before_layer_index, index] = 1
-        self.matrix[index, after_layer_index] = 1
+        self._matrix[before_layer_index, index] = 1
+        self._matrix[index, after_layer_index] = 1
 
         self.layers_count += 1
+
+    def add_connection(self, before_layer_index, after_layer_index):
+        self._matrix[before_layer_index, after_layer_index] = 1
 
     def merge_branches(self, layer, branches=None):
         """
@@ -93,7 +105,7 @@ class Structure:
         index = self._register_new_layer(layer)
 
         for branch in adds_to:
-            self.matrix[branch, index] = 1
+            self._matrix[branch, index] = 1
 
         for branch in branches:
             del self.branchs_end[branch]
@@ -122,7 +134,7 @@ class Structure:
         self.branches_counter.extend(list_of_branches_to_create)
 
         for i, layer_index in enumerate(indexes):
-            self.matrix[add_to, layer_index] = 1
+            self._matrix[add_to, layer_index] = 1
 
             self.branchs_end[list_of_branches_to_create[i]] = layer_index
 
@@ -130,6 +142,59 @@ class Structure:
         self.branches_counter.pop(self.branches_counter.index(branch))
 
         self.layers_count += len(layers)
+
+    def add_mutation(self, mutation):
+        self.mutations_pool.append(mutation)
+
+    def _acyclic_check_dict(self, tree):
+        path = set()
+
+        def visit(vertex):
+            path.add(vertex)
+            for neighbour in tree.get(vertex, ()):
+                if neighbour in path or visit(neighbour):
+                    return True
+            path.remove(vertex)
+            return False
+
+        return any(visit(v) for v in tree)
+
+    def _acyclic_check(self, matrix):
+        # generate tree (dict) first
+        tree = {}
+        for i, row in enumerate(matrix):
+            for j, element in enumerate(row):
+                if element == 1:
+                    if tree.get(i, None) is None:
+                        tree[i] = []
+                    tree[i].append(j)
+
+        return self._acyclic_check_raw(tree)
+
+    def mutations_applier(self):
+        matrix_copy = np.array(self.matrix)
+
+        for mutation in self.mutations_pool:
+            if mutation.mutation_type == 'add_layer':
+                self.add_layer(mutation.layer, mutation.before_layer_index, mutation.after_layer_index)
+
+            elif mutation.mutation_type == 'add_connection':
+                self.add_connection(mutation.before_layer_index, mutation.after_layer_index)
+
+            elif mutation.mutation_type == 'remove_layer':
+                pass
+
+            elif mutation.mutation_type == 'remove_connection':
+                pass
+
+    @property
+    def matrix(self):
+        # apply all mutations before matrix returning
+        pass
+
+    @property
+    def layers_index_reverse(self):
+        pass
 
 
 class StructureText(Structure):
@@ -143,12 +208,13 @@ class StructureText(Structure):
         """
         super().__init__(root)
 
-        self.matrix = np.zeros((2, 2))
+        self._matrix = np.zeros((2, 2))
 
         root_index = self._register_new_layer(root)
         embedding_index = self._register_new_layer(embedding)
 
-        self.matrix[root_index, embedding_index] = 1
+        self._matrix[root_index, embedding_index] = 1
+        self._matrix_pure = self._matrix[:]
 
         self.branchs_end[1] = embedding_index
         self.layers_count += 2
@@ -158,7 +224,8 @@ class StructureImage(Structure):
     def __init__(self, root):
         super().__init__(root)
 
-        self.matrix = np.zeros((1, 1))
+        self._matrix = np.zeros((1, 1))
+        self._matrix_pure = self._matrix[:]
 
         root_index = self._register_new_layer(root)
 
