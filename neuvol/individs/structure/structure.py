@@ -24,37 +24,45 @@ class Structure:
         This allows to calculate the contribution of each mutation and also remove bad mutations
         """
         self._matrix = None  # matrix of layers connections
-        self._matrix_pure = None
+        self._matrix_mutated = None
+        self._matrix_updated = False
 
         self.branchs_end = {}  # last layers of the each branch (indexes)
-        self.branches_counter = [1]
+        self.branchs_counter = [1]
 
         # self.layers_index = {}  # layer index in matrix and its instance
         self._layers_index_reverse = {}  # the same as previous, reversed key-value
+        self._layers_index_reverse_mutated = None
+        self._layers_index_reverse_updated = False
 
         self.layers_count = 0
 
         self.mutations_pool = []  # list of all mutations, which will be applied for initialization
 
-    def _register_new_layer(self, new_layer):
+    def _register_new_layer(self, matrix, layers_index_reverse, new_layer):
         """Add new layer to the indexers and increase the size of layers matrix
         NOTE: New connection will be added in outer scope
 
         Args:
             new_layer_name {str} - name of new layer
+
+        Return:
+            np.array(N, N) - new matrix of connection
+            dict - new map of layers and their indexes
+            int - index of new added layer
         """
         # create copy of the matrix with shape + 1
-        tmp_matrix = np.zeros((self._matrix.shape[0] + 1, self._matrix.shape[1] + 1))
-        tmp_matrix[:self._matrix.shape[0], :self._matrix.shape[1]] = self._matrix
+        _matrix = np.zeros((matrix.shape[0] + 1, matrix.shape[1] + 1))
+        _matrix[:matrix.shape[0], :matrix.shape[1]] = matrix
 
-        self._matrix = tmp_matrix
+        _layers_index_reverse = layers_index_reverse
 
         # self.layers_indexes[new_layer] = len(self.layers_indexes)
-        self._layers_index_reverse[len(self._layers_index_reverse)] = new_layer
+        _layers_index_reverse[len(_layers_index_reverse)] = new_layer
 
-        return len(self._layers_index_reverse) - 1
+        return _matrix, _layers_index_reverse, len(self._layers_index_reverse) - 1
 
-    def add_layer(self, layer, branch, branch_out=None):
+    def _add_layer(self, matrix, layers_index_reverse, branchs_end, layers_count, layer, branch, branch_out=None):
         """
         Add layer to the last layer of the branch
 
@@ -64,87 +72,142 @@ class Structure:
             branch_out {int} - number of the branch after this new layer: if branch is splitted
         """
         # index of the layer to add to
-        add_to = self.branchs_end[branch]
+        add_to = branchs_end[branch]
 
-        index = self._register_new_layer(layer)
-        self._matrix[add_to, index] = 1
+        matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
+        matrix[add_to, index] = 1
 
         # change branch ending
         if branch_out is None:
             branch_out = branch
 
-        self.branchs_end[branch_out] = index
+        branchs_end[branch_out] = index
 
-        self.layers_count += 1
+        layers_count += 1
 
-    def inject_layer(self, layer, before_layer_index, after_layer_index):
-        # TODO: how to resolve acycliс
-        index = self._register_new_layer(layer)
-        self._matrix[before_layer_index, index] = 1
-        self._matrix[index, after_layer_index] = 1
+        return matrix, layers_index_reverse, branchs_end, layers_count
 
-        self.layers_count += 1
+    def _inject_layer(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layers_count, layer, before_layer_index, after_layer_index):
+        if after_layer_index is None:
+            # additional feature for further possible modifications
+            branch = branchs_end[before_layer_index]
+            branch_to_create = [i for i in range(1, (1 + len(branchs_counter) + 1))
+                                if i not in branchs_counter]
+            branchs_counter.append(branch_to_create)
 
-    def add_connection(self, before_layer_index, after_layer_index):
-        self._matrix[before_layer_index, after_layer_index] = 1
+            matrix, layers_index_reverse, branchs_end, layers_count = self._add_layer(
+                matrix, layers_index_reverse,
+                branchs_end, layers_count,
+                layer, branch, branch_to_create)
+        else:
+            matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
+            matrix[before_layer_index, index] = 1
+            matrix[index, after_layer_index] = 1
 
-    def merge_branches(self, layer, branches=None):
+        layers_count += 1
+
+        return matrix, layers_index_reverse, branchs_end, branchs_counter, layers_count
+
+    def _add_connection(self, matrix, before_layer_index, after_layer_index):
+        matrix[before_layer_index, after_layer_index] = 1
+
+        return matrix
+
+    def _merge_branchs(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layer, branchs=None):
         """
-        Concat a set of branches to one single layer
+        Concat a set of branchs to one single layer
 
         Args:
             layer {instance of the Layer}
 
         Keyword Args:
-            branches {list{int}} -- list of branches to concat (default: {None})
+            branchs {list{int}} -- list of branchs to concat (default: {None})
 
         Returns:
-            str -- return the name of new common ending of the branches
+            str -- return the name of new common ending of the branchs
         """
-        adds_to = [self.branchs_end[branch] for branch in branches]
-        index = self._register_new_layer(layer)
+        adds_to = [branchs_end[branch] for branch in branchs]
+        matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
 
         for branch in adds_to:
-            self._matrix[branch, index] = 1
+            matrix[branch, index] = 1
 
-        for branch in branches:
-            del self.branchs_end[branch]
+        for branch in branchs:
+            del branchs_end[branch]
 
             # now remove this branch from list of branch's numbers
-            tmp_index = self.branches_counter.index(branch)
-            self.branches_counter.pop(tmp_index)
+            tmp_index = branchs_counter.index(branch)
+            branchs_counter.pop(tmp_index)
 
-        branch_new = [i for i in range(1, (1 + len(self.branches_counter) + 1)) if i not in self.branches_counter][0]
-        self.branches_counter.append(branch_new)
-        self.branchs_end[branch_new] = index
+        branch_new = [i for i in range(1, (1 + len(branchs_counter) + 1)) if i not in branchs_counter][0]
+        branchs_counter.append(branch_new)
+        branchs_end[branch_new] = index
 
-    def split_branch(self, layers, branch):
+        return matrix, layers_index_reverse, branchs_end, branchs_counter
+
+    def _split_branch(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layers_count, layers, branch):
         """
-        Split branch into two new branches
+        Split branch into two new branchs
 
         Args:
             layers {list{instance of the Layer}} - layers, which form new branchs
             branch {int} - branch, which should be splitted
         """
-        add_to = self.branchs_end[branch]
-        indexes = [self._register_new_layer(layer) for layer in layers]
+        add_to = branchs_end[branch]
 
-        list_of_branches_to_create = [i for i in range(1, (len(indexes) + len(self.branches_counter) + 1))
-                                      if i not in self.branches_counter]
-        self.branches_counter.extend(list_of_branches_to_create)
+        indexes = []
+        for layer in layers:
+            matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
+            indexes.append(index)
+
+        list_of_branchs_to_create = [i for i in range(1, (len(indexes) + len(branchs_counter) + 1))
+                                     if i not in branchs_counter]
+        branchs_counter.extend(list_of_branchs_to_create)
 
         for i, layer_index in enumerate(indexes):
-            self._matrix[add_to, layer_index] = 1
+            matrix[add_to, layer_index] = 1
 
-            self.branchs_end[list_of_branches_to_create[i]] = layer_index
+            branchs_end[list_of_branchs_to_create[i]] = layer_index
 
-        del self.branchs_end[branch]
-        self.branches_counter.pop(self.branches_counter.index(branch))
+        del branchs_end[branch]
+        branchs_counter.pop(branchs_counter.index(branch))
 
-        self.layers_count += len(layers)
+        layers_count += len(layers)
 
-    def add_mutation(self, mutation):
+        return matrix, layers_index_reverse, branchs_end, branchs_counter, layers_count
+
+    def _add_mutation(self, mutation):
         self.mutations_pool.append(mutation)
+        self._matrix_updated = False
+        self._layers_index_reverse_updated = False
+
+    def add_layer(self, layer, branch, branch_out=None):
+        self._matrix, self._layers_index_reverse, self.branchs_end, self.layers_count = self._add_layer(
+            self._matrix, self._layers_index_reverse,
+            self.branchs_end, self.layers_count, layer,
+            branch, branch_out)
+        self._matrix_updated = False
+        self._layers_index_reverse_updated = False
+
+    def add_connection(self, before_layer_index, after_layer_index):
+        self._matrix = self._add_connection(self._matrix, before_layer_index, after_layer_index)
+        self._matrix_updated = False
+        self._layers_index_reverse_updated = False
+
+    def merge_branchs(self, layer, branchs=None):
+        self._matrix, self._layers_index_reverse, self.branchs_end, self.branchs_counter = self._merge_branchs(
+            self._matrix, self._layers_index_reverse,
+            self.branchs_end, self.branchs_counter, layer, branchs)
+        self._matrix_updated = False
+        self._layers_index_reverse_updated = False
+
+    def split_branch(self, layers, branch):
+        self._matrix, self._layers_index_reverse, self.branchs_end, self.branchs_counter, self.layers_count = self._split_branch(
+            self._matrix, self._layers_index_reverse,
+            self.branchs_end, self.branchs_counter,
+            self.layers_count, layers, branch)
+        self._matrix_updated = False
+        self._layers_index_reverse_updated = False
 
     def _acyclic_check_dict(self, tree):
         path = set()
@@ -172,14 +235,29 @@ class Structure:
         return self._acyclic_check_raw(tree)
 
     def mutations_applier(self):
-        matrix_copy = np.array(self.matrix)
+        matrix_copy = np.array(self._matrix)
+        layers_index_reverse_copy = dict(self._layers_index_reverse)
+        branchs_end_copy = dict(self.branchs_end)
+        branchs_counter_copy = list(self.branchs_counter)
+        layers_count_copy = self.layers_count
 
         for mutation in self.mutations_pool:
             if mutation.mutation_type == 'add_layer':
-                self.add_layer(mutation.layer, mutation.before_layer_index, mutation.after_layer_index)
+                layer = mutation.layer
+                before_layer_index = mutation.config['before_layer_index']
+                after_layer_index = mutation.config['after_layer_index']
+
+                matrix_copy, layers_index_reverse_copy, branchs_end_copy, branchs_counter_copy, layers_count_copy = self._inject_layer(
+                    matrix_copy, layers_index_reverse_copy,
+                    branchs_end_copy, branchs_counter_copy,
+                    layers_count_copy, layer,
+                    before_layer_index, after_layer_index)
 
             elif mutation.mutation_type == 'add_connection':
-                self.add_connection(mutation.before_layer_index, mutation.after_layer_index)
+                before_layer_index = mutation.config['before_layer_index']
+                after_layer_index = mutation.config['after_layer_index']
+
+                matrix_copy = self._add_connection(matrix_copy, before_layer_index, after_layer_index)
 
             elif mutation.mutation_type == 'remove_layer':
                 pass
@@ -187,14 +265,32 @@ class Structure:
             elif mutation.mutation_type == 'remove_connection':
                 pass
 
+        return matrix_copy, layers_index_reverse_copy, branchs_end_copy, branchs_counter_copy, layers_count_copy
+
+    def _update_mutated(self):
+        matrix, layers_index_reverse, branchs_end, branchs_counter, layers_count = self.mutations_applier()
+
+        self._matrix_updated = True
+        self._matrix_mutated = matrix
+
+        self._layers_index_reverse_updated = True
+        self._layers_index_reverse_mutated = layers_index_reverse
+
     @property
     def matrix(self):
         # apply all mutations before matrix returning
-        pass
+        if not self._matrix_updated:
+            self._update_mutated()
+
+        return self._matrix_mutated
 
     @property
     def layers_index_reverse(self):
-        pass
+        # apply all mutations before layers indexes returning
+        if not self._layers_index_reverse_updated:
+            self._update_mutated()
+
+        return self._layers_index_reverse_mutated
 
 
 class StructureText(Structure):
@@ -210,8 +306,8 @@ class StructureText(Structure):
 
         self._matrix = np.zeros((2, 2))
 
-        root_index = self._register_new_layer(root)
-        embedding_index = self._register_new_layer(embedding)
+        self._matrix, self._layers_index_reverse, root_index = self._register_new_layer(self._matrix, self._layers_index_reverse, root)
+        self._matrix, self._layers_index_reverse, embedding_index = self._register_new_layer(self._matrix, self._layers_index_reverse, embedding)
 
         self._matrix[root_index, embedding_index] = 1
         self._matrix_pure = self._matrix[:]
@@ -226,8 +322,7 @@ class StructureImage(Structure):
 
         self._matrix = np.zeros((1, 1))
         self._matrix_pure = self._matrix[:]
-
-        root_index = self._register_new_layer(root)
+        self._matrix, self._layers_index_reverse, root_index = self._register_new_layer(self._matrix, self._layers_index_reverse, root)
 
         self.branchs_end[1] = root_index
         self.layers_count += 1

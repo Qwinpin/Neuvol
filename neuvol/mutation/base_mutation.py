@@ -44,38 +44,36 @@ class MutatorBase:
 
         individ.add_mutation(mutator(mutation_type, matrix, layers_names))
 
-
-
     @staticmethod
     def grown(individ):
         # TODO: external probabilities for each dice
-        merger_dice = _probability_from_branched(individ)
+        merger_dice = _probability_from_branchs(individ)
 
         # branches, which was merged should not be splitted or grown after
-        branches_exception = []
+        branchs_exception = []
         while merger_dice:
             # TODO: generate distribution according to results of epochs
-            branches_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1) if len(individ.branchs_end.keys()) >= 2 else 0
-            branches_to_merge = np.random.choice(list(individ.branchs_end.keys()), branches_to_merge_number, replace=False)
-            branches_to_merge = [i for i in branches_to_merge if i not in branches_exception]
+            branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1) if len(individ.branchs_end.keys()) >= 2 else 0
+            branchs_to_merge = np.random.choice(list(individ.branchs_end.keys()), branchs_to_merge_number, replace=False)
+            branchs_to_merge = [i for i in branchs_to_merge if i not in branchs_exception]
 
-            if len(branches_to_merge) < 2:
+            if len(branchs_to_merge) < 2:
                 break
 
             new_tail = Layer(Distribution.layer())
 
-            individ.merge_branches(new_tail, branches_to_merge)
+            individ.merge_branchs(new_tail, branchs_to_merge)
 
-            merger_dice = _probability_from_branched(individ)
+            merger_dice = _probability_from_branchs(individ)
 
-            branches_exception.append(branches_to_merge[0])
+            branchs_exception.append(branchs_to_merge[0])
 
         # for each branch now we need decide split or not
-        free_branches = [i for i in individ.branchs_end.keys() if i not in branches_exception]
+        free_branches = [i for i in individ.branchs_end.keys() if i not in branchs_exception]
 
         for branch in free_branches:
 
-            split_dice = 1 - _probability_from_branched(individ)
+            split_dice = 1 - _probability_from_branchs(individ)
 
             if split_dice:
                 number_of_splits = np.random.choice([2, 3, 4, 5], p=[0.6, 0.2, 0.1, 0.1])
@@ -91,7 +89,7 @@ class MutatorBase:
         return True
 
 
-def _probability_from_branched(individ):
+def _probability_from_branchs(individ):
     number_of_branches = len(individ.branchs_end.keys())
 
     if number_of_branches > 1:
@@ -111,10 +109,15 @@ class MutationInjector:
 
         self._choose_parameters(matrix, layers_types)
 
-    def _choose_parameters(self, matrix, layers_types):
+    def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
         size = matrix.shape[0]
         self.config['before_layer_index'] = self.config.get('before_layer_index', None) or np.random.randint(1, size - 1)
-        self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(self.config['before_layer_index'], size)
+
+        split_dice = np.random.choice([0, 1], p=[0.9, 0.1]) if is_add_layer else 0
+        if split_dice:
+            self.config['after_layer_index'] = None
+        else:
+            self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(self.config['before_layer_index'], size)
         # remember the type of modified layers
         self.config['before_layer_type'] = layers_types[self.config['before_layer_index']]
         self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]

@@ -426,7 +426,7 @@ class IndividBase:
         """
         self._architecture.add_layer(layer, branch, branch_out=branch_out)
 
-    def merge_branches(self, layer, branches=None):
+    def merge_branchs(self, layer, branchs=None):
         """
         Forward merge_branches method of Structure instance
 
@@ -439,7 +439,7 @@ class IndividBase:
         Returns:
             str -- return the name of new common ending of the branches
         """
-        self._architecture.merge_branches(layer, branches=branches)
+        self._architecture.merge_branchs(layer, branchs=branchs)
 
     def split_branch(self, layers, branch):
         """
@@ -456,12 +456,12 @@ class IndividBase:
         self._architecture.recalculate_shapes()
 
     @property
-    def branchs_end(self):
-        return self._architecture.branchs_end
+    def matrix(self):
+        return self.architecture.matrix
 
     @property
     def layers_index_reverse(self):
-        return self._architecture._layers_index_reverse
+        return self._architecture.layers_index_reverse
 
     @property
     def layers_counter(self):
@@ -469,8 +469,8 @@ class IndividBase:
 
     @property
     def branches_counter(self):
-        return self._architecture.branches_counter
+        return self._architecture.branchs_counter
 
     @property
-    def matrix(self):
-        return self._architecture._matrix
+    def branchs_end(self):
+        return self._architecture.branchs_end
