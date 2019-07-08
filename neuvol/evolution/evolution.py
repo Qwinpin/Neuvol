@@ -61,21 +61,21 @@ class Evolution():
         self._viz_data = {}
         self._viz_data['population'] = []
 
-        if self._data_type == 'text':
-            Distribution.set_layer_status('cnn2', active=False)
-            Distribution.set_layer_status('max_pool2', active=False)
-            Distribution.set_layer_status('lstm', active=True)
-            Distribution.set_layer_status('bi', active=True)
-            Distribution.set_layer_status('max_pool', active=True)
-            Distribution.set_layer_status('cnn', active=True)
+        # if self._data_type == 'text':
+        #     Distribution.set_layer_status('cnn2', active=False)
+        #     Distribution.set_layer_status('max_pool2', active=False)
+        #     Distribution.set_layer_status('lstm', active=True)
+        #     Distribution.set_layer_status('bi', active=True)
+        #     Distribution.set_layer_status('max_pool', active=True)
+        #     Distribution.set_layer_status('cnn', active=True)
 
-        elif self._data_type == 'image':
-            Distribution.set_layer_status('cnn2', active=True)
-            Distribution.set_layer_status('max_pool2', active=True)
-            Distribution.set_layer_status('lstm', active=False)
-            Distribution.set_layer_status('bi', active=False)
-            Distribution.set_layer_status('max_pool', active=False)
-            Distribution.set_layer_status('cnn', active=False)
+        # elif self._data_type == 'image':
+        #     Distribution.set_layer_status('cnn2', active=True)
+        #     Distribution.set_layer_status('max_pool2', active=True)
+        #     Distribution.set_layer_status('lstm', active=False)
+        #     Distribution.set_layer_status('bi', active=False)
+        #     Distribution.set_layer_status('max_pool', active=False)
+        #     Distribution.set_layer_status('cnn', active=False)
 
         if not loaded:
             self._create_population()

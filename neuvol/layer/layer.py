@@ -435,7 +435,10 @@ class LayerConcat(LayerSpecialBase):
     def __call__(self, nets, previous_layers):
         reshape_layers = self.merger_mass(previous_layers)
 
-        new_nets = [reshape_layer(nets[i], previous_layers[i]) for i, reshape_layer in enumerate(reshape_layers)]
+        new_nets = []
+        for i, reshape_layer in enumerate(reshape_layers):
+            new_nets.append(reshape_layer(nets[i], previous_layers[i]))
+        # new_nets = [reshape_layer(nets[i], previous_layers[i]) for i, reshape_layer in enumerate(reshape_layers)]
         new_net = concatenate(new_nets)
 
         return new_net

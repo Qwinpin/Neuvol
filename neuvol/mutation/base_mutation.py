@@ -20,7 +20,12 @@ from ..layer import Layer
 
 def mutator(mutation_type, matrix, layers_types, config=None, layer=None):
     if mutation_type in MUTATIONS_MAP:
-        return MUTATIONS_MAP[mutation_type](mutation_type=mutation_type, matrix=matrix, layers_types=layers_types, config=config, layer=layer)
+        return MUTATIONS_MAP[mutation_type](
+            mutation_type=mutation_type,
+            matrix=matrix,
+            layers_types=layers_types,
+            config=config,
+            layer=layer)
     else:
         raise TypeError()
 
@@ -37,7 +42,7 @@ class MutatorBase:
         """
         # create representation of the individ with all its previous mutations
         matrix = individ.matrix
-        layers_names = {index: layer.layer_type for index, layer in individ.layers_index_reverse}
+        layers_names = {index: layer.type for index, layer in individ.layers_index_reverse.items()}
 
         if mutation_type is None:
             mutation_type = Distribution.mutation()
@@ -53,7 +58,11 @@ class MutatorBase:
         branchs_exception = []
         while merger_dice:
             # TODO: generate distribution according to results of epochs
-            branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1) if len(individ.branchs_end.keys()) >= 2 else 0
+            if len(individ.branchs_end.keys()) >= 2:
+                branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
+            else:
+                branchs_to_merge_number = 0
+
             branchs_to_merge = np.random.choice(list(individ.branchs_end.keys()), branchs_to_merge_number, replace=False)
             branchs_to_merge = [i for i in branchs_to_merge if i not in branchs_exception]
 
@@ -105,22 +114,29 @@ class MutationInjector:
     def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):
         self.mutation_type = mutation_type
         self._layer = layer
-        self.config = config
+        self.config = config or {}
 
         self._choose_parameters(matrix, layers_types)
 
     def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
         size = matrix.shape[0]
-        self.config['before_layer_index'] = self.config.get('before_layer_index', None) or np.random.randint(1, size - 1)
+        self.config['before_layer_index'] = self.config.get('before_layer_index', None) or np.random.randint(1, size - 3)
+        print(self.config['before_layer_index'])
+        self.config['before_layer_type'] = layers_types[self.config['before_layer_index']]
 
         split_dice = np.random.choice([0, 1], p=[0.9, 0.1]) if is_add_layer else 0
         if split_dice:
             self.config['after_layer_index'] = None
+
         else:
-            self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(self.config['before_layer_index'], size)
-        # remember the type of modified layers
-        self.config['before_layer_type'] = layers_types[self.config['before_layer_index']]
-        self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]
+            if self.config.get('after_layer_index', None) is None:
+                self.config['after_layer_index'] = np.random.randint(self.config['before_layer_index'], size - 3)
+
+            if self.config['after_layer_index'] == self.config['before_layer_index']:
+                self.config['after_layer_index'] = None
+
+            else:
+                self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]
 
     @property
     def layer(self):

@@ -134,17 +134,11 @@ class Evaluator():
     def device(self, device):
         """
         Manualy device management
-        device: str cpu or gpu
+        device: type and index of device "CPU:0" or "GPU:5"
         """
         self._device = device
 
-        if device == 'cpu':
-            self._device = '/device:CPU:0'
-        elif device == 'gpu':
-            self._device = '/device:GPU:0'
-        else:
-            raise ValueError("Incorrect \"device\" argument."
-                             "Available values: \"gpu\", \"cpu\"")
+        self._device = '/device:{}'.format(device)
 
     def set_DataGenerator_multiproc(self, use_multiprocessing=True, workers=2):
         """

@@ -169,7 +169,7 @@ class IndividBase:
 
         # walk over all layers and connect them between each other
         for column in range(self.matrix.shape[1]):
-            last_layer = self.layer_imposer(column, tails_map)
+            last_layer = self.rec_imposer(column, tails_map)
 
         network_head = tails_map[0]
         network_tail = tails_map[last_layer]
@@ -451,6 +451,15 @@ class IndividBase:
             branch {int} - branch, which should be splitted
         """
         self._architecture.split_branch(layers, branch)
+
+    def add_mutation(self, mutation):
+        """
+        Forward add_mutation method of Structure instance
+
+        Args:
+            mutation {instance of MutationInjector} - mutation
+        """
+        self._architecture._add_mutation(mutation)
 
     def recalculate_shapes(self):
         self._architecture.recalculate_shapes()
