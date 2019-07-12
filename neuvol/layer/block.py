@@ -21,7 +21,7 @@ class Block():
     """
     def __init__(self, layers_type=None, layers_number=1, previous_block=None, next_block=None, **kwargs):
         self.layers = None
-        self.type = layers_type
+        self.layer_type = layers_type
         self.shape = layers_number
         self.previous_block = previous_block
         self.next_block = next_block
@@ -39,7 +39,7 @@ class Block():
         next_layer = self.next_block
 
         tmp_kwargs = self.options
-        self.layers = [Layer(self.type, previous_layers, next_layer, **tmp_kwargs) for _ in range(self.shape)]
+        self.layers = [Layer(self.layer_type, previous_layers, next_layer, **tmp_kwargs) for _ in range(self.shape)]
 
     def _check_compatibility(self):
         """
@@ -47,16 +47,16 @@ class Block():
         """
         # TODO: layers and block compatibility checker in one place
         if self.shape > 1:
-            if self.type == 'dropout':
+            if self.layer_type == 'dropout':
                 pass
 
-            elif self.type == 'cnn' or self.type == 'cnn2':
+            elif self.layer_type == 'cnn' or self.layer_type == 'cnn2':
                 # note that same padding and strides != 1 is inconsistent in keras
                 for layer in self.layers:
                     layer.config['padding'] = 'same'
                     layer.config['strides'] = 1
 
-            elif self.type == 'max_pool' or self.type == 'max_pool2':
+            elif self.layer_type == 'max_pool' or self.layer_type == 'max_pool2':
                 # note that same padding and strides != 1 is inconsistent in keras
                 for layer in self.layers:
                     layer.config['padding'] = 'same'
@@ -72,7 +72,7 @@ class Block():
         Serialization of block
         """
         serial = dict()
-        serial['type'] = self.type
+        serial['type'] = self.layer_type
         serial['shape'] = self.shape
         serial['previous_block'] = self.previous_block
         serial['next_block'] = self.next_block

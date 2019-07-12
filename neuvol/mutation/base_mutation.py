@@ -42,7 +42,7 @@ class MutatorBase:
         """
         # create representation of the individ with all its previous mutations
         matrix = individ.matrix
-        layers_names = {index: layer.type for index, layer in individ.layers_index_reverse.items()}
+        layers_names = {index: layer.layer_type for index, layer in individ.layers_index_reverse.items()}
 
         if mutation_type is None:
             mutation_type = Distribution.mutation()
@@ -59,7 +59,10 @@ class MutatorBase:
         while merger_dice:
             # TODO: generate distribution according to results of epochs
             if len(individ.branchs_end.keys()) >= 2:
-                branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
+                # branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
+                number_of_branches = len(individ.branchs_end.keys()) + 1
+                branchs_to_merge_number_distribution = np.array(range(2, number_of_branches)) / np.sum(range(2, number_of_branches))
+                branchs_to_merge_number = np.random.choice(list(range(2, number_of_branches)), p=branchs_to_merge_number_distribution)
             else:
                 branchs_to_merge_number = 0
 
@@ -71,11 +74,11 @@ class MutatorBase:
 
             new_tail = Layer(Distribution.layer())
 
-            individ.merge_branchs(new_tail, branchs_to_merge)
+            branchs_end_new = individ.merge_branchs(new_tail, branchs_to_merge)
 
             merger_dice = _probability_from_branchs(individ)
 
-            branchs_exception.append(branchs_to_merge[0])
+            branchs_exception.append(branchs_end_new)
 
         # for each branch now we need decide split or not
         free_branches = [i for i in individ.branchs_end.keys() if i not in branchs_exception]
@@ -121,7 +124,7 @@ class MutationInjector:
     def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
         size = matrix.shape[0]
         self.config['before_layer_index'] = self.config.get('before_layer_index', None) or np.random.randint(1, size - 3)
-        print(self.config['before_layer_index'])
+
         self.config['before_layer_type'] = layers_types[self.config['before_layer_index']]
 
         split_dice = np.random.choice([0, 1], p=[0.9, 0.1]) if is_add_layer else 0
@@ -167,6 +170,8 @@ class MutationInjectorAddConnection(MutationInjector):
 
     def _choose_parameters(self, matrix, layers_types):
         super()._choose_parameters(matrix, layers_types)
+        if self.config['after_layer_index'] is None:
+            self.config['state'] = 'broken'
 
 
 class MutationInjectorRemoveLayer(MutationInjector):

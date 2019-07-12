@@ -60,7 +60,7 @@ LAYERS_POOL = {
         'input_rank': [3],
         'units': [i for i in range(1, 32, 1)],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
-        'activation': ['tanh', 'relu'],
+        'activation': ['tanh', 'relu', None],
         'implementation': [1, 2],
         'return_sequences': [True, False]},
 
@@ -68,7 +68,7 @@ LAYERS_POOL = {
         'input_rank': [3],
         'units': [i for i in range(1, 32, 1)],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
-        'activation': ['tanh', 'relu'],
+        'activation': ['tanh', 'relu', None],
         'implementation': [1, 2],
         'return_sequences': [True, False]},
 
@@ -78,7 +78,7 @@ LAYERS_POOL = {
         'kernel_size': [i for i in range(1, 11, 2)],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same', 'causal'],
-        'activation': ['tanh', 'relu'],
+        'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'cnn2': {
@@ -87,7 +87,7 @@ LAYERS_POOL = {
         'kernel_size': [i for i in range(1, 11, 2)],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same'],
-        'activation': ['tanh', 'relu'],
+        'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'max_pool': {
@@ -105,10 +105,43 @@ LAYERS_POOL = {
     'dense': {
         'input_rank': [],
         'units': [i for i in range(4, 512, 2)],
-        'activation': ['softmax', 'sigmoid']},
+        'activation': ['softmax', 'sigmoid', None]},
 
     'dropout': {
         'input_rank': [],
-        'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]}}
+        'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]},
+
+    'repeatvector': {
+        'input_rank': [2],
+        'n': [i for i in range(2, 32)]},
+
+    'separablecnn': {
+        'input_rank': [3],
+        'filters': [i for i in range(1, 128, 1)],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        'strides': [1, 2, 3],
+        'padding': ['valid', 'same'],
+        'activation': ['tanh', 'relu', None],
+        'dilation_rate': [1, 2, 3]},
+
+    'separablecnn2': {
+        'input_rank': [4],
+        'filters': [i for i in range(1, 128, 1)],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        'strides': [1, 2, 3],
+        'padding': ['valid', 'same'],
+        'activation': ['tanh', 'relu', None],
+        'dilation_rate': [1, 2, 3]},
+
+    'decnn2': {
+        'input_rank': [4],
+        'filters': [i for i in range(1, 128, 1)],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        'strides': [1, 2, 3],
+        'padding': ['valid', 'same'],
+        'output_padding': [i for i in range(1, )] + [None],
+        'activation': ['tanh', 'relu', None],
+        'dilation_rate': [1, 2, 3]}, }
+
 
 POOL_SIZE = len(LAYERS_POOL)

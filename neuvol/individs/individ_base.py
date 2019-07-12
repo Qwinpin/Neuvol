@@ -29,7 +29,7 @@ class IndividBase:
     # TODO: add support for different data types
     # TODO: add support for different task types
 
-    def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
+    def __init__(self, stage, options, task_type='classification', parents=None, freeze=None):
         """Create individ randomly or with its parents
 
         Attributes:
@@ -43,7 +43,7 @@ class IndividBase:
         # TODO: freeze training or data parameters of individ and set manualy
         self._freeze = freeze
         self._parents = parents
-        self.options = kwargs
+        self.options = options
         self._history = []
         self._name = FAKE.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = []
@@ -79,7 +79,7 @@ class IndividBase:
         """
         Init structure of the individ
         """
-        input_layer = Layer('input', **self.options)
+        input_layer = Layer('input', options=self.options)
         architecture = Structure(input_layer)
 
         return architecture
@@ -166,10 +166,11 @@ class IndividBase:
             raise Exception('Non initialized net')
 
         tails_map = {}
+        last_layer = None
 
         # walk over all layers and connect them between each other
-        for column in range(self.matrix.shape[1]):
-            last_layer = self.rec_imposer(column, tails_map)
+        for column in range(len(self.layers_index_reverse)):
+            last_layer = self.rec_imposer(column, tails_map) or last_layer
 
         network_head = tails_map[0]
         network_tail = tails_map[last_layer]
@@ -439,7 +440,7 @@ class IndividBase:
         Returns:
             str -- return the name of new common ending of the branches
         """
-        self._architecture.merge_branchs(layer, branchs=branchs)
+        return self._architecture.merge_branchs(layer, branchs=branchs)
 
     def split_branch(self, layers, branch):
         """

@@ -20,12 +20,12 @@ class IndividImage(IndividBase):
     """
     Invidiv class for image data types
     """
-    def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
-        super().__init__(stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
+    def __init__(self, stage, options, task_type='classification', parents=None, freeze=None):
+        super().__init__(stage=stage, options=options, task_type=task_type, parents=parents, freeze=freeze)
         self._data_processing_type = 'image'
 
     def _random_init_architecture(self):
-        input_layer = Layer('input', **self.options)
+        input_layer = Layer('input', self.options)
 
         architecture = StructureImage(input_layer)
 

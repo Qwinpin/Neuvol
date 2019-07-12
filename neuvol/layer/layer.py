@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from keras.layers import (Bidirectional, concatenate, Conv1D, Conv2D, Dense, Dropout,
-                          Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape)
+                          Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape, RepeatVector,
+                          SeparableConv1D, SeparableConv2D, Conv2DTranspose)
 from keras.layers.recurrent import LSTM
 import numpy as np
 
@@ -21,9 +22,12 @@ from ..probabilty_pool import Distribution
 from ..utils import dump
 
 
-def Layer(layer_type=None, previous_layer=None, next_layer=None, **kwargs):
+def Layer(layer_type, options=None, previous_layer=None, next_layer=None):
+    """
+
+    """
     if layer_type in LAYERS_MAP:
-        return LAYERS_MAP[layer_type](layer_type=layer_type, previous_layer=previous_layer, next_layer=next_layer, **kwargs)
+        return LAYERS_MAP[layer_type](layer_type=layer_type, previous_layer=previous_layer, next_layer=next_layer, options=options)
     else:
         raise TypeError()
 
@@ -31,12 +35,16 @@ def Layer(layer_type=None, previous_layer=None, next_layer=None, **kwargs):
 class LayerBase:
     """
     Single layer class with compatibility checking
+    In order to keep logical connectivity with Keras layer instances
+    __call__ method is implemented.
+    Then calling ranks comparison is performed - in case of incompatibilities
+    of rank add reshape layer.
     """
 
-    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, **kwargs):
+    def __init__(self, layer_type, previous_layer=None, next_layer=None, options=None):
         self.config = {}
-        self.type = layer_type
-        self.options = kwargs
+        self.layer_type = layer_type
+        self.options = options
         self.previous_layer = previous_layer
         self.next_layer = next_layer
 
@@ -45,6 +53,10 @@ class LayerBase:
             self._check_compatibility()
 
     def __call__(self, net, previous_layer):
+        """
+        Add layer to a network tail, previous layer is required for shape and rank check
+        In case of multiple layers concatenation layer is injected
+        """
         # in case of concatenation
         if isinstance(net, list):
             concat_layer = Layer('concat')
@@ -71,9 +83,15 @@ class LayerBase:
         return new_net
 
     def init_layer(self, previous_layer):
+        """
+        Each layer type has its own initialization
+        """
         return ...
 
     def _init_reshape_layer(self, previous_layer):
+        """
+        Add reshape layer if ranks is different
+        """
         if self.config['input_rank'] != previous_layer.rank:
             reshape_layer = reshaper(previous_layer, self)
         else:
@@ -82,9 +100,12 @@ class LayerBase:
         return reshape_layer
 
     def _init_parameters(self):
-        variables = list(LAYERS_POOL[self.type])
+        """
+        Get random values of all required parameters
+        """
+        variables = list(LAYERS_POOL[self.layer_type])
         for parameter in variables:
-            self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
+            self.config[parameter] = Distribution.layer_parameters(self.layer_type, parameter)
 
     def _check_compatibility(self):
         pass
@@ -113,7 +134,7 @@ class LayerBase:
         """
         serial = dict()
         serial['config'] = self.config
-        serial['type'] = self.type
+        serial['type'] = self.layer_type
         serial['options'] = self.options
         serial['previous_layer'] = self.previous_layer
         serial['next_layer'] = self.next_layer
@@ -159,13 +180,13 @@ class LayerBase:
 
 class LayerSpecialBase(LayerBase):
     def _init_parameters(self):
-        variables = list(SPECIAL[self.type])
+        variables = list(SPECIAL[self.layer_type])
         for parameter in variables:
-            self.config[parameter] = Distribution.layer_parameters(self.type, parameter)
+            self.config[parameter] = Distribution.layer_parameters(self.layer_type, parameter)
 
 
 class LayerComplex(LayerBase):
-    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, **kwargs):
+    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, options=None):
         raise NotImplementedError
 
 
@@ -357,7 +378,7 @@ class LayerMaxPool2D(LayerMaxPool1D):
 
 class LayerDense(LayerBase):
     def _init_parameters(self):
-        if self.type == 'last_dense':
+        if self.layer_type == 'last_dense':
             variables = list(LAYERS_POOL['dense'])
             for parameter in variables:
                 self.config[parameter] = Distribution.layer_parameters('dense', parameter)
@@ -382,11 +403,11 @@ class LayerDense(LayerBase):
 class LayerInput(LayerBase):
     def _init_parameters(self):
         self.config['shape'] = self.options['shape']
-        self.config['rank'] = len(self.options['shape']) + 1
+        self.config['rank'] = len(self.options['shape'])
 
     def init_layer(self, previous_layer):
         layer_tf = Input(
-            shape=self.config['shape'])
+            shape=self.config['shape'][1:])  # all except first None
 
         return layer_tf
 
@@ -480,6 +501,95 @@ class LayerDropout(LayerBase):
         return layer_tf
 
 
+class LayerRepeatVector(LayerBase):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
+        layer_tf = RepeatVector(n=self.config['n'])
+
+        return layer_tf
+
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
+        shape = (None, self.config['n'], *previous_shape[1:])
+
+        return shape
+
+    def calculate_rank(self, previous_layer):
+        previous_rank = previous_layer.rank
+        rank = previous_rank + 1
+
+        return rank
+
+
+class LayerSepCNN1D(LayerCNN1D):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
+        layer_tf = SeparableConv1D(
+            filters=self.config['filters'],
+            kernel_size=[self.config['kernel_size']],
+            strides=[self.config['strides']],
+            padding=self.config['padding'],
+            dilation_rate=tuple([self.config['dilation_rate']]),
+            activation=self.config['activation'])
+
+        return layer_tf
+
+
+class LayerSepCNN2D(LayerCNN2D):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
+        layer_tf = SeparableConv2D(
+            filters=self.config['filters'],
+            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
+            strides=[self.config['strides'], self.config['strides']],
+            padding=self.config['padding'],
+            dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
+            activation=self.config['activation'])
+
+        return layer_tf
+
+
+class LayerDeCNN2D(LayerCNN2D):
+    def init_layer(self, previous_layer):
+        super().init_layer(previous_layer)
+        layer_tf = Conv2DTranspose(
+            filters=self.config['filters'],
+            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
+            strides=[self.config['strides'], self.config['strides']],
+            padding=self.config['padding'],
+            output_padding=self.config['output_padding'],
+            dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
+            activation=self.config['activation'])
+
+        return layer_tf
+
+    def calculate_shape(self, previous_layer):
+        previous_shape = previous_layer.shape
+        filters = self.config['filters']
+        kernel_size = self.config['kernel_size']
+
+        padding = self.config['padding']
+        output_padding = self.config['output_padding']
+        strides = self.config['strides']
+        dilation_rate = self.config['dilation_rate']
+
+        print(kernel_size, dilation_rate, output_padding, previous_shape)
+        if padding == 'valid':
+            if output_padding is None:
+                output_padding = 0
+            out = [(i - 1) * strides + kernel_size + (kernel_size - 1) * (dilation_rate - 1) + output_padding for i in previous_shape[1:-1]]
+
+        elif padding == 'same':
+            if output_padding is None:
+                out = [i * strides for i in previous_shape[1:-1]]
+            else:
+                out = [(i - 1) * strides + kernel_size - 2 * (kernel_size // 2) + output_padding for i in previous_shape[1:-1]]
+
+        shape = (None, *out, filters)
+
+        return shape
+
+
 LAYERS_MAP = {
     'input': LayerInput,
     'lstm': LayerLSTM,
@@ -493,7 +603,11 @@ LAYERS_MAP = {
     'flatten': LayerFlatten,
     'concat': LayerConcat,
     'reshape': LayerReshape,
-    'dropout': LayerDropout
+    'dropout': LayerDropout,
+    'repeatvector': LayerRepeatVector,
+    'separablecnn': LayerSepCNN1D,
+    'separablecnn2': LayerSepCNN2D,
+    'decnn2': LayerDeCNN2D
 }
 
 
@@ -504,11 +618,35 @@ def reshaper_shape(difference, prev_layer):
         # difference + 1
         # (None, 12, 124, 124, 10) -> rank 2 -> (None, 12*124*124*10)
         # (None, 12, 124, 124, 10) -> rank 4 -> (None, 12, 124*124, 10)
+        prev_rank = prev_layer.rank
+
+        # how many elements will be multiplied
+        window = difference + 1
+        # how many elements will not be multiplied
+        # -1 used because None elements is not taken into account
+        free_elements = prev_rank - window - 1
+
+        if free_elements == 0:
+            tail_ind = None
+            front_ind = 1
+
+        else:
+            tail_ind = -1
+            front_ind = free_elements
+
+        front = prev_layer.config['shape'][1: front_ind]
+        mid = np.prod(prev_layer.config['shape'][front_ind: tail_ind])
+
+        if tail_ind is None:
+            tail = []
+        else:
+            tail = prev_layer.config['shape'][-1:]
+
         new_shape = (
             None,
-            *prev_layer.config['shape'][1:-(difference + 2)],
-            np.prod(prev_layer.config['shape'][-(difference + 2): -1]),
-            prev_layer.config['shape'][-1])
+            *front,
+            mid,
+            *tail)
 
     elif difference < 0:
         # simple reshape with 1 dims

@@ -64,7 +64,7 @@ class Structure:
         # self.layers_indexes[new_layer] = len(self.layers_indexes)
         _layers_index_reverse[len(_layers_index_reverse)] = new_layer
 
-        return _matrix, _layers_index_reverse, len(self._layers_index_reverse) - 1
+        return _matrix, _layers_index_reverse, len(_layers_index_reverse) - 1
 
     def _add_layer(self, matrix, layers_index_reverse, branchs_end, layer, branch, branch_out=None):
         """
@@ -182,7 +182,7 @@ class Structure:
         branchs_counter.append(branch_new)
         branchs_end[branch_new] = index
 
-        return matrix, layers_index_reverse, branchs_end, branchs_counter
+        return matrix, layers_index_reverse, branchs_end, branchs_counter, branch_new
 
     def _split_branch(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layers, branch):
         """
@@ -287,11 +287,12 @@ class Structure:
             layer {instance of the Layer} - layer, which will be added after concatenation
             branchs {list{int}} -- list of branchs to concatenate
         """
-        self._matrix, self._layers_index_reverse, self.branchs_end, self.branchs_counter = self._merge_branchs(
+        self._matrix, self._layers_index_reverse, self.branchs_end, self.branchs_counter, branchs_end_new = self._merge_branchs(
             self._matrix, self._layers_index_reverse,
             self.branchs_end, self.branchs_counter, layer, branchs)
         self._matrix_updated = False
         self._layers_index_reverse_updated = False
+        return branchs_end_new
 
     def split_branch(self, layers, branch):
         """
@@ -369,6 +370,9 @@ class Structure:
         branchs_counter_copy = list(self.branchs_counter)
 
         for mutation in self.mutations_pool:
+            if mutation.config.get('state', None) == 'broken':
+                continue
+
             if mutation.mutation_type == 'add_layer':
                 layer = mutation.layer
                 before_layer_index = mutation.config['before_layer_index']
@@ -389,26 +393,30 @@ class Structure:
                 branchs_counter_copy_tmp = None
 
             elif mutation.mutation_type == 'remove_layer':
-                pass
+                continue
 
             elif mutation.mutation_type == 'remove_connection':
-                pass
+                continue
 
             # its should be False
             if not self._cyclic_check(matrix_copy_tmp):
                 matrix_copy = matrix_copy_tmp
                 layers_index_reverse_copy = layers_index_reverse_copy_tmp or layers_index_reverse_copy
+
                 branchs_end_copy = branchs_end_copy_tmp or branchs_end_copy
                 branchs_counter_copy = branchs_counter_copy_tmp or branchs_counter_copy
-            else:
-                matrix_copy_tmp = None
-                layers_index_reverse_copy_tmp = None
-                branchs_end_copy_tmp = None
-                branchs_counter_copy_tmp = None
+
+            matrix_copy_tmp = None
+            layers_index_reverse_copy_tmp = None
+            branchs_end_copy_tmp = None
+            branchs_counter_copy_tmp = None
 
         return matrix_copy, layers_index_reverse_copy, branchs_end_copy, branchs_counter_copy
 
     def _update_mutated(self):
+        """
+        Update architecture using new mutations
+        """
         matrix, layers_index_reverse, branchs_end, branchs_counter = self.mutations_applier()
 
         self._matrix_updated = True
@@ -419,6 +427,9 @@ class Structure:
 
     @property
     def matrix(self):
+        """
+        Return matrix with mutations
+        """
         # apply all mutations before matrix returning
         if not self._matrix_updated:
             self._update_mutated()
@@ -437,7 +448,9 @@ class Structure:
 class StructureText(Structure):
     def __init__(self, root, embedding):
         """
-        Initialize the architecture of the individual
+        Initialize the architecture of the individual with textual data
+        Can used in case of pure text as the input
+        If own embedding - use pure Structure or 'general' as a type of data in Evolution
 
         Args:
             root {instance of the Layer} - input layer type
@@ -447,11 +460,13 @@ class StructureText(Structure):
 
         self._matrix = np.zeros((2, 2))
 
+        # add root layer - Input layer
         self._matrix, self._layers_index_reverse, root_index = self._register_new_layer(
             self._matrix,
             self._layers_index_reverse,
             root)
 
+        # add embedding layer
         self._matrix, self._layers_index_reverse, embedding_index = self._register_new_layer(
             self._matrix,
             self._layers_index_reverse,
