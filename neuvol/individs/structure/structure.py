@@ -14,9 +14,8 @@
 import numpy as np
 
 
-# TODO: rewrite all structure
 class Structure:
-    def __init__(self, root):
+    def __init__(self, root, finisher):
         """
         Class of individ architecture
         Growing steps is applied to the origin matrix
@@ -28,6 +27,7 @@ class Structure:
         and are used for growing changes.
         """
         self._matrix = None  # matrix of layers connections
+        self._finisher = finisher
         # matrix and layers indexes should be updated after each mutation and changes of the network
         # to avoid excess computations updated version stored in _matrix_updated
         self._matrix_mutated = None
@@ -131,6 +131,32 @@ class Structure:
 
         return matrix, layers_index_reverse, branchs_end, branchs_counter
 
+    def _remove_layer(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layer_index):
+        before_layer_indexes = np.where(matrix[:, layer_index] == 1)[0]
+        after_layer_indexes = np.where(matrix[layer_index, :] == 1)[0]
+
+        if not before_layer_indexes:
+            # restricted operation - network head could not be removed
+            return matrix, layers_index_reverse, branchs_end, branchs_counter
+
+        if after_layer_indexes:
+            matrix[before_layer_indexes, after_layer_indexes] = 1
+            matrix[before_layer_indexes, layer_index] = 0
+            matrix[layer_index, after_layer_indexes] = 0
+
+        else:
+            matrix[before_layer_indexes, layer_index] = 0
+
+        branchs_end_reverse = {value: key for key, value in branchs_end.items()}
+        branch_to_remove = branchs_end_reverse.get(layer_index, None)
+        if branch_to_remove is not None:
+            branchs_counter = [i for i in branchs_counter if i != branch_to_remove]
+            del branchs_end[branch_to_remove]
+
+        del layers_index_reverse[layer_index]
+
+        return matrix, layers_index_reverse, branchs_end, branchs_counter
+
     def _add_connection(self, matrix, before_layer_index, after_layer_index):
         """
         Add connection between two layer. Does not add new layer
@@ -144,6 +170,11 @@ class Structure:
             np.array(N, N) - new matrix of connections
         """
         matrix[before_layer_index, after_layer_index] = 1
+
+        return matrix
+
+    def _remove_connection(self, matrix, before_layer_index, after_layer_index):
+        matrix[before_layer_index, after_layer_index] = 0
 
         return matrix
 
@@ -352,7 +383,30 @@ class Structure:
 
         return self._cyclic_check_dict(tree)
 
-    def mutations_applier(self):
+    def finisher_applier(self, matrix, layers_index_reverse, branchs_end, branchs_counter):
+        matrix_copy = np.array(self._matrix) or matrix
+        layers_index_reverse_copy = dict(self._layers_index_reverse) or layers_index_reverse
+        branchs_end_copy = dict(self.branchs_end) or branchs_end
+        branchs_counter_copy = list(self.branchs_counter) or branchs_counter
+
+        # current number of branches
+        branchs_number = len(branchs_counter_copy)
+
+        if branchs_number > 1:
+            matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp, last_branch_index = self._merge_branchs(
+                matrix_copy, layers_index_reverse_copy,
+                branchs_end_copy, branchs_counter_copy,
+                self._finisher, branchs_counter_copy)
+
+        else:
+            matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp = self._add_layer(
+                matrix_copy, layers_index_reverse_copy,
+                branchs_end_copy, self._finisher,
+                branchs_counter_copy[0])
+
+        return matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp
+
+    def mutations_applier(self, matrix, layers_index_reverse, branchs_end, branchs_counter):
         """
         Apply all mutations, which does not create cycle
 
@@ -364,10 +418,10 @@ class Structure:
         """
         # create copy of properties
         # mutations can lead to a cycle and should be performed with additional checks
-        matrix_copy = np.array(self._matrix)
-        layers_index_reverse_copy = dict(self._layers_index_reverse)
-        branchs_end_copy = dict(self.branchs_end)
-        branchs_counter_copy = list(self.branchs_counter)
+        matrix_copy = np.array(self._matrix) or matrix
+        layers_index_reverse_copy = dict(self._layers_index_reverse) or layers_index_reverse
+        branchs_end_copy = dict(self.branchs_end) or branchs_end
+        branchs_counter_copy = list(self.branchs_counter) or branchs_counter
 
         for mutation in self.mutations_pool:
             if mutation.config.get('state', None) == 'broken':
@@ -393,10 +447,21 @@ class Structure:
                 branchs_counter_copy_tmp = None
 
             elif mutation.mutation_type == 'remove_layer':
-                continue
+                layer_index = mutation.layer
+
+                matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_layer(
+                    matrix_copy, layers_index_reverse_copy,
+                    branchs_end_copy, branchs_counter_copy,
+                    layer_index)
 
             elif mutation.mutation_type == 'remove_connection':
-                continue
+                before_layer_index = mutation.config['before_layer_index']
+                after_layer_index = mutation.config['after_layer_index']
+
+                matrix_copy_tmp = self._remove_connection(matrix_copy, before_layer_index, after_layer_index)
+                layers_index_reverse_copy_tmp = None
+                branchs_end_copy_tmp = None
+                branchs_counter_copy_tmp = None
 
             # its should be False
             if not self._cyclic_check(matrix_copy_tmp):
@@ -418,6 +483,8 @@ class Structure:
         Update architecture using new mutations
         """
         matrix, layers_index_reverse, branchs_end, branchs_counter = self.mutations_applier()
+        matrix, layers_index_reverse, branchs_end, branchs_counter = self.finisher_applier(
+            matrix, layers_index_reverse, branchs_end, branchs_counter)
 
         self._matrix_updated = True
         self._matrix_mutated = matrix
@@ -446,7 +513,7 @@ class Structure:
 
 
 class StructureText(Structure):
-    def __init__(self, root, embedding):
+    def __init__(self, root, embedding, finisher):
         """
         Initialize the architecture of the individual with textual data
         Can used in case of pure text as the input
@@ -479,7 +546,7 @@ class StructureText(Structure):
 
 
 class StructureImage(Structure):
-    def __init__(self, root):
+    def __init__(self, root, finisher):
         super().__init__(root)
 
         self._matrix = np.zeros((1, 1))

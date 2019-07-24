@@ -178,6 +178,11 @@ class MutationInjectorRemoveLayer(MutationInjector):
     def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):
         super().__init__(mutation_type, matrix, layers_types, config=config, layer=layer)
 
+    def _choose_parameters(self, matrix, layers_types):
+        layer_indexes = layers_types.keys()
+
+        layer_to_remove = np.random.choice(layer_indexes, size=1)
+
 
 class MutationInjectorRemoveConnection(MutationInjector):
     def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):

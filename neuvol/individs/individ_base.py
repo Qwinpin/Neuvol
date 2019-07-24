@@ -29,7 +29,7 @@ class IndividBase:
     # TODO: add support for different data types
     # TODO: add support for different task types
 
-    def __init__(self, stage, options, task_type='classification', parents=None, freeze=None):
+    def __init__(self, stage, options, finisher, task_type='classification', parents=None, freeze=None):
         """Create individ randomly or with its parents
 
         Attributes:
@@ -46,10 +46,10 @@ class IndividBase:
         self.options = options
         self._history = []
         self._name = FAKE.name().replace(' ', '_') + '_' + str(stage)
-        self._architecture = []
-        self._data_processing = None
-        self._training_parameters = None
-        self.shape_structure = None
+        self._architecture = None
+        self._finisher = finisher
+        self._data_processing = None or self.options.get('data_processing', None)
+        self._training_parameters = None or self.options.get('training_parameters', None)
         self._layers_number = 0
         self._result = -1.0
 
@@ -59,12 +59,6 @@ class IndividBase:
                 self._random_init()
                 self._history.append(EVENT('Init', stage))
             else:
-                # okay, we need some hack to avoid memory leak
-                self._parents[0]._parents = None
-                self._parents[1]._parents = None
-
-                self._task_type = parents[0].task_type
-                self._data_processing_type = parents[0].data_type
                 self._history.append(EVENT('Birth', self._stage))
 
     def __str__(self):
@@ -80,7 +74,7 @@ class IndividBase:
         Init structure of the individ
         """
         input_layer = Layer('input', options=self.options)
-        architecture = Structure(input_layer)
+        architecture = Structure(input_layer, self._finisher)
 
         return architecture
 
@@ -215,7 +209,6 @@ class IndividBase:
         serial['training_parameters'] = self._training_parameters
         serial['layers_number'] = self._layers_number
         serial['result'] = self._result
-        serial['shape_structure'] = self.shape_structure
 
         return serial
 
@@ -251,7 +244,6 @@ class IndividBase:
         individ._training_parameters = serial['training_parameters']
         individ._layers_number = serial['layers_number']
         individ._result = serial['result']
-        individ.shape_structure = serial['shape_structure']
 
         return individ
 
