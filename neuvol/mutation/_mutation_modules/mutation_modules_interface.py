@@ -11,4 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .cradle import cradle
+import numpy as np
+
+from ...constants import EVENT
+from ...constants import TRAINING
+from ...layer.block import Block
+from ...probabilty_pool import Distribution
+
+
+def perform_mutation(individ, mutation_type):
+    """
+    Perform specific mutation according mutation type
+    """
+    mutation_types = ['inject_layer']
+

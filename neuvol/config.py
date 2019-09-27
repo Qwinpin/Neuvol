@@ -17,13 +17,13 @@ import logging
 # it is important if you use
 import tensorflow as tf
 
-config = tf.ConfigProto()
+
+config = tf.compat.v1.ConfigProto()
 # config.gpu_options.visible_device_list = "1"
 # config.gpu_options.per_process_gpu_memory_fraction = 0.9
 # config.allow_soft_placement = True
 # config.gpu_options.allow_growth = True
-
-SESSION = tf.Session(config=config)
+SESSION = tf.compat.v1.Session(config=config)
 
 HANDLER = logging.FileHandler("log.log")
 FORMATTER = logging.Formatter(

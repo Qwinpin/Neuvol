@@ -12,28 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .individ_base import IndividBase
-from ..layer.block import Block
+from ..layer.block import Layer
+from .structure import StructureImage
 
 
-class IndividText(IndividBase):
+class IndividImage(IndividBase):
     """
-    Invidiv class for text data types
+    Invidiv class for image data types
     """
-
-    def __init__(self, stage, task_type='classification', parents=None, freeze=None, **kwargs):
-        super().__init__(stage=stage, task_type=task_type, parents=parents, freeze=freeze, **kwargs)
-        self._data_processing_type = 'text'
+    def __init__(self, stage, options, finisher, task_type='classification', parents=None, freeze=None):
+        super().__init__(stage=stage, options=options, finisher=finisher, task_type=task_type, parents=parents, freeze=freeze)
+        self._data_processing_type = 'image'
 
     def _random_init_architecture(self):
-        """
-        At first, we set probabilities pool and the we change
-        this uniform distribution according to previous layer
-        """
-        architecture = super()._random_init_architecture()
+        input_layer = Layer('input', self.options)
 
-        # Push embedding for texts after input layer and before others
-        block = Block('embedding', layers_number=1, **self.options)
-        architecture.insert(1, block)
+        architecture = StructureImage(input_layer, self._finisher)
 
         return architecture
 
@@ -42,8 +36,6 @@ class IndividText(IndividBase):
             raise Exception('Not initialized yet')
 
         data_tmp = {}
-        data_tmp['vocabular'] = self._architecture[1].config['vocabular']
-        data_tmp['sentences_length'] = self.options.get('shape', [10])[0]
         data_tmp['classes'] = self.options.get('classes', 2)
 
         return data_tmp
@@ -53,7 +45,7 @@ class IndividText(IndividBase):
     #     """
     #     Load method. Returns individ
     #     """
-    #     individ = IndividText(serial['stage'])
+    #     individ = IndividImage(serial['stage'])
 
     #     individ._stage = serial['stage']
     #     individ._data_processing_type = serial['data_processing_type']
@@ -66,7 +58,8 @@ class IndividText(IndividBase):
     #     individ._history = serial['history']
     #     individ._name = serial['name']
 
-    #     individ._architecture = [Block('input', layers_number=1, **self.options) for i, _ in enumerate(serial['architecture'])]
+    #     individ._architecture = [Block('input', layers_number=1, **self.options) \
+    #         for i, _ in enumerate(serial['architecture'])]
     #     individ._architecture = [block.load(serial['architecture'][i]) for i, block in enumerate(self._architecture)]
 
     #     individ._data_processing = serial['data_processing']

@@ -12,3 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .pairing_modules_interface import peform_pairing
+
+__all__ = ['peform_pairing']

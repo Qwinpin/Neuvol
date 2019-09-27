@@ -11,6 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .cross import Crosser
+from .mutation_modules_interface import perform_mutation
 
-__all__ = ['Crosser']
+__all__ = ['perform_mutation']
