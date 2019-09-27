@@ -52,7 +52,7 @@ class MutatorBase:
     @staticmethod
     def grown(individ):
         # TODO: external probabilities for each dice
-        merger_dice = _probability_from_branchs(individ)
+        merger_dice = _probability_from_branchs(individ, delimeter=2)
 
         # branches, which was merged should not be splitted or grown after
         branchs_exception = []
@@ -76,22 +76,24 @@ class MutatorBase:
 
             branchs_end_new = individ.merge_branchs(new_tail, branchs_to_merge)
 
-            merger_dice = _probability_from_branchs(individ)
+            merger_dice = _probability_from_branchs(individ, delimeter=1)
 
             branchs_exception.append(branchs_end_new)
 
         # for each branch now we need decide split or not
         free_branches = [i for i in individ.branchs_end.keys() if i not in branchs_exception]
 
+        split_event = False
         for branch in free_branches:
 
-            split_dice = 1 - _probability_from_branchs(individ)
+            split_dice = _probability_from_branchs(individ, delimeter=1.5)
 
-            if split_dice:
-                number_of_splits = np.random.choice([2, 3, 4, 5], p=[0.6, 0.2, 0.1, 0.1])
+            if split_dice and not split_event:
+                number_of_splits = np.random.choice([2, 3, 4, 5], p=[0.8, 0.1, 0.07, 0.03])
                 new_tails = [Layer(Distribution.layer()) for _ in range(number_of_splits)]
 
                 individ.split_branch(new_tails, branch=branch)
+                split_event = True
 
             else:
                 new_tail = Layer(Distribution.layer())
@@ -101,14 +103,15 @@ class MutatorBase:
         return True
 
 
-def _probability_from_branchs(individ):
+def _probability_from_branchs(individ, delimeter=1):
     number_of_branches = len(individ.branchs_end.keys())
 
     if number_of_branches > 1:
-        probability = 1 - 1 / math.log(number_of_branches, 1.5)
-        dice = np.random.choice([0, 1], p=[1 - probability, probability])
+        probability = (1 - 1 / math.log(number_of_branches, 1.5)) / delimeter
     else:
-        dice = 0
+        probability = (1 - 1 / math.log(number_of_branches + 1, 1.5)) / delimeter
+
+    dice = np.random.choice([0, 1], p=[1 - probability, probability])
 
     return dice
 
@@ -182,6 +185,7 @@ class MutationInjectorRemoveLayer(MutationInjector):
         layer_indexes = layers_types.keys()
 
         layer_to_remove = np.random.choice(layer_indexes, size=1)
+        self._layer = layer_to_remove
 
 
 class MutationInjectorRemoveConnection(MutationInjector):
@@ -192,6 +196,6 @@ class MutationInjectorRemoveConnection(MutationInjector):
 MUTATIONS_MAP = {
     'add_layer': MutationInjectorAddLayer,
     'add_connection': MutationInjectorAddConnection,
-    'remove_layer': MutationInjectorRemoveLayer,
-    'remove_connection': MutationInjectorRemoveConnection,
+    #'remove_layer': MutationInjectorRemoveLayer,
+    #'remove_connection': MutationInjectorRemoveConnection,
 }

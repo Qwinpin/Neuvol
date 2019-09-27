@@ -107,6 +107,9 @@ class LayerBase:
         for parameter in variables:
             self.config[parameter] = Distribution.layer_parameters(self.layer_type, parameter)
 
+        if self.options is not None and self.options.get('input_rank') is not None:
+            self.config['input_rank'] = self.options['input_rank']
+
     def _check_compatibility(self):
         pass
 
@@ -115,7 +118,7 @@ class LayerBase:
         Shape calculator for the output
 
         Arguments:
-            previous_layer {[type]} -- [description]
+            previous_layer {Layer} -- previous layer, which is connected to the current
         """
         previous_shape = previous_layer.shape
         new_shape = previous_shape
@@ -573,7 +576,6 @@ class LayerDeCNN2D(LayerCNN2D):
         strides = self.config['strides']
         dilation_rate = self.config['dilation_rate']
 
-        print(kernel_size, dilation_rate, output_padding, previous_shape)
         if padding == 'valid':
             if output_padding is None:
                 output_padding = 0
@@ -658,7 +660,6 @@ def reshaper_shape(difference, prev_layer):
 
     else:
         new_shape = prev_layer.config['shape']
-
     return new_shape
 
 

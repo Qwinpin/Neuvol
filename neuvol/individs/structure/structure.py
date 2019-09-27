@@ -234,7 +234,6 @@ class Structure:
             list - new array of branchs indexes
         """
         add_to = branchs_end[branch]
-
         indexes = []
         for layer in layers:
             matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
@@ -336,6 +335,7 @@ class Structure:
         self._matrix, self._layers_index_reverse, self.branchs_end, self.branchs_counter = self._split_branch(
             self._matrix, self._layers_index_reverse,
             self.branchs_end, self.branchs_counter, layers, branch)
+
         self._matrix_updated = False
         self._layers_index_reverse_updated = False
 
@@ -384,25 +384,32 @@ class Structure:
         return self._cyclic_check_dict(tree)
 
     def finisher_applier(self, matrix, layers_index_reverse, branchs_end, branchs_counter):
-        matrix_copy = np.array(self._matrix) or matrix
-        layers_index_reverse_copy = dict(self._layers_index_reverse) or layers_index_reverse
-        branchs_end_copy = dict(self.branchs_end) or branchs_end
-        branchs_counter_copy = list(self.branchs_counter) or branchs_counter
+        if matrix is None:
+            matrix_copy = np.array(self._matrix)
+        else:
+            matrix_copy = matrix
+
+        layers_index_reverse_copy = dict(layers_index_reverse) or dict(self._layers_index_reverse)
+        branchs_end_copy = dict(branchs_end) or dict(self.branchs_end)
+        branchs_counter_copy = list(branchs_counter) or list(self.branchs_counter)
 
         # current number of branches
-        branchs_number = len(branchs_counter_copy)
+        branchs_number = len(branchs_counter)
 
+        branchs_to_merge = list(branchs_end_copy.keys())
         if branchs_number > 1:
-            matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp, last_branch_index = self._merge_branchs(
+            matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp, _ = self._merge_branchs(
                 matrix_copy, layers_index_reverse_copy,
                 branchs_end_copy, branchs_counter_copy,
-                self._finisher, branchs_counter_copy)
+                self._finisher, branchs_to_merge)
 
         else:
             matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp = self._add_layer(
                 matrix_copy, layers_index_reverse_copy,
                 branchs_end_copy, self._finisher,
-                branchs_counter_copy[0])
+                branchs_to_merge[0])
+
+            branchs_counter_copy_tmp = branchs_counter_copy
 
         return matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp
 
@@ -418,10 +425,14 @@ class Structure:
         """
         # create copy of properties
         # mutations can lead to a cycle and should be performed with additional checks
-        matrix_copy = np.array(self._matrix) or matrix
-        layers_index_reverse_copy = dict(self._layers_index_reverse) or layers_index_reverse
-        branchs_end_copy = dict(self.branchs_end) or branchs_end
-        branchs_counter_copy = list(self.branchs_counter) or branchs_counter
+        if matrix is None:
+            matrix_copy = np.array(self._matrix)
+        else:
+            matrix_copy = matrix
+
+        layers_index_reverse_copy = dict(layers_index_reverse) or dict(self._layers_index_reverse)
+        branchs_end_copy = dict(branchs_end) or dict(self.branchs_end)
+        branchs_counter_copy = list(branchs_counter) or list(self.branchs_counter)
 
         for mutation in self.mutations_pool:
             if mutation.config.get('state', None) == 'broken':
@@ -482,9 +493,16 @@ class Structure:
         """
         Update architecture using new mutations
         """
-        matrix, layers_index_reverse, branchs_end, branchs_counter = self.mutations_applier()
+        # apply mutations
+        matrix, layers_index_reverse, branchs_end, branchs_counter = self.mutations_applier(
+            self._matrix, self._layers_index_reverse,
+            self.branchs_end, self.branchs_counter)
+
+        # add finisher
+        print(branchs_end)
         matrix, layers_index_reverse, branchs_end, branchs_counter = self.finisher_applier(
-            matrix, layers_index_reverse, branchs_end, branchs_counter)
+            matrix, layers_index_reverse,
+            branchs_end, branchs_counter)
 
         self._matrix_updated = True
         self._matrix_mutated = matrix
@@ -523,7 +541,7 @@ class StructureText(Structure):
             root {instance of the Layer} - input layer type
             embedding {instance of the Layer} - embedding layer type
         """
-        super().__init__(root)
+        super().__init__(root, finisher)
 
         self._matrix = np.zeros((2, 2))
 
@@ -547,7 +565,7 @@ class StructureText(Structure):
 
 class StructureImage(Structure):
     def __init__(self, root, finisher):
-        super().__init__(root)
+        super().__init__(root, finisher)
 
         self._matrix = np.zeros((1, 1))
         self._matrix_pure = self._matrix[:]

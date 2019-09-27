@@ -15,20 +15,22 @@ from .individ_image import IndividImage
 from .individ_text import IndividText
 
 
-def cradle(epochs, options, data_type='text', task_type='classification', parents=None, freeze=None):
+def cradle(epochs, options, finisher, data_type='text', task_type='classification', parents=None, freeze=None):
     """Factory method for different data types
 
     Attributes:
         epochs (``int``): number of stage evolution
+        options (``dict``): meta of the task: number of classes, shape of input, etc
+        finisher (``str`` or ``Layer``): the end of the network (same for all)
         data_type (``str``): image or text type
         task_type (``str``): ?
         parents (``IndividBase``): ?
         freeze (``bool``): ?
     """
     if data_type == 'text':
-        return IndividText(epochs, options, task_type=task_type, parents=parents, freeze=freeze)
+        return IndividText(epochs, options, finisher, task_type=task_type, parents=parents, freeze=freeze)
     elif data_type == 'image':
-        return IndividImage(epochs, options, task_type=task_type, parents=parents, freeze=freeze)
+        return IndividImage(epochs, options, finisher, task_type=task_type, parents=parents, freeze=freeze)
     else:
         raise ValueError("Incorrect \"data_type\" argument."
                          "Available values: \"text\", \"image\"")

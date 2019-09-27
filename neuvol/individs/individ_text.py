@@ -21,8 +21,8 @@ class IndividText(IndividBase):
     Invidiv class for text data types
     """
 
-    def __init__(self, stage, options, task_type='classification', parents=None, freeze=None):
-        super().__init__(stage=stage, options=options, task_type=task_type, parents=parents, freeze=freeze)
+    def __init__(self, stage, options, finisher, task_type='classification', parents=None, freeze=None):
+        super().__init__(stage=stage, options=options, finisher=finisher, task_type=task_type, parents=parents, freeze=freeze)
         self._data_processing_type = 'text'
 
     def _random_init_architecture(self):
@@ -33,7 +33,7 @@ class IndividText(IndividBase):
         input_layer = Layer('input', self.options)
         embed = Layer('embedding', self.options)
 
-        architecture = StructureText(input_layer, embed)
+        architecture = StructureText(input_layer, embed, self._finisher)
 
         return architecture
 
