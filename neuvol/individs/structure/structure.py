@@ -499,7 +499,6 @@ class Structure:
             self.branchs_end, self.branchs_counter)
 
         # add finisher
-        print(branchs_end)
         matrix, layers_index_reverse, branchs_end, branchs_counter = self.finisher_applier(
             matrix, layers_index_reverse,
             branchs_end, branchs_counter)

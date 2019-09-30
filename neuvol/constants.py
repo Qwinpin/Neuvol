@@ -24,7 +24,17 @@ FLOAT32 = np.float32
 # General parameters
 GENERAL = {
     'layers_number': [i for i in range(1, 10)],
-    'mutation_type': ['add_layer', 'add_connection']
+    'mutation_type': ['add_layer', 'add_connection'],
+    'mutation_rate_splitting': 1.5,
+    'mutation_rate_merge': 1.5,
+    'mutation_splitting': {
+        'rates': [0.8, 0.1, 0.07, 0.03],
+        'number_of_splits': [2, 3, 4, 5]
+    },
+    'graph_parser': {
+        'depth': 7,
+        'min_size': 3
+    }
 }
 
 # Training parameters

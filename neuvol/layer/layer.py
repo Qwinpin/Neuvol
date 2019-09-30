@@ -24,7 +24,7 @@ from ..utils import dump
 
 def Layer(layer_type, options=None, previous_layer=None, next_layer=None):
     """
-
+    Factory for the Layers instances
     """
     if layer_type in LAYERS_MAP:
         return LAYERS_MAP[layer_type](layer_type=layer_type, previous_layer=previous_layer, next_layer=next_layer, options=options)

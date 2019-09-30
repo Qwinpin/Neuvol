@@ -14,6 +14,7 @@
 import math
 import numpy as np
 
+from ..constants import GENERAL
 from ..probabilty_pool import Distribution
 from ..layer import Layer
 
@@ -52,7 +53,7 @@ class MutatorBase:
     @staticmethod
     def grown(individ):
         # TODO: external probabilities for each dice
-        merger_dice = _probability_from_branchs(individ, delimeter=2)
+        merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merger'], delimeter=2)
 
         # branches, which was merged should not be splitted or grown after
         branchs_exception = []
@@ -76,7 +77,7 @@ class MutatorBase:
 
             branchs_end_new = individ.merge_branchs(new_tail, branchs_to_merge)
 
-            merger_dice = _probability_from_branchs(individ, delimeter=1)
+            merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merger'], delimeter=1)
 
             branchs_exception.append(branchs_end_new)
 
@@ -86,10 +87,10 @@ class MutatorBase:
         split_event = False
         for branch in free_branches:
 
-            split_dice = _probability_from_branchs(individ, delimeter=1.5)
+            split_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_splitting'], delimeter=1.5)
 
             if split_dice and not split_event:
-                number_of_splits = np.random.choice([2, 3, 4, 5], p=[0.8, 0.1, 0.07, 0.03])
+                number_of_splits = np.random.choice(GENERAL['mutation_splitting']['number_of_splits'], p=GENERAL['mutation_splitting']['rates'])
                 new_tails = [Layer(Distribution.layer()) for _ in range(number_of_splits)]
 
                 individ.split_branch(new_tails, branch=branch)
@@ -103,13 +104,13 @@ class MutatorBase:
         return True
 
 
-def _probability_from_branchs(individ, delimeter=1):
+def _probability_from_branchs(individ, prior_rate, delimeter=1):
     number_of_branches = len(individ.branchs_end.keys())
 
     if number_of_branches > 1:
-        probability = (1 - 1 / math.log(number_of_branches, 1.5)) / delimeter
+        probability = (1 - 1 / math.log(number_of_branches, prior_rate)) / delimeter
     else:
-        probability = (1 - 1 / math.log(number_of_branches + 1, 1.5)) / delimeter
+        probability = (1 - 1 / math.log(number_of_branches + 1, prior_rate)) / delimeter
 
     dice = np.random.choice([0, 1], p=[1 - probability, probability])
 
