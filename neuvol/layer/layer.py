@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 from keras.layers import (Bidirectional, concatenate, Conv1D, Conv2D, Dense, Dropout,
                           Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape, RepeatVector,
                           SeparableConv1D, SeparableConv2D, Conv2DTranspose)
@@ -28,6 +29,8 @@ def Layer(layer_type, options=None, previous_layer=None, next_layer=None):
     """
     if layer_type in LAYERS_MAP:
         return LAYERS_MAP[layer_type](layer_type=layer_type, previous_layer=previous_layer, next_layer=next_layer, options=options)
+    elif layer_type in CUSTOM_LAYERS_MAP:
+        return copy.deepcopy(CUSTOM_LAYERS_MAP[layer_type])
     else:
         raise TypeError()
 
@@ -189,9 +192,48 @@ class LayerSpecialBase(LayerBase):
 
 
 class LayerComplex(LayerBase):
-    def __init__(self, layer_type=None, previous_layer=None, next_layer=None, options=None):
-        raise NotImplementedError
+    def __init__(self, layer_matrix, initiated_layers):
+        self.matrix = layer_matrix
+        self.layers_index_reverse = initiated_layers
+        self.size = len(layer_matrix)
+        self.width = len(initiated_layers)
 
+    def __call__(self, net, previous_layer):
+        tail_map = {}
+
+        for column in range(len(self.layers_index_reverse)):
+            last_layer = self.rec_imposer_sub_graph(column, tail_map, net, previous_layer)
+
+        return tail_map[last_layer]
+
+    def rec_imposer_sub_graph(self, column, tails_map, net_tail=None, net_tail_layer=None):
+        if tails_map.get(column, None) is not None:
+            return None
+
+        column_values = self.matrix[:, column]
+        connections = np.where(column_values == 1)[0]
+
+        for index in connections:
+            if tails_map.get(index, None) is None:
+                self.rec_imposer_sub_graph(self, index, tails_map)
+
+        if not connections.size > 0:
+            if column == 0:
+                tails_map[column] = self.layers_index_reverse[column](net_tail, net_tail_layer)
+            last_non_zero = column
+
+        elif connections.size > 1:
+            tails_to_call = [tails_map[i] for i in connections]
+            layers_to_call = [self.layers_index_reverse[i] for i in connections]
+
+            tails_map[column] = self.layers_index_reverse[column](tails_to_call, layers_to_call)
+            last_non_zero = column
+
+        else:
+            tails_map[column] = self.layers_index_reverse[column](tails_map[connections[0]], self.layers_index_reverse[connections[0]])
+            last_non_zero = column
+
+        return last_non_zero
 
 class LayerLSTM(LayerBase):
     def _check_compatibility(self):
@@ -610,6 +652,11 @@ LAYERS_MAP = {
     'separablecnn': LayerSepCNN1D,
     'separablecnn2': LayerSepCNN2D,
     'decnn2': LayerDeCNN2D
+}
+
+
+CUSTOM_LAYERS_MAP = {
+
 }
 
 

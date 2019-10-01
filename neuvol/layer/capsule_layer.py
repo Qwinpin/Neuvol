@@ -15,7 +15,37 @@ import collections
 import copy
 import numpy as np
 
+from .layer import LayerComplex
 from ..constants import GENERAL
+from ..probabilty_pool.generating_distribution import Distribution
+
+
+def generate_complex_layers(structure, number_to_generate=5):
+    new_chains = structure_parser(structure, number_to_generate)
+
+    new_graphs = [detect_best_combination(new_chain) for new_chain in new_chains]
+    new_graphs_processed = [build_graph(new_graph, structure.layers_index_reverse) for new_graph in new_graphs]
+
+    new_layers = [LayerComplex(new_matrix, new_layers) for new_matrix, new_layers in new_graphs_processed]
+    for new_layer in new_layers:
+        Distribution.register_new_layer(new_layer)
+
+
+def structure_parser(structure, number_to_generate):
+    layer_indexes = list(structure.layers_index_reverse.keys())
+
+    layer_indexes_random_sampled = np.random.choice(layer_indexes, number_to_generate, replace=False)
+
+    sublayers_chains = []
+
+    for index in layer_indexes_random_sampled:
+        sublayers_chain = sublayer_parser(index, structure.matrix, None)
+
+        flatten_sublayers_chain = flatten(sublayers_chain)
+
+        sublayers_chains.append(flatten_sublayers_chain)
+
+    return sublayers_chains
 
 
 def flatten(chain):
@@ -28,23 +58,6 @@ def flatten(chain):
             return [chain]
 
     return f
-
-
-def structure_parser(structure):
-    layer_indexes = list(structure.layers_index_reverse.keys())
-
-    layer_indexes_random_sampled = np.random.choice(layer_indexes, len(layer_indexes) // 2, replace=False)
-
-    sublayers_chains = []
-
-    for index in layer_indexes_random_sampled:
-        sublayers_chain = sublayer_parser(index, structure.matrix, None)
-
-        flatten_sublayers_chain = flatten(sublayers_chain)
-
-        sublayers_chains.append(flatten_sublayers_chain)
-
-    return sublayers_chains
 
 
 def sublayer_parser(start_point, matrix, sub_layer=None, level=0):
@@ -74,6 +87,24 @@ def sublayer_parser(start_point, matrix, sub_layer=None, level=0):
     return new_chains
 
 
+def detect_best_combination(new_chains):
+    if max([len(chain) for chain in new_chains]) < GENERAL['graph_parser']['min_size']:
+        return None
+
+    last_indexes = [i[-1] for i in new_chains]
+
+    frequent_last_index = collections.Counter(last_indexes).most_common(1)[0]
+    # if all last indexes are unique - cut the last index
+    if frequent_last_index[1] == 1:
+        new_chains = [chain[:-1] for chain in new_chains]
+        new_subgraph = detect_best_combination(new_chains)
+
+    else:
+        new_subgraph = [cut(chain, frequent_last_index[0]) for chain in new_chains if cut(chain, frequent_last_index[0])]
+
+    return new_subgraph
+
+
 def cut(chain, node):
     try:
         node_index = chain.index(node)
@@ -85,24 +116,6 @@ def cut(chain, node):
         return None
 
     return new_chain
-
-
-def detect_best_combination(sublayers):
-    if max([len(chain) for chain in sublayers]) < GENERAL['graph_parser']['min_size']:
-        return None
-
-    last_indexes = [i[-1] for i in sublayers]
-
-    frequent_last_index = collections.Counter(last_indexes).most_common(1)[0]
-    # if all last indexes are unique - cut the last index
-    if frequent_last_index[1] == 1:
-        sublayers = [chain[:-1] for chain in sublayers]
-        new_subgraph = detect_best_combination(sublayers)
-
-    else:
-        new_subgraph = [cut(chain, frequent_last_index[0]) for chain in sublayers if cut(chain, frequent_last_index[0])]
-
-    return new_subgraph
 
 
 def build_graph(graph, layers_index_reverse):

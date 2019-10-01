@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import numpy as np
 
-from ..constants import GENERAL, LAYERS_POOL, SPECIAL, TRAINING
+from ..constants import FAKE, GENERAL, LAYERS_POOL, SPECIAL, TRAINING
+from ..layer.layer import CUSTOM_LAYERS_MAP
 
 
 def parse_mutation_const():
@@ -98,7 +100,7 @@ def kernel(x, index_of_selected_value, coef=0.423):
     Returns:
         float -- coefficient for the x element probability
     """
-    return 0.423 ** (1 / (1 + abs(index_of_selected_value - x)))
+    return 1 - coef ** (1 / (1 + abs(index_of_selected_value - x)))
 
 
 class Distribution():
@@ -280,3 +282,10 @@ class Distribution():
 
         elif layer not in cls._diactivated_layers and active is False:
             cls._diactivated_layers.append(layer)
+
+
+    @classmethod
+    def register_new_layer(cls, new_layer):
+        new_name = 'CUSTOM_{}_{}_{}'.format(FAKE.name().replace(' ', '_'), new_layer.size, new_layer.width)
+        LAYERS_POOL[new_name] = {}
+        CUSTOM_LAYERS_MAP[new_name] = copy.deepcopy(new_layer)

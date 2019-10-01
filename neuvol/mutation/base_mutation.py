@@ -53,7 +53,7 @@ class MutatorBase:
     @staticmethod
     def grown(individ):
         # TODO: external probabilities for each dice
-        merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merger'], delimeter=2)
+        merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merge'], delimeter=2)
 
         # branches, which was merged should not be splitted or grown after
         branchs_exception = []
@@ -77,7 +77,7 @@ class MutatorBase:
 
             branchs_end_new = individ.merge_branchs(new_tail, branchs_to_merge)
 
-            merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merger'], delimeter=1)
+            merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merge'], delimeter=1)
 
             branchs_exception.append(branchs_end_new)
 
