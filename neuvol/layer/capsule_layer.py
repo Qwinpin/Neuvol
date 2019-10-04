@@ -20,7 +20,7 @@ from ..constants import GENERAL
 from ..probabilty_pool.generating_distribution import Distribution
 
 
-def generate_complex_layers(structure, number_to_generate=5):
+def generate_complex_layers(structure, distribution, number_to_generate=5):
     new_chains = structure_parser(structure, number_to_generate)
 
     new_graphs = [detect_best_combination(new_chain) for new_chain in new_chains]
@@ -29,7 +29,7 @@ def generate_complex_layers(structure, number_to_generate=5):
     new_layers = [LayerComplex(new_matrix, new_layers) for new_matrix, new_layers in new_graphs_processed]
 
     for new_layer in new_layers:
-        Distribution.register_new_layer(new_layer)
+        distribution.register_new_layer(new_layer)
 
 
 def structure_parser(structure, number_to_generate):
@@ -121,9 +121,7 @@ def cut(chain, node):
 
 
 def build_graph(graph, layers_index_reverse):
-    print(graph)
     reindexer = {old_index: new_index for new_index, old_index in enumerate(np.unique(graph))}
-    print(reindexer)
 
     selected_graph_layers = {reindexer[layer]: copy.deepcopy(layers_index_reverse[layer]) for layer in reindexer.keys()}
 

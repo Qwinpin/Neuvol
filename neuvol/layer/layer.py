@@ -458,7 +458,7 @@ class LayerInput(LayerBase):
 
     def init_layer(self, previous_layer):
         layer_tf = Input(
-            shape=self.config['shape'][1:])  # all except first None
+            shape=self.config['shape'][1:])  # all except first None, related to batch size
 
         return layer_tf
 
@@ -523,11 +523,12 @@ class LayerConcat(LayerSpecialBase):
         shapes = [layer.shape for layer in layers]
 
         # if all shapes are equal in.. shape
+        print('-')
         for i in range(1, max([len(shape) for shape in shapes])):
             # check equality
             key = True
             for shape in shapes[1:]:
-                if len(shape) != len(shapes[0]):
+                if len(shape) != len(shapes[0]) or len(shape) != max([len(shape) for shape in shapes]):
                     key = False
                     break
                 tmp1, tmp2 = list(shape), list(shapes[0])

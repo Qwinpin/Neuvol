@@ -13,11 +13,10 @@
 # limitations under the License.
 from .config import SESSION
 from .crossing import Crosser
-from .evaluation import Evaluator
 from .evolution import Evolution
 from .mutation import MutatorBase
 from .probabilty_pool import Distribution
-from .layer import block, layer, capsule_layer
+from .layer import layer, capsule_layer
 from .individs import cradle
 
-__all__ = ['SESSION', 'Crosser', 'Evaluator', 'Evolution', 'MutatorBase', 'Distribution', 'block', 'layer', 'cradle', 'capsule_layer']
+__all__ = ['SESSION', 'Crosser', 'Evolution', 'MutatorBase', 'Distribution', 'block', 'layer', 'cradle', 'capsule_layer']
