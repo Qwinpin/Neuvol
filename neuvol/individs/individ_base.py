@@ -29,7 +29,7 @@ class IndividBase:
     # TODO: add support for different data types
     # TODO: add support for different task types
 
-    def __init__(self, stage, options, finisher, task_type='classification', parents=None, freeze=None):
+    def __init__(self, stage, options, finisher, distribution, task_type='classification', parents=None, freeze=None):
         """Create individ randomly or with its parents
 
         Attributes:
@@ -38,16 +38,17 @@ class IndividBase:
                     training parameters, etc
         """
         self._stage = stage
+        self.options = options
+        self._finisher = finisher
+        self._distribution = distribution
         self._data_processing_type = None
         self._task_type = task_type
         # TODO: freeze training or data parameters of individ and set manualy
         self._freeze = freeze
         self._parents = parents
-        self.options = options
         self._history = []
         self._name = FAKE.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = None
-        self._finisher = finisher
         self._data_processing = None or self.options.get('data_processing', None)
         self._training_parameters = None or self.options.get('training_parameters', None)
         self._layers_number = 0
@@ -73,7 +74,7 @@ class IndividBase:
         """
         Init structure of the individ
         """
-        input_layer = Layer('input', options=self.options)
+        input_layer = Layer('input', self._distribution, options=self.options)
         architecture = Structure(input_layer, self._finisher)
 
         return architecture
@@ -88,7 +89,7 @@ class IndividBase:
         variables = list(TRAINING)
         training_tmp = {}
         for i in variables:
-            training_tmp[i] = Distribution.training_parameters(i)
+            training_tmp[i] = self._distribution.training_parameters(i)
 
         return training_tmp
 

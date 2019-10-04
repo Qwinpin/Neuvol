@@ -24,15 +24,17 @@ def generate_complex_layers(structure, number_to_generate=5):
     new_chains = structure_parser(structure, number_to_generate)
 
     new_graphs = [detect_best_combination(new_chain) for new_chain in new_chains]
-    new_graphs_processed = [build_graph(new_graph, structure.layers_index_reverse) for new_graph in new_graphs]
+    new_graphs_processed = [build_graph(new_graph, structure.layers_index_reverse) for new_graph in new_graphs if new_graph]
 
     new_layers = [LayerComplex(new_matrix, new_layers) for new_matrix, new_layers in new_graphs_processed]
+
     for new_layer in new_layers:
         Distribution.register_new_layer(new_layer)
 
 
 def structure_parser(structure, number_to_generate):
-    layer_indexes = list(structure.layers_index_reverse.keys())
+    # remove first two layer - Input and embedder (in case of text)
+    layer_indexes = list(structure.layers_index_reverse.keys())[2:]
 
     layer_indexes_random_sampled = np.random.choice(layer_indexes, number_to_generate, replace=False)
 
@@ -119,7 +121,9 @@ def cut(chain, node):
 
 
 def build_graph(graph, layers_index_reverse):
+    print(graph)
     reindexer = {old_index: new_index for new_index, old_index in enumerate(np.unique(graph))}
+    print(reindexer)
 
     selected_graph_layers = {reindexer[layer]: copy.deepcopy(layers_index_reverse[layer]) for layer in reindexer.keys()}
 

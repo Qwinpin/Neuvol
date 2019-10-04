@@ -21,8 +21,8 @@ class IndividText(IndividBase):
     Invidiv class for text data types
     """
 
-    def __init__(self, stage, options, finisher, task_type='classification', parents=None, freeze=None):
-        super().__init__(stage=stage, options=options, finisher=finisher, task_type=task_type, parents=parents, freeze=freeze)
+    def __init__(self, stage, options, finisher, distribution, task_type='classification', parents=None, freeze=None):
+        super().__init__(stage=stage, options=options, finisher=finisher, distribution=distribution, task_type=task_type, parents=parents, freeze=freeze)
         self._data_processing_type = 'text'
 
     def _random_init_architecture(self):
@@ -30,8 +30,8 @@ class IndividText(IndividBase):
         At first, we set probabilities pool and the we change
         this uniform distribution according to previous layer
         """
-        input_layer = Layer('input', self.options)
-        embed = Layer('embedding', self.options)
+        input_layer = Layer('input', self._distribution, self.options)
+        embed = Layer('embedding', self._distribution, self.options)
 
         architecture = StructureText(input_layer, embed, self._finisher)
 

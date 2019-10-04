@@ -19,16 +19,15 @@ from keras.layers.recurrent import LSTM
 import numpy as np
 
 from ..constants import LAYERS_POOL, SPECIAL
-from ..probabilty_pool import Distribution
 from ..utils import dump
 
 
-def Layer(layer_type, options=None, previous_layer=None, next_layer=None):
+def Layer(layer_type, distribution, options=None, previous_layer=None, next_layer=None):
     """
     Factory for the Layers instances
     """
     if layer_type in LAYERS_MAP:
-        return LAYERS_MAP[layer_type](layer_type=layer_type, previous_layer=previous_layer, next_layer=next_layer, options=options)
+        return LAYERS_MAP[layer_type](layer_type=layer_type, distribution=distribution, previous_layer=previous_layer, next_layer=next_layer, options=options)
     elif layer_type in CUSTOM_LAYERS_MAP:
         return copy.deepcopy(CUSTOM_LAYERS_MAP[layer_type])
     else:
@@ -44,9 +43,10 @@ class LayerBase:
     of rank add reshape layer.
     """
 
-    def __init__(self, layer_type, previous_layer=None, next_layer=None, options=None):
+    def __init__(self, layer_type, distribution, previous_layer=None, next_layer=None, options=None):
         self.config = {}
         self.layer_type = layer_type
+        self.distribution = distribution
         self.options = options
         self.previous_layer = previous_layer
         self.next_layer = next_layer
@@ -62,7 +62,7 @@ class LayerBase:
         """
         # in case of concatenation
         if isinstance(net, list):
-            concat_layer = Layer('concat')
+            concat_layer = Layer('concat', self.distribution)
             net = concat_layer(net, previous_layer)
             previous_layer = concat_layer
 
@@ -96,7 +96,7 @@ class LayerBase:
         Add reshape layer if ranks is different
         """
         if self.config['input_rank'] != previous_layer.rank:
-            reshape_layer = reshaper(previous_layer, self)
+            reshape_layer = reshaper(previous_layer, self, self.distribution)
         else:
             reshape_layer = None
 
@@ -108,7 +108,7 @@ class LayerBase:
         """
         variables = list(LAYERS_POOL[self.layer_type])
         for parameter in variables:
-            self.config[parameter] = Distribution.layer_parameters(self.layer_type, parameter)
+            self.config[parameter] = self.distribution.layer_parameters(self.layer_type, parameter)
 
         if self.options is not None and self.options.get('input_rank') is not None:
             self.config['input_rank'] = self.options['input_rank']
@@ -188,7 +188,7 @@ class LayerSpecialBase(LayerBase):
     def _init_parameters(self):
         variables = list(SPECIAL[self.layer_type])
         for parameter in variables:
-            self.config[parameter] = Distribution.layer_parameters(self.layer_type, parameter)
+            self.config[parameter] = self.distribution.layer_parameters(self.layer_type, parameter)
 
 
 class LayerComplex(LayerBase):
@@ -198,11 +198,17 @@ class LayerComplex(LayerBase):
         self.size = len(layer_matrix)
         self.width = len(initiated_layers)
 
+        self.config = {}
+
     def __call__(self, net, previous_layer):
         tail_map = {}
 
         for column in range(len(self.layers_index_reverse)):
             last_layer = self.rec_imposer_sub_graph(column, tail_map, net, previous_layer)
+
+        self.config = {}
+        self.config['rank'] = self.layers_index_reverse[last_layer].rank
+        self.config['shape'] = self.layers_index_reverse[last_layer].shape
 
         return tail_map[last_layer]
 
@@ -426,7 +432,7 @@ class LayerDense(LayerBase):
         if self.layer_type == 'last_dense':
             variables = list(LAYERS_POOL['dense'])
             for parameter in variables:
-                self.config[parameter] = Distribution.layer_parameters('dense', parameter)
+                self.config[parameter] = self.distribution.layer_parameters('dense', parameter)
         else:
             super()._init_parameters()
 
@@ -498,23 +504,52 @@ class LayerFlatten(LayerSpecialBase):
 
 
 class LayerConcat(LayerSpecialBase):
+    # TODO: smart merger according to most frequent shape size
     def __call__(self, nets, previous_layers):
-        reshape_layers = self.merger_mass(previous_layers)
-
+        reshape_layers, axis = self.merger_mass(previous_layers)
         new_nets = []
-        for i, reshape_layer in enumerate(reshape_layers):
-            new_nets.append(reshape_layer(nets[i], previous_layers[i]))
+        if axis == -1:
+            for i, reshape_layer in enumerate(reshape_layers):
+                new_nets.append(reshape_layer(nets[i], previous_layers[i]))
+        else:
+            new_nets = nets
         # new_nets = [reshape_layer(nets[i], previous_layers[i]) for i, reshape_layer in enumerate(reshape_layers)]
-        new_net = concatenate(new_nets)
+        new_net = concatenate(new_nets, axis)
 
         return new_net
 
     def merger_mass(self, layers):
         shape_modifiers = []
+        shapes = [layer.shape for layer in layers]
+
+        # if all shapes are equal in.. shape
+        for i in range(1, max([len(shape) for shape in shapes])):
+            # check equality
+            key = True
+            for shape in shapes[1:]:
+                if len(shape) != len(shapes[0]):
+                    key = False
+                    break
+                tmp1, tmp2 = list(shape), list(shapes[0])
+                tmp1.pop(i)
+                tmp2.pop(i)
+
+                if tmp1 != tmp2:
+                    key = False
+                    break
+            axis = i
+
+            if key:
+                new_shape = np.array(shapes[0])
+                new_shape[axis] = np.sum(np.array(shapes)[:, axis])
+                self.config['shape'] = new_shape
+                self.config['rank'] = len(new_shape)
+                return layers, axis
+
         for layer in layers:
             new_shape = (None, np.prod(layer.config['shape'][1:]))
 
-            reshape = Layer('reshape')
+            reshape = Layer('reshape', self.distribution)
             reshape.config['target_shape'] = new_shape[1:]
             reshape.config['shape'] = new_shape
             reshape.config['input_rank'] = layer.config['rank']
@@ -526,7 +561,7 @@ class LayerConcat(LayerSpecialBase):
         self.config['shape'] = (None, np.sum(shapes))
         self.config['rank'] = 2
 
-        return shape_modifiers
+        return shape_modifiers, -1
 
 
 class LayerReshape(LayerSpecialBase):
@@ -710,7 +745,7 @@ def reshaper_shape(difference, prev_layer):
     return new_shape
 
 
-def reshaper(prev_layer, layer):
+def reshaper(prev_layer, layer, distribution):
     """
     Restore compability between layer with diff ranks
     """
@@ -724,7 +759,7 @@ def reshaper(prev_layer, layer):
 
     new_shape = reshaper_shape(difference, prev_layer)
 
-    modifier = Layer('reshape')
+    modifier = Layer('reshape', distribution)
     modifier.config['target_shape'] = new_shape[1:]
     modifier.config['shape'] = new_shape
     modifier.config['input_rank'] = prev_layer.config['rank']

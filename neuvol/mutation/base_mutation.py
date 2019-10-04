@@ -19,12 +19,13 @@ from ..probabilty_pool import Distribution
 from ..layer import Layer
 
 
-def mutator(mutation_type, matrix, layers_types, config=None, layer=None):
+def mutator(mutation_type, matrix, layers_types, distribution, config=None, layer=None):
     if mutation_type in MUTATIONS_MAP:
         return MUTATIONS_MAP[mutation_type](
             mutation_type=mutation_type,
             matrix=matrix,
             layers_types=layers_types,
+            distribution=distribution,
             config=config,
             layer=layer)
     else:
@@ -37,7 +38,7 @@ class MutatorBase:
     """
 
     @staticmethod
-    def mutate(individ, mutation_type=None):
+    def mutate(individ, distribution, mutation_type=None):
         """
         Mutate individ
         """
@@ -46,12 +47,12 @@ class MutatorBase:
         layers_names = {index: layer.layer_type for index, layer in individ.layers_index_reverse.items()}
 
         if mutation_type is None:
-            mutation_type = Distribution.mutation()
+            mutation_type = distribution.mutation()
 
-        individ.add_mutation(mutator(mutation_type, matrix, layers_names))
+        individ.add_mutation(mutator(mutation_type, matrix, layers_names, distribution))
 
     @staticmethod
-    def grown(individ):
+    def grown(individ, distribution):
         # TODO: external probabilities for each dice
         merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merge'], delimeter=2)
 
@@ -73,7 +74,7 @@ class MutatorBase:
             if len(branchs_to_merge) < 2:
                 break
 
-            new_tail = Layer(Distribution.layer())
+            new_tail = Layer(distribution.layer(), distribution)
 
             branchs_end_new = individ.merge_branchs(new_tail, branchs_to_merge)
 
@@ -91,13 +92,13 @@ class MutatorBase:
 
             if split_dice and not split_event:
                 number_of_splits = np.random.choice(GENERAL['mutation_splitting']['number_of_splits'], p=GENERAL['mutation_splitting']['rates'])
-                new_tails = [Layer(Distribution.layer()) for _ in range(number_of_splits)]
+                new_tails = [Layer(distribution.layer(), distribution) for _ in range(number_of_splits)]
 
                 individ.split_branch(new_tails, branch=branch)
                 split_event = True
 
             else:
-                new_tail = Layer(Distribution.layer())
+                new_tail = Layer(distribution.layer(), distribution)
 
                 individ.add_layer(new_tail, branch)
 
@@ -118,9 +119,10 @@ def _probability_from_branchs(individ, prior_rate, delimeter=1):
 
 
 class MutationInjector:
-    def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):
+    def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None):
         self.mutation_type = mutation_type
         self._layer = layer
+        self.distribution = distribution
         self.config = config or {}
 
         self._choose_parameters(matrix, layers_types)
@@ -159,18 +161,18 @@ class MutationInjector:
 
 
 class MutationInjectorAddLayer(MutationInjector):
-    def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):
-        super().__init__(mutation_type, matrix, layers_types, config, layer)
+    def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None):
+        super().__init__(mutation_type, matrix, layers_types, distribution, config, layer)
 
     def _choose_parameters(self, matrix, layers_types):
         super()._choose_parameters(matrix, layers_types)
 
-        self._layer = self._layer or Layer(Distribution.layer())
+        self._layer = self._layer or Layer(self.distribution.layer(), self.distribution)
 
 
 class MutationInjectorAddConnection(MutationInjector):
-    def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):
-        super().__init__(mutation_type, matrix, layers_types, config=config, layer=layer)
+    def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None):
+        super().__init__(mutation_type, matrix, layers_types, distribution, config=config, layer=layer)
 
     def _choose_parameters(self, matrix, layers_types):
         super()._choose_parameters(matrix, layers_types)
@@ -179,8 +181,8 @@ class MutationInjectorAddConnection(MutationInjector):
 
 
 class MutationInjectorRemoveLayer(MutationInjector):
-    def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):
-        super().__init__(mutation_type, matrix, layers_types, config=config, layer=layer)
+    def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None):
+        super().__init__(mutation_type, matrix, layers_types, distribution, config=config, layer=layer)
 
     def _choose_parameters(self, matrix, layers_types):
         layer_indexes = layers_types.keys()
@@ -190,13 +192,13 @@ class MutationInjectorRemoveLayer(MutationInjector):
 
 
 class MutationInjectorRemoveConnection(MutationInjector):
-    def __init__(self, mutation_type, matrix, layers_types, config=None, layer=None):
-        super().__init__(mutation_type, matrix, layers_types, config=config, layer=layer)
+    def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None):
+        super().__init__(mutation_type, matrix, layers_types, distribution, config=config, layer=layer)
 
 
 MUTATIONS_MAP = {
     'add_layer': MutationInjectorAddLayer,
     'add_connection': MutationInjectorAddConnection,
-    #'remove_layer': MutationInjectorRemoveLayer,
-    #'remove_connection': MutationInjectorRemoveConnection,
+    'remove_layer': MutationInjectorRemoveLayer,
+    'remove_connection': MutationInjectorRemoveConnection,
 }

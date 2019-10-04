@@ -123,7 +123,7 @@ LAYERS_POOL = {
 
     'repeatvector': {
         'input_rank': [2],
-        'n': [i for i in range(2, 32)]},
+        'n': [i for i in range(1, 5)]},
 
     'separablecnn': {
         'input_rank': [3],
