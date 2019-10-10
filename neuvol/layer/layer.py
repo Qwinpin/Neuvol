@@ -523,7 +523,6 @@ class LayerConcat(LayerSpecialBase):
         shapes = [layer.shape for layer in layers]
 
         # if all shapes are equal in.. shape
-        print('-')
         for i in range(1, max([len(shape) for shape in shapes])):
             # check equality
             key = True

@@ -185,9 +185,8 @@ class MutationInjectorRemoveLayer(MutationInjector):
         super().__init__(mutation_type, matrix, layers_types, distribution, config=config, layer=layer)
 
     def _choose_parameters(self, matrix, layers_types):
-        layer_indexes = layers_types.keys()
-
-        layer_to_remove = np.random.choice(layer_indexes, size=1)
+        layer_indexes = list(layers_types.keys())
+        layer_to_remove = np.random.choice(layer_indexes, size=1)[0]
         self._layer = layer_to_remove
 
 

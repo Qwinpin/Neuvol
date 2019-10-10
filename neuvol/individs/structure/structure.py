@@ -11,7 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
+from functools import wraps
 import numpy as np
+
+
+def parameters_copy(func):
+    @wraps(func)
+    def wrapper(*args):
+        copies = []
+        for arg in args:
+            copies.append(copy.deepcopy(arg))
+
+        return func(*copies)
+
+    return wrapper
 
 
 class Structure:
@@ -43,6 +57,7 @@ class Structure:
 
         self.mutations_pool = []  # list of all mutations, which will be applied for initialization
 
+    @parameters_copy
     def _register_new_layer(self, matrix, layers_index_reverse, new_layer):
         """Add new layer to the indexers and increase the size of layers matrix
         NOTE: New connection will be added in outer scope
@@ -59,13 +74,13 @@ class Structure:
         _matrix = np.zeros((matrix.shape[0] + 1, matrix.shape[1] + 1))
         _matrix[:matrix.shape[0], :matrix.shape[1]] = matrix
 
-        _layers_index_reverse = layers_index_reverse
+        _layers_index_reverse = dict(layers_index_reverse)
 
         # self.layers_indexes[new_layer] = len(self.layers_indexes)
         _layers_index_reverse[len(_layers_index_reverse)] = new_layer
-
         return _matrix, _layers_index_reverse, len(_layers_index_reverse) - 1
 
+    @parameters_copy
     def _add_layer(self, matrix, layers_index_reverse, branchs_end, layer, branch, branch_out=None):
         """
         Add layer to the last layer of the branch
@@ -97,6 +112,7 @@ class Structure:
 
         return matrix, layers_index_reverse, branchs_end
 
+    @parameters_copy
     def _inject_layer(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layer, before_layer_index, after_layer_index):
         """
         Add new layer between two given layers or to a one layer
@@ -131,15 +147,18 @@ class Structure:
 
         return matrix, layers_index_reverse, branchs_end, branchs_counter
 
+    @parameters_copy
     def _remove_layer(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layer_index):
+        print(layer_index)
         before_layer_indexes = np.where(matrix[:, layer_index] == 1)[0]
         after_layer_indexes = np.where(matrix[layer_index, :] == 1)[0]
+        print(after_layer_indexes, before_layer_indexes)
 
-        if not before_layer_indexes:
+        if before_layer_indexes is None:
             # restricted operation - network head could not be removed
             return matrix, layers_index_reverse, branchs_end, branchs_counter
 
-        if after_layer_indexes:
+        if after_layer_indexes is not None and len(after_layer_indexes) != 0:
             matrix[before_layer_indexes, after_layer_indexes] = 1
             matrix[before_layer_indexes, layer_index] = 0
             matrix[layer_index, after_layer_indexes] = 0
@@ -157,6 +176,7 @@ class Structure:
 
         return matrix, layers_index_reverse, branchs_end, branchs_counter
 
+    @parameters_copy
     def _add_connection(self, matrix, before_layer_index, after_layer_index):
         """
         Add connection between two layer. Does not add new layer
@@ -173,11 +193,13 @@ class Structure:
 
         return matrix
 
+    @parameters_copy
     def _remove_connection(self, matrix, before_layer_index, after_layer_index):
         matrix[before_layer_index, after_layer_index] = 0
 
         return matrix
 
+    @parameters_copy
     def _merge_branchs(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layer, branchs):
         """
         Concat a set of branchs to one single layer
@@ -215,6 +237,7 @@ class Structure:
 
         return matrix, layers_index_reverse, branchs_end, branchs_counter, branch_new
 
+    @parameters_copy
     def _split_branch(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layers, branch):
         """
         Split branch into two new branchs
@@ -339,32 +362,54 @@ class Structure:
         self._matrix_updated = False
         self._layers_index_reverse_updated = False
 
-    def _cyclic_check_dict(self, tree):
-        """
-        Check if tree in form of dict is cyclic or not
+    # def _cyclic_check_dict(self, tree):
+    #     """
+    #     Check if tree in form of dict is cyclic or not
 
-        Args:
-            tree {dict} - tree to check
+    #     Args:
+    #         tree {dict} - tree to check
 
-        Return:
-            boolean - is cyclic or not
-        """
-        path = set()
+    #     Return:
+    #         boolean - is cyclic or not
+    #     """
+    #     path = set()
 
-        def visit(vertex):
-            path.add(vertex)
-            for neighbour in tree.get(vertex, ()):
-                if neighbour in path or visit(neighbour):
-                    return True
-            path.remove(vertex)
-            return False
+    #     def visit(vertex):
+    #         path.add(vertex)
+    #         for neighbour in tree.get(vertex, ()):
+    #             if neighbour in path or visit(neighbour):
+    #                 return True
+    #         path.remove(vertex)
+    #         return False
 
-        return any(visit(v) for v in tree)
+    #     return any(visit(v) for v in tree)
+
+    # def _cyclic_check(self, matrix):
+    #     """
+    #     Check if the architecture is cyclic of not
+    #     Neural network should acyclic
+
+    #     Args:
+    #         matrix {np.array{int}} - matrix of layer connections
+
+    #     Return:
+    #         boolean - is cyclic or not
+    #     """
+    #     # generate tree (dict) first
+    #     tree = {}
+    #     for i, row in enumerate(matrix):
+    #         for j, element in enumerate(row):
+    #             if element == 1:
+    #                 if tree.get(i, None) is None:
+    #                     tree[i] = []
+    #                 tree[i].append(j)
+
+    #     return self._cyclic_check_dict(tree)
 
     def _cyclic_check(self, matrix):
         """
         Check if the architecture is cyclic of not
-        Neural network should acyclic
+        Neural network should be acyclic
 
         Args:
             matrix {np.array{int}} - matrix of layer connections
@@ -372,16 +417,13 @@ class Structure:
         Return:
             boolean - is cyclic or not
         """
-        # generate tree (dict) first
-        tree = {}
-        for i, row in enumerate(matrix):
-            for j, element in enumerate(row):
-                if element == 1:
-                    if tree.get(i, None) is None:
-                        tree[i] = []
-                    tree[i].append(j)
+        for i in range(1, len(matrix) + 5):
+            paths = np.linalg.matrix_power(matrix, i)
+            if len(np.where(paths.diagonal() != 0)[0]) != 0:
+                return True
 
-        return self._cyclic_check_dict(tree)
+        return False
+
 
     def finisher_applier(self, matrix, layers_index_reverse, branchs_end, branchs_counter):
         if matrix is None:
@@ -435,6 +477,7 @@ class Structure:
         branchs_counter_copy = list(branchs_counter) or list(self.branchs_counter)
 
         for mutation in self.mutations_pool:
+            # increase in complexity due to the imposition of new mutations without remembering past
             if mutation.config.get('state', None) == 'broken':
                 continue
 
@@ -458,6 +501,7 @@ class Structure:
                 branchs_counter_copy_tmp = None
 
             elif mutation.mutation_type == 'remove_layer':
+                print(mutation.config)
                 layer_index = mutation.layer
 
                 matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_layer(
@@ -476,11 +520,17 @@ class Structure:
 
             # its should be False
             if not self._cyclic_check(matrix_copy_tmp):
+                print('r')
                 matrix_copy = matrix_copy_tmp
                 layers_index_reverse_copy = layers_index_reverse_copy_tmp or layers_index_reverse_copy
 
                 branchs_end_copy = branchs_end_copy_tmp or branchs_end_copy
                 branchs_counter_copy = branchs_counter_copy_tmp or branchs_counter_copy
+
+                mutation.config['state'] = 'checked'
+            else:
+                print('l')
+                mutation.config['state'] = 'broken'
 
             matrix_copy_tmp = None
             layers_index_reverse_copy_tmp = None
@@ -493,6 +543,8 @@ class Structure:
         """
         Update architecture using new mutations
         """
+        for mutation in self.mutations_pool:
+            mutation.config['state'] = None
         # apply mutations
         matrix, layers_index_reverse, branchs_end, branchs_counter = self.mutations_applier(
             self._matrix, self._layers_index_reverse,

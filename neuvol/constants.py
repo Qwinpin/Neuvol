@@ -24,7 +24,7 @@ FLOAT32 = np.float32
 # General parameters
 GENERAL = {
     'layers_number': [i for i in range(1, 10)],
-    'mutation_type': ['add_layer', 'add_connection'],
+    'mutation_type': ['add_layer', 'add_connection', 'remove_connection'],
     'mutation_rate_splitting': 1.5,
     'mutation_rate_merge': 1.5,
     'mutation_splitting': {
