@@ -38,6 +38,7 @@ class MutatorBase:
     """
 
     @staticmethod
+    # TODO: check complexity and evaluation time
     def mutate(individ, distribution, mutation_type=None):
         """
         Mutate individ

@@ -122,7 +122,7 @@ class IndividBase:
     #             last_non_zero = column
 
     #     return tails_map[0], tails_map[last_non_zero]
-
+    # TODO: replace with a cycle
     def rec_imposer(self, column, tails_map):
         if tails_map.get(column, None) is not None:
             return None
@@ -190,63 +190,6 @@ class IndividBase:
             raise TypeError('{} value not supported'.format(self._task_type))
 
         return model, optimizer, loss
-
-    def _serialize(self):
-        """
-        Serialize the whole object for further dump
-        """
-        serial = dict()
-        serial['stage'] = self._stage
-        serial['data_processing_type'] = self._data_processing_type
-        serial['task_type'] = self._task_type
-        serial['freeze'] = self._freeze
-        serial['parents'] = [parent.save() for parent in self._parents] if self._parents is not None else None
-        serial['options'] = self.options
-        serial['history'] = self._history
-        serial['name'] = self.name
-        # TODO: rewrite architectures saver
-        # serial['architecture'] = [block.save() for block in self._architecture]
-        serial['data_processing'] = self._data_processing
-        serial['training_parameters'] = self._training_parameters
-        serial['layers_number'] = self._layers_number
-        serial['result'] = self._result
-
-        return serial
-
-    def dump(self, path):
-        """
-        Dump individ as a json object
-        """
-        dump(self._serialize(), path)
-
-    @classmethod
-    def load(cls, serial):
-        """
-        Base load method. Returns individ
-        """
-        # replace IndividBase with IndividText or IndividImage according the data type
-        individ = cls(None)
-
-        individ._stage = serial['stage']
-        individ._data_processing_type = serial['data_processing_type']
-        individ._task_type = serial['task_type']
-        individ._freeze = serial['freeze']
-        if serial['parents'] is not None:
-            individ._parents = [IndividBase(None), IndividBase(None)]
-            individ._parents = [parent.load(serial['parents'][i]) for i, parent in enumerate(individ._parents)]
-        individ.options = serial['options']
-        individ._history = [EVENT(*event) for event in serial['history']]
-        individ._name = serial['name']
-
-        # TODO: rewrite architectures saver
-        # individ._architecture = [Block.load(block) for block in serial['architecture']]
-
-        individ._data_processing = serial['data_processing']
-        individ._training_parameters = serial['training_parameters']
-        individ._layers_number = serial['layers_number']
-        individ._result = serial['result']
-
-        return individ
 
     @property
     def layers_number(self):

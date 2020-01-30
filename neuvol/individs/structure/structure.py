@@ -501,7 +501,6 @@ class Structure:
                 branchs_counter_copy_tmp = None
 
             elif mutation.mutation_type == 'remove_layer':
-                print(mutation.config)
                 layer_index = mutation.layer
 
                 matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_layer(
@@ -520,7 +519,6 @@ class Structure:
 
             # its should be False
             if not self._cyclic_check(matrix_copy_tmp):
-                print('r')
                 matrix_copy = matrix_copy_tmp
                 layers_index_reverse_copy = layers_index_reverse_copy_tmp or layers_index_reverse_copy
 
@@ -529,7 +527,6 @@ class Structure:
 
                 mutation.config['state'] = 'checked'
             else:
-                print('l')
                 mutation.config['state'] = 'broken'
 
             matrix_copy_tmp = None

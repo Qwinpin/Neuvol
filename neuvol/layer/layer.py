@@ -21,7 +21,7 @@ import numpy as np
 from ..constants import LAYERS_POOL, SPECIAL
 from ..utils import dump
 
-
+# TODO: layers serialisation
 def Layer(layer_type, distribution, options=None, previous_layer=None, next_layer=None):
     """
     Factory for the Layers instances
@@ -39,7 +39,7 @@ class LayerBase:
     Single layer class with compatibility checking
     In order to keep logical connectivity with Keras layer instances
     __call__ method is implemented.
-    Then calling ranks comparison is performed - in case of incompatibilities
+    When calling ranks comparison is performed - in case of incompatibilities
     of rank add reshape layer.
     """
 
@@ -134,25 +134,6 @@ class LayerBase:
 
         return new_rank
 
-    def save(self):
-        """
-        Serialization of layer
-        """
-        serial = dict()
-        serial['config'] = self.config
-        serial['type'] = self.layer_type
-        serial['options'] = self.options
-        serial['previous_layer'] = self.previous_layer
-        serial['next_layer'] = self.next_layer
-
-        return serial
-
-    def dump(self, path):
-        """
-        Dump layer info
-        """
-        dump(self.save(), path)
-
     @property
     def shape(self):
         return self.config['shape']
@@ -168,20 +149,6 @@ class LayerBase:
     @rank.setter
     def rank(self, value):
         self.config['shape'] = value
-
-    @staticmethod
-    def load(serial):
-        """
-        Deserialization of layer
-        """
-        layer = LayerBase(None)
-        layer.config = serial['config']
-        layer.type = serial['type']
-        layer.options = serial['options']
-        layer.previous_layer = serial['previous_layer']
-        layer.next_layer = serial['next_layer']
-
-        return layer
 
 
 class LayerSpecialBase(LayerBase):
