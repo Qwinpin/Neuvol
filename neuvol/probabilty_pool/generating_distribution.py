@@ -15,7 +15,6 @@ import copy
 import numpy as np
 
 from ..constants import FAKE, GENERAL, LAYERS_POOL, SPECIAL, TRAINING
-from ..layer.layer import CUSTOM_LAYERS_MAP
 
 
 def parse_mutation_const():
@@ -32,8 +31,8 @@ def parse_layer_const(probability_to_modify=None):
     if probability_to_modify is not None:
         layers_probability = dict(probability_to_modify)
 
-        for special_layers in CUSTOM_LAYERS_MAP:
-            layers_probability[special_layers] = 1
+        # for special_layers in CUSTOM_LAYERS_MAP:
+        #     layers_probability[special_layers] = 1
 
     else:
         # uniform
@@ -121,12 +120,14 @@ class Distribution():
         self._layers_parameters_probability = parse_layer_parameter_const()
         self._layers_number_probability = parse_layers_number()
         self._training_parameters_probability = parse_training_const()
+
         # True value of this parameter leads to fast convergence
         # TODO: options
         self._appeareance_increases_probability = False
         self._diactivated_layers = []
         self._GENERAL = dict(GENERAL)
         self._LAYERS_POOL = dict(LAYERS_POOL)
+        self.CUSTOM_LAYERS_MAP = dict()
         self._SPECIAL = dict(SPECIAL)
         self._TRAINING = dict(TRAINING)
 
@@ -136,10 +137,9 @@ class Distribution():
         self._layers_parameters_probability = parse_layer_parameter_const()
         self._layers_number_probability = parse_layers_number()
         self._training_parameters_probability = parse_training_const()
-        # True value of this parameter leads to fast convergence
-        # TODO: options
         self._appeareance_increases_probability = False
         self._diactivated_layers = []
+        self.CUSTOM_LAYERS_MAP = {}
 
     def _increase_layer_probability(self, layer):
         #self._layers_probability[layer] += 0.1
@@ -335,5 +335,5 @@ class Distribution():
 
     def register_new_layer(self, new_layer):
         new_name = 'CUSTOM_{}_{}_{}'.format(FAKE.name().replace(' ', '_'), new_layer.size, new_layer.width)
-        LAYERS_POOL[new_name] = {}
-        CUSTOM_LAYERS_MAP[new_name] = copy.deepcopy(new_layer)
+        self._LAYERS_POOL[new_name] = {}
+        self.CUSTOM_LAYERS_MAP[new_name] = copy.deepcopy(new_layer)

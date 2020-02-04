@@ -75,7 +75,9 @@ class MutatorBase:
             if len(branchs_to_merge) < 2:
                 break
 
-            new_tail = Layer(distribution.layer(), distribution)
+            layer_type = distribution.layer()
+            print(layer_type)
+            new_tail = Layer(layer_type, distribution)
 
             branchs_end_new = individ.merge_branchs(new_tail, branchs_to_merge)
 
@@ -121,12 +123,15 @@ def _probability_from_branchs(individ, prior_rate, delimeter=1):
 
 class MutationInjector:
     def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None):
-        self.mutation_type = mutation_type
-        self._layer = layer
-        self.distribution = distribution
         self.config = config or {}
+        if mutation_type is None:
+            pass
+        else:
+            self.mutation_type = mutation_type
+            self._layer = layer
+            self.distribution = distribution
 
-        self._choose_parameters(matrix, layers_types)
+            self._choose_parameters(matrix, layers_types)
 
     def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
         size = matrix.shape[0]
@@ -159,6 +164,18 @@ class MutationInjector:
     @property
     def before_layer_index(self):
         return self.config['before_layer_index']
+
+    @layer.setter
+    def layer(self, layer):
+        self._layer = layer
+
+    @after_layer_index.setter
+    def after_layer_index(self, index):
+        self.config['after_layer_index'] = index
+
+    @before_layer_index.setter
+    def before_layer_index(self, index):
+        self.config['before_layer_index'] = index
 
 
 class MutationInjectorAddLayer(MutationInjector):

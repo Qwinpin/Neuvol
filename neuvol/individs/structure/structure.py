@@ -12,23 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-from functools import wraps
 import numpy as np
 
-
-def parameters_copy(func):
-    @wraps(func)
-    def wrapper(*args):
-        copies = []
-        for arg in args:
-            copies.append(copy.deepcopy(arg))
-
-        return func(*copies)
-
-    return wrapper
+from ...utils import parameters_copy
 
 
 class Structure:
+    #TODO: structure freeze - apply all stable mutations and keep as a new base structure
     def __init__(self, root, finisher):
         """
         Class of individ architecture
@@ -123,8 +113,8 @@ class Structure:
             branchs_end {dict{int, int}} - number of branch and corresponding index of the last layer
             branchs_counter {list{int}} - array of all branchs currently used
             layer {instance of the Layer} - layer to add
-            before_layer_index {int} - index of the layer, to which new layer will be connected
-            after_layer_index {int} - index of the layer, which will be connected to new layer
+            after_layer_index {int} - index of the layer, to which new layer will be connected
+            before_layer_index {int} - index of the layer, which will be connected to new layer
 
         Return:
             np.array(N, N) - new matrix of connection
@@ -133,26 +123,39 @@ class Structure:
             list - new array of branchs indexes
         """
         matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
-
-        if after_layer_index is None:
+        if before_layer_index is None:
             # generate new branch index, which was not used
             branch_to_create = [i for i in range(1, (1 + len(branchs_counter) + 1))
                                 if i not in branchs_counter][0]
             branchs_counter.append(branch_to_create)
             branchs_end[branch_to_create] = index
         else:
-            matrix[index, after_layer_index] = 1
+            matrix[after_layer_index, before_layer_index] = 0  # remove old direct connection
+            matrix[index, before_layer_index] = 1
 
-        matrix[before_layer_index, index] = 1
-
+        matrix[after_layer_index, index] = 1
         return matrix, layers_index_reverse, branchs_end, branchs_counter
 
     @parameters_copy
     def _remove_layer(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layer_index):
-        print(layer_index)
+        """
+        Remove layer from the structure
+
+        Args:
+            matrix {np.array{int}} - matrix of layers connections
+            layers_index_reverse {dict{int, Layer instance}} - indexes of all individ layers
+            branchs_end {dict{int, int}} - number of branch and corresponding index of the last layer
+            branchs_counter {list{int}} - array of all branchs currently used
+            layer {instance of the Layer} - layer to add
+
+        Return:
+            np.array(N, N) - new matrix of connection
+            dict - new map of layers and their indexes
+            dict - new map of branchs and their last layers indexes
+            list - new array of branchs indexes
+        """
         before_layer_indexes = np.where(matrix[:, layer_index] == 1)[0]
         after_layer_indexes = np.where(matrix[layer_index, :] == 1)[0]
-        print(after_layer_indexes, before_layer_indexes)
 
         if before_layer_indexes is None:
             # restricted operation - network head could not be removed
@@ -183,20 +186,32 @@ class Structure:
 
         Args:
             matrix {np.array{int}} - matrix of layers connections
-            before_layer_index {int} - index of the layer, from which connection started
-            after_layer_index {int} - index of the layer, to which connection will be added
+            after_layer_index {int} - index of the layer, from which connection started
+            before_layer_index {int} - index of the layer, to which connection will be added
 
         Return:
             np.array(N, N) - new matrix of connections
         """
-        matrix[before_layer_index, after_layer_index] = 1
+        print(matrix.shape)
+        matrix[after_layer_index, before_layer_index] = 1
 
         return matrix
 
     @parameters_copy
     def _remove_connection(self, matrix, before_layer_index, after_layer_index):
-        matrix[before_layer_index, after_layer_index] = 0
+        """
+        Remove connection between layers in the structure
 
+        Args:
+            matrix {np.array{int}} - matrix of layers connections
+            after_layer_index {int} - index of the layer, to which new layer will be connected
+            before_layer_index {int} - index of the layer, which will be connected to new layer
+
+        Return:
+            np.array(N, N) - new matrix of connection
+        """
+        matrix[after_layer_index, before_layer_index] = 0
+        matrix[before_layer_index, after_layer_index] = 0
         return matrix
 
     @parameters_copy
@@ -310,8 +325,8 @@ class Structure:
 
         Args:
             layer {instance of the Layer} - layer to add
-            before_layer_index {int} - index of the layer, to which new layer will be connected
-            after_layer_index {int} - index of the layer, which will be connected to new layer
+            after_layer_index {int} - index of the layer, to which new layer will be connected
+            before_layer_index {int} - index of the layer, which will be connected to new layer
         """
         self._matrix, self._layers_index_reverse, self.branchs_end, self.branchs_counter = self._inject_layer(
             self._matrix, self._layers_index_reverse,
@@ -325,8 +340,8 @@ class Structure:
         Public method of _add_connection, which add connection explicitly and permanently
 
         Args:
-            before_layer_index {int} - index of the layer, from which connection started
-            after_layer_index {int} - index of the layer, to which connection will be added
+            after_layer_index {int} - index of the layer, from which connection started
+            before_layer_index {int} - index of the layer, to which connection will be added
         """
         self._matrix = self._add_connection(self._matrix, before_layer_index, after_layer_index)
         self._matrix_updated = False
@@ -410,6 +425,7 @@ class Structure:
         """
         Check if the architecture is cyclic of not
         Neural network should be acyclic
+        Linear combination of connection matrix has to be 0
 
         Args:
             matrix {np.array{int}} - matrix of layer connections
@@ -426,6 +442,20 @@ class Structure:
 
 
     def finisher_applier(self, matrix, layers_index_reverse, branchs_end, branchs_counter):
+        """
+        Apply all legal mutation and add last layer, defined by finisher
+
+        Args:
+            matrix {np.array{int}} - matrix of layers connections
+            layers_index_reverse {dict{int, Layer instance}} - indexes of all individ layers
+            branchs_end {dict{int, int}} - number of branch and corresponding index of the last layer
+            branchs_counter {list{int}} - array of all branchs currently used
+        Return:
+            np.array(N, N) - new matrix of connection
+            dict - new map of layers and their indexes
+            dict - new map of branchs and their last layers indexes
+            list - new array of branchs indexes
+        """
         if matrix is None:
             matrix_copy = np.array(self._matrix)
         else:
@@ -480,59 +510,68 @@ class Structure:
             # increase in complexity due to the imposition of new mutations without remembering past
             if mutation.config.get('state', None) == 'broken':
                 continue
-
-            if mutation.mutation_type == 'add_layer':
-                layer = mutation.layer
-                before_layer_index = mutation.config['before_layer_index']
-                after_layer_index = mutation.config['after_layer_index']
-
-                matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._inject_layer(
-                    matrix_copy, layers_index_reverse_copy,
-                    branchs_end_copy, branchs_counter_copy, layer,
-                    before_layer_index, after_layer_index)
-
-            elif mutation.mutation_type == 'add_connection':
-                before_layer_index = mutation.config['before_layer_index']
-                after_layer_index = mutation.config['after_layer_index']
-
-                matrix_copy_tmp = self._add_connection(matrix_copy, before_layer_index, after_layer_index)
-                layers_index_reverse_copy_tmp = None
-                branchs_end_copy_tmp = None
-                branchs_counter_copy_tmp = None
-
-            elif mutation.mutation_type == 'remove_layer':
-                layer_index = mutation.layer
-
-                matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_layer(
-                    matrix_copy, layers_index_reverse_copy,
-                    branchs_end_copy, branchs_counter_copy,
-                    layer_index)
-
-            elif mutation.mutation_type == 'remove_connection':
-                before_layer_index = mutation.config['before_layer_index']
-                after_layer_index = mutation.config['after_layer_index']
-
-                matrix_copy_tmp = self._remove_connection(matrix_copy, before_layer_index, after_layer_index)
-                layers_index_reverse_copy_tmp = None
-                branchs_end_copy_tmp = None
-                branchs_counter_copy_tmp = None
-
-            # its should be False
-            if not self._cyclic_check(matrix_copy_tmp):
-                matrix_copy = matrix_copy_tmp
-                layers_index_reverse_copy = layers_index_reverse_copy_tmp or layers_index_reverse_copy
-
-                branchs_end_copy = branchs_end_copy_tmp or branchs_end_copy
-                branchs_counter_copy = branchs_counter_copy_tmp or branchs_counter_copy
-
-                mutation.config['state'] = 'checked'
             else:
-                mutation.config['state'] = 'broken'
+                if mutation.mutation_type == 'add_layer':
+                    layer = mutation.layer
+                    before_layer_index = mutation.config['before_layer_index']
+                    after_layer_index = mutation.config['after_layer_index']
 
-            matrix_copy_tmp = None
-            layers_index_reverse_copy_tmp = None
-            branchs_end_copy_tmp = None
-            branchs_counter_copy_tmp = None
+                    matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._inject_layer(
+                        matrix_copy, layers_index_reverse_copy,
+                        branchs_end_copy, branchs_counter_copy, layer,
+                        before_layer_index, after_layer_index)
+
+                elif mutation.mutation_type == 'inject_layer':
+                    layer = mutation.layer
+                    before_layer_index = mutation.config['before_layer_index']
+                    after_layer_index = mutation.config['after_layer_index']
+
+                    matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._inject_layer(
+                        matrix_copy, layers_index_reverse_copy,
+                        branchs_end_copy, branchs_counter_copy, layer,
+                        before_layer_index, after_layer_index)
+
+                elif mutation.mutation_type == 'add_connection':
+                    before_layer_index = mutation.config['before_layer_index']
+                    after_layer_index = mutation.config['after_layer_index']
+
+                    matrix_copy_tmp = self._add_connection(matrix_copy, before_layer_index, after_layer_index)
+                    layers_index_reverse_copy_tmp = None
+                    branchs_end_copy_tmp = None
+                    branchs_counter_copy_tmp = None
+
+                elif mutation.mutation_type == 'remove_layer':
+                    layer_index = mutation.layer
+
+                    matrix_copy_tmp, layers_index_reverse_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_layer(
+                        matrix_copy, layers_index_reverse_copy,
+                        branchs_end_copy, branchs_counter_copy,
+                        layer_index)
+
+                elif mutation.mutation_type == 'remove_connection':
+                    before_layer_index = mutation.config['before_layer_index']
+                    after_layer_index = mutation.config['after_layer_index']
+                    matrix_copy_tmp = self._remove_connection(matrix_copy, before_layer_index, after_layer_index)
+                    layers_index_reverse_copy_tmp = None
+                    branchs_end_copy_tmp = None
+                    branchs_counter_copy_tmp = None
+
+                # its should be False
+                if not self._cyclic_check(matrix_copy_tmp):
+                    matrix_copy = matrix_copy_tmp
+                    layers_index_reverse_copy = layers_index_reverse_copy_tmp or layers_index_reverse_copy
+
+                    branchs_end_copy = branchs_end_copy_tmp or branchs_end_copy
+                    branchs_counter_copy = branchs_counter_copy_tmp or branchs_counter_copy
+
+                    mutation.config['state'] = 'checked'
+                else:
+                    mutation.config['state'] = 'broken'
+
+                matrix_copy_tmp = None
+                layers_index_reverse_copy_tmp = None
+                branchs_end_copy_tmp = None
+                branchs_counter_copy_tmp = None
 
         return matrix_copy, layers_index_reverse_copy, branchs_end_copy, branchs_counter_copy
 
@@ -540,8 +579,8 @@ class Structure:
         """
         Update architecture using new mutations
         """
-        for mutation in self.mutations_pool:
-            mutation.config['state'] = None
+        # for mutation in self.mutations_pool:
+        #     mutation.config['state'] = None
         # apply mutations
         matrix, layers_index_reverse, branchs_end, branchs_counter = self.mutations_applier(
             self._matrix, self._layers_index_reverse,

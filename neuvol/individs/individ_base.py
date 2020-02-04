@@ -152,6 +152,89 @@ class IndividBase:
 
         return last_non_zero
 
+    def cycle_imposer(self, structure):
+        layers_pool = [0]
+        layers_pool_inited = {}
+        layers_pool_removed = []
+
+        while layers_pool:
+            layer_index = layers_pool[0]
+            enter_layers = set(np.where(structure.matrix[:, layer_index] == 1)[0])
+            # check if one of previous layers was not initialized
+            not_inited_layers = enter_layers - set(layers_pool_inited.keys())
+            not_inited_layers_selected = [layer for layer in not_inited_layers if layer not in layers_pool_removed]
+
+            if not_inited_layers_selected:
+                not_inited_layers_selected = [layer for layer in not_inited_layers_selected if layer not in layers_pool]
+                layers_pool.extend(not_inited_layers_selected)
+                acc = layers_pool.pop(0)
+                layers_pool.append(acc)
+                continue
+
+            input_layers = [structure.layers_index_reverse[layer] for layer in enter_layers]
+            input_layers = [layer for layer in input_layers if layer.config.get('rank', False)]
+            enter_layers = enter_layers - set(layers_pool_removed)
+
+            if not input_layers and structure.layers_index_reverse[layer_index].layer_type == 'input':
+                inited_layer = structure.layers_index_reverse[layer_index].init_layer(None)
+
+            elif not input_layers:
+                layers_pool_removed.append(layers_pool.pop(0))
+                continue
+
+            elif len(input_layers) > 1:
+                input_layers_inited = [layers_pool_inited[layer] for layer in enter_layers]
+                inited_layer = structure.layers_index_reverse[layer_index](input_layers_inited, input_layers)
+
+            else:
+                input_layers_inited = [layers_pool_inited[layer] for layer in enter_layers][0]
+                inited_layer = structure.layers_index_reverse[layer_index](input_layers_inited, input_layers[0])
+
+            layers_pool_inited[layer_index] = inited_layer
+
+            output_layers = [layer for layer in np.where(structure.matrix[layer_index] == 1)[0]
+                                if layer not in layers_pool and layer not in layers_pool_inited.keys()]
+
+            layers_pool.extend(output_layers)
+            layers_pool.pop(layers_pool.index(layer_index))
+        return layers_pool_inited
+
+    def init_tf_graph_cycle(self):
+        # TODO: finisher at the of the network
+        """
+        Return tensorflow graph, configurated optimizer and loss type of this individ
+        """
+        if not self._architecture:
+            raise Exception('Non initialized net')
+
+        # walk over all layers and connect them between each other
+        layers_pool = self.cycle_imposer(self._architecture)
+        last_layer = max(list(layers_pool.keys()))
+
+        network_head = layers_pool[0]
+        network_tail = layers_pool[last_layer]
+
+        model = Model(inputs=[network_head], outputs=[network_tail])
+
+        if self._training_parameters['optimizer'] == 'adam':
+            optimizer = adam(
+                lr=self._training_parameters['optimizer_lr'],
+                decay=self._training_parameters['optimizer_decay'])
+        else:
+            optimizer = RMSprop(
+                lr=self._training_parameters['optimizer_lr'],
+                decay=self._training_parameters['optimizer_decay'])
+
+        if self._task_type == 'classification':
+            if self.options['classes'] == 2:
+                loss = 'binary_crossentropy'
+            else:
+                loss = 'categorical_crossentropy'
+        else:
+            raise TypeError('{} value not supported'.format(self._task_type))
+
+        return model, optimizer, loss
+
     def init_tf_graph(self):
         # TODO: finisher at the of the network
         """

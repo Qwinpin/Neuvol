@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .config import SESSION
-from .crossing import Crosser
-from .evolution import Evolution
 from .mutation import MutatorBase
 from .probabilty_pool import Distribution
 from .layer import layer, capsule_layer

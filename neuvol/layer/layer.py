@@ -22,16 +22,21 @@ from ..constants import LAYERS_POOL, SPECIAL
 from ..utils import dump
 
 # TODO: layers serialisation
-def Layer(layer_type, distribution, options=None, previous_layer=None, next_layer=None):
+def Layer(layer_type, distribution, options=None, previous_layer=None, next_layer=None, load=False, buffer=None):
     """
     Factory for the Layers instances
     """
     if layer_type in LAYERS_MAP:
-        return LAYERS_MAP[layer_type](layer_type=layer_type, distribution=distribution, previous_layer=previous_layer, next_layer=next_layer, options=options)
-    elif layer_type in CUSTOM_LAYERS_MAP:
-        return copy.deepcopy(CUSTOM_LAYERS_MAP[layer_type])
+        layer = LAYERS_MAP[layer_type](layer_type=layer_type, distribution=distribution, previous_layer=previous_layer, next_layer=next_layer, options=options)
+    elif layer_type in distribution.CUSTOM_LAYERS_MAP.keys():
+        layer = copy.deepcopy(distribution.CUSTOM_LAYERS_MAP[layer_type])
     else:
         raise TypeError()
+
+    if load:
+        layer.config = buffer['config']
+
+    return layer
 
 
 class LayerBase:
@@ -150,6 +155,14 @@ class LayerBase:
     def rank(self, value):
         self.config['shape'] = value
 
+    def dump(self):
+        buffer = {}
+        buffer['config'] = self.config
+        buffer['options'] = self.options
+        buffer['layer_type'] = self.layer_type
+
+        return buffer
+
 
 class LayerSpecialBase(LayerBase):
     def _init_parameters(self):
@@ -207,6 +220,19 @@ class LayerComplex(LayerBase):
             last_non_zero = column
 
         return last_non_zero
+
+    def dump_complex(self):
+        buffer = {}
+        buffer['config'] = self.config
+        buffer['matrix'] = self.matrix.tolist()
+        buffer['layers'] = {}
+        for i, _layer in self.layers_index_reverse.items():
+            buffer['layers'][i] = _layer.dump()
+
+        buffer['size'] = self.size
+        buffer['width'] = self.width
+
+        return buffer
 
 class LayerLSTM(LayerBase):
     def _check_compatibility(self):
@@ -654,11 +680,6 @@ LAYERS_MAP = {
     'separablecnn': LayerSepCNN1D,
     'separablecnn2': LayerSepCNN2D,
     'decnn2': LayerDeCNN2D
-}
-
-
-CUSTOM_LAYERS_MAP = {
-
 }
 
 

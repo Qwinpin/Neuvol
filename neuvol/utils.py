@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
+from functools import wraps
 import json
 
 import numpy as np
@@ -52,3 +54,15 @@ def load(file_name):
         data = json.load(inp)
 
     return data
+
+
+def parameters_copy(func):
+    @wraps(func)
+    def wrapper(*args):
+        copies = []
+        for arg in args:
+            copies.append(copy.deepcopy(arg))
+
+        return func(*copies)
+
+    return wrapper

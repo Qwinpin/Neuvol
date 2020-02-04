@@ -14,6 +14,7 @@
 import collections
 import copy
 import numpy as np
+import itertools
 
 from .layer import LayerComplex
 from ..constants import GENERAL
@@ -21,9 +22,14 @@ from ..probabilty_pool.generating_distribution import Distribution
 
 
 def generate_complex_layers(structure, distribution, number_to_generate=5):
-    new_chains = structure_parser(structure, number_to_generate)
+    _structure = copy.deepcopy(structure)
+    _structure.matrix = _structure.matrix[:-2, :-2]
+
+    new_chains = structure_parser(_structure, number_to_generate)
 
     new_graphs = [detect_best_combination(new_chain) for new_chain in new_chains]
+    new_graphs = [remove_duplicated_branches(new_chain) for new_chain in new_chains]
+
     new_graphs_processed = [build_graph(new_graph, structure.layers_index_reverse) for new_graph in new_graphs if new_graph]
 
     new_layers = [LayerComplex(new_matrix, new_layers) for new_matrix, new_layers in new_graphs_processed]
@@ -34,9 +40,9 @@ def generate_complex_layers(structure, distribution, number_to_generate=5):
 
 def structure_parser(structure, number_to_generate):
     # remove first two layer - Input and embedder (in case of text)
-    layer_indexes = list(structure.layers_index_reverse.keys())[2:]
+    layer_indexes = list(structure.layers_index_reverse.keys())[2:-1]
 
-    layer_indexes_random_sampled = np.random.choice(layer_indexes, number_to_generate, replace=False)
+    layer_indexes_random_sampled = np.random.choice(layer_indexes, number_to_generate, replace=False if len(layer_indexes) >= number_to_generate else True)
 
     sublayers_chains = []
 
@@ -106,6 +112,14 @@ def detect_best_combination(new_chains):
 
     return new_subgraph
 
+def remove_duplicated_branches(new_chain):
+    buffer = []
+
+    for chain in new_chain:
+        if chain not in buffer:
+            buffer.append(chain)
+
+    return buffer
 
 def cut(chain, node):
     try:
@@ -121,7 +135,8 @@ def cut(chain, node):
 
 
 def build_graph(graph, layers_index_reverse):
-    reindexer = {old_index: new_index for new_index, old_index in enumerate(np.unique(graph))}
+    graph_indexes = np.unique(list(itertools.chain(*graph)))
+    reindexer = {old_index: new_index for new_index, old_index in enumerate(graph_indexes)}
 
     selected_graph_layers = {reindexer[layer]: copy.deepcopy(layers_index_reverse[layer]) for layer in reindexer.keys()}
 
