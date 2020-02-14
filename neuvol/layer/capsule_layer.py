@@ -23,16 +23,16 @@ from ..probabilty_pool.generating_distribution import Distribution
 
 def generate_complex_layers(structure, distribution, number_to_generate=5):
     _structure = copy.deepcopy(structure)
-    _structure.matrix = _structure.matrix[:-2, :-2]
+    _structure.matrix = _structure.matrix[:-1, :-1]
 
     new_chains = structure_parser(_structure, number_to_generate)
 
     new_graphs = [detect_best_combination(new_chain) for new_chain in new_chains]
     new_graphs = [remove_duplicated_branches(new_chain) for new_chain in new_chains]
 
-    new_graphs_processed = [build_graph(new_graph, structure.layers_index_reverse) for new_graph in new_graphs if new_graph]
+    new_graphs_processed = [(build_graph(new_graph, structure.layers_index_reverse), len(new_graph)) for new_graph in new_graphs if new_graph]
 
-    new_layers = [LayerComplex(new_matrix, new_layers) for new_matrix, new_layers in new_graphs_processed]
+    new_layers = [LayerComplex(new_graph[0], new_graph[1], width=width) for new_graph, width in new_graphs_processed]
 
     for new_layer in new_layers:
         distribution.register_new_layer(new_layer)
@@ -40,14 +40,14 @@ def generate_complex_layers(structure, distribution, number_to_generate=5):
 
 def structure_parser(structure, number_to_generate):
     # remove first two layer - Input and embedder (in case of text)
-    layer_indexes = list(structure.layers_index_reverse.keys())[2:-1]
-
+    layer_indexes = list(structure.layers_index_reverse.keys())[1:-2]
+    print(layer_indexes)
     layer_indexes_random_sampled = np.random.choice(layer_indexes, number_to_generate, replace=False if len(layer_indexes) >= number_to_generate else True)
 
     sublayers_chains = []
 
     for index in layer_indexes_random_sampled:
-        sublayers_chain = sublayer_parser(index, structure.matrix, None)
+        sublayers_chain = sublayer_parser(index, structure.matrix[:-2, :-2], None)
 
         flatten_sublayers_chain = flatten(sublayers_chain)
 

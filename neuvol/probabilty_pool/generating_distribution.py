@@ -20,6 +20,9 @@ from ..constants import FAKE, GENERAL, LAYERS_POOL, SPECIAL, TRAINING
 def parse_mutation_const():
     tmp_probability = 1
     mutations_probability = {mutation: tmp_probability for mutation in GENERAL['mutation_type']}
+    # TODO: hm, some base?
+    mutations_probability['remove_connection'] = 0.2
+    mutations_probability['remove_layer'] = 0.15
 
     return mutations_probability
 
@@ -36,7 +39,7 @@ def parse_layer_const(probability_to_modify=None):
 
     else:
         # uniform
-        tmp_probability = 1  # / len(LAYERS_POOL)
+        tmp_probability = 1
 
         # probability of each layer type
         layers_probability = {layer: tmp_probability for layer in LAYERS_POOL}
@@ -75,7 +78,7 @@ def parse_layers_number():
     """
     Parse all available number of layers and set initial probability
     """
-    tmp_probability = 1  # / len(GENERAL['layers_number'])
+    tmp_probability = 1
     layers_number_probability = {value: tmp_probability for value in GENERAL['layers_number']}
 
     return layers_number_probability
@@ -88,7 +91,7 @@ def parse_training_const():
     training_parameters_probability = {}
 
     for parameter in TRAINING:
-        tmp_probability = 1  # / len(TRAINING[parameter])
+        tmp_probability = 1
         training_parameters_probability[parameter] = {value: tmp_probability for value in TRAINING[parameter]}
 
     return training_parameters_probability

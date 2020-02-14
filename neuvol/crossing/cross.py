@@ -18,32 +18,37 @@ from ..utils import parameters_copy
 
 class Crosser:
     @parameters_copy
-    def cross(self, individ1, individ2):
+    def cross(self, individ1, individ2, size=5):
         # detect branch in individ1, which will replace branch in individ2
-        ind1_complex = structure_parser(individ1.architecture, 5)
+        ind1_complex = structure_parser(individ1.architecture, size)
         ind1_complex = [detect_best_combination(i) for i in ind1_complex]
-        ind1_complex = [remove_duplicated_branches(new_chain) for new_chain in ind1_complex]
+        ind1_complex = [remove_duplicated_branches(new_chain) for new_chain in ind1_complex if new_chain]
+        if len(ind1_complex) == 0:
+            return None
         ind1_complex = [i for i in ind1_complex if i][0]
 
         # detect branch in individ2, which will be dropped in invidid2
-        ind2_complex = structure_parser(individ2.architecture, 5)
+        ind2_complex = structure_parser(individ2.architecture, size)
         ind2_complex = [detect_best_combination(i) for i in ind2_complex]
-        ind2_complex = [remove_duplicated_branches(new_chain) for new_chain in ind2_complex]
+        ind2_complex = [remove_duplicated_branches(new_chain) for new_chain in ind2_complex if new_chain]
+        if len(ind1_complex) == 0:
+            return None
         ind2_complex = [i for i in ind2_complex if i][0]
-
+        print("C", ind2_complex)
         self.cut_branch(individ2, ind2_complex)
-        self.inject_branch(individ2, individ1, ind1_complex, ind2_complex[0], ind2_complex[-1])
+        self.inject_branch(individ2, individ1, ind1_complex, ind2_complex[0][0], ind2_complex[0][-1])
 
         return individ2
 
     def cut_branch(self, individ, branch):
         for chain in branch:
             for index in [chain[i: i + 2] for i in range(len(chain[::2]) + 1)]:
+                if len(index) != 2:
+                    return False
                 remove_connection_mutation = MutationInjector(None, None, None, None)
                 remove_connection_mutation.mutation_type = 'remove_connection'
                 remove_connection_mutation.after_layer_index = index[0]
                 remove_connection_mutation.before_layer_index = index[1]
-
                 individ.add_mutation(remove_connection_mutation)
 
     def inject_branch(self, individ, individ_donor, branch, from_index, to_index):
@@ -54,15 +59,17 @@ class Crosser:
         for chain in branch:
             # we go through the tail to the head
             for index in chain[::-1]:
+                print('INJ', index)
                 # if this index was added before - just add required connection withour layer duplication
                 if tmp_map.get(index, None) is None:
+                    print(individ.layers_index_reverse.keys())
     #                 remove_connection_mutation = MutationInjector(None, None, None, None)
     #                 remove_connection_mutation.mutation_type = 'remove_connection'
     #                 remove_connection_mutation.after_layer_index = from_index
     #                 remove_connection_mutation.before_layer_index = to_index
 
     #                 individ.add_mutation(remove_connection_mutation)
-
+                    print("IND", from_index, to_index)
                     inject_layer_mutation = MutationInjector(None, None, None, None)
                     inject_layer_mutation.mutation_type = 'inject_layer'
                     inject_layer_mutation.layer = individ_donor.layers_index_reverse[index]
@@ -70,7 +77,8 @@ class Crosser:
                     inject_layer_mutation.before_layer_index = to_index
 
                     individ.add_mutation(inject_layer_mutation)
-
+                    print(individ.layers_index_reverse.keys())
+                    print(individ._architecture.mutations_pool[-1].config)
                     new_layers_reverse = set(list(individ.layers_index_reverse.keys())[:-1]) - initial_layers_reverse
                     to_index = list(new_layers_reverse)[0]
                     initial_layers_reverse = set(list(individ.layers_index_reverse.keys())[:-1])

@@ -55,11 +55,12 @@ class MutatorBase:
     @staticmethod
     def grown(individ, distribution):
         # TODO: external probabilities for each dice
+        # merging is an absolute genom changing
         merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merge'], delimeter=2)
 
         # branches, which was merged should not be splitted or grown after
         branchs_exception = []
-        while merger_dice:
+        if merger_dice:
             # TODO: generate distribution according to results of epochs
             if len(individ.branchs_end.keys()) >= 2:
                 # branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
@@ -72,38 +73,32 @@ class MutatorBase:
             branchs_to_merge = np.random.choice(list(individ.branchs_end.keys()), branchs_to_merge_number, replace=False)
             branchs_to_merge = [i for i in branchs_to_merge if i not in branchs_exception]
 
-            if len(branchs_to_merge) < 2:
-                break
-
             layer_type = distribution.layer()
-            print(layer_type)
             new_tail = Layer(layer_type, distribution)
 
             branchs_end_new = individ.merge_branchs(new_tail, branchs_to_merge)
 
-            merger_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_merge'], delimeter=1)
-
             branchs_exception.append(branchs_end_new)
 
-        # for each branch now we need decide split or not
+        # for branch now we need decide split or not
         free_branches = [i for i in individ.branchs_end.keys() if i not in branchs_exception]
+        if len(free_branches) == 0:
+            return True
 
-        split_event = False
-        for branch in free_branches:
+        selected_branch = np.random.choice(free_branches, 1)[0]
 
-            split_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_splitting'], delimeter=1.5)
+        split_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_splitting'], delimeter=1.5)
 
-            if split_dice and not split_event:
-                number_of_splits = np.random.choice(GENERAL['mutation_splitting']['number_of_splits'], p=GENERAL['mutation_splitting']['rates'])
-                new_tails = [Layer(distribution.layer(), distribution) for _ in range(number_of_splits)]
+        if split_dice and not merger_dice:
+            number_of_splits = np.random.choice(GENERAL['mutation_splitting']['number_of_splits'], p=GENERAL['mutation_splitting']['rates'])
+            new_tails = [Layer(distribution.layer(), distribution) for _ in range(number_of_splits)]
 
-                individ.split_branch(new_tails, branch=branch)
-                split_event = True
+            individ.split_branch(new_tails, branch=selected_branch)
 
-            else:
-                new_tail = Layer(distribution.layer(), distribution)
+        else:
+            new_tail = Layer(distribution.layer(), distribution)
 
-                individ.add_layer(new_tail, branch)
+            individ.add_layer(new_tail, selected_branch)
 
         return True
 
@@ -122,36 +117,58 @@ def _probability_from_branchs(individ, prior_rate, delimeter=1):
 
 
 class MutationInjector:
-    def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None):
-        self.config = config or {}
-        if mutation_type is None:
-            pass
+    def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None, data_load=None):
+        if data_load is not None:
+            self.load(data_load, distribution)
         else:
-            self.mutation_type = mutation_type
-            self._layer = layer
-            self.distribution = distribution
+            self.config = config or {}
+            if mutation_type is None:
+                pass
+            else:
+                self.mutation_type = mutation_type
+                self._layer = layer
+                self.distribution = distribution
+                self._choose_parameters(matrix, layers_types)
 
-            self._choose_parameters(matrix, layers_types)
+    # def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
+    #     size = matrix.shape[0]
+    #     self.config['before_layer_index'] = self.config.get('before_layer_index', None) or np.random.randint(1, size - 3)
+
+    #     self.config['before_layer_type'] = layers_types[self.config['before_layer_index']]
+
+    #     split_dice = np.random.choice([0, 1], p=[0.9, 0.1]) if is_add_layer else 0
+    #     if split_dice:
+    #         self.config['after_layer_index'] = None
+
+    #     else:
+    #         if self.config.get('after_layer_index', None) is None:
+    #             self.config['after_layer_index'] = np.random.randint(self.config['before_layer_index'], size - 3)
+
+    #         if self.config['after_layer_index'] == self.config['before_layer_index']:
+    #             self.config['after_layer_index'] = None
+
+    #         else:
+    #             self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]
 
     def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
         size = matrix.shape[0]
-        self.config['before_layer_index'] = self.config.get('before_layer_index', None) or np.random.randint(1, size - 3)
+        self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(1, size - 3)
 
-        self.config['before_layer_type'] = layers_types[self.config['before_layer_index']]
+        self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]
 
         split_dice = np.random.choice([0, 1], p=[0.9, 0.1]) if is_add_layer else 0
         if split_dice:
-            self.config['after_layer_index'] = None
+            self.config['before_layer_index'] = None
 
         else:
-            if self.config.get('after_layer_index', None) is None:
-                self.config['after_layer_index'] = np.random.randint(self.config['before_layer_index'], size - 3)
+            if self.config.get('before_layer_index', None) is None:
+                self.config['before_layer_index'] = np.random.randint(self.config['after_layer_index'], size - 3)
 
-            if self.config['after_layer_index'] == self.config['before_layer_index']:
-                self.config['after_layer_index'] = None
+            if self.config['before_layer_index'] == self.config['after_layer_index']:
+                self.config['before_layer_index'] = None
 
             else:
-                self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]
+                self.config['before_layer_type'] = layers_types[self.config['before_layer_index']]
 
     @property
     def layer(self):
@@ -176,6 +193,29 @@ class MutationInjector:
     @before_layer_index.setter
     def before_layer_index(self, index):
         self.config['before_layer_index'] = index
+
+    def dump(self):
+        buffer = {}
+        buffer['mutation_type'] = self.mutation_type
+        if self._layer is None:
+            buffer['layer'] = ''
+        elif type(self._layer) == int:
+            buffer['layer'] = self._layer
+        else:
+            buffer['layer'] = self._layer.dump()
+
+        buffer['config'] = {}
+        buffer['config'] = self.config
+
+        return buffer
+
+    def load(self, data_load, distribution):
+        self.mutation_type = data_load['mutation_type']
+        if type(data_load['layer']) == str or type(data_load['layer']) == int:
+            self._layer = data_load['layer']
+        else:
+            self._layer = Layer(data_load['layer']['layer_type'], distribution, None, None, None, data_load['layer'])
+        self.config = data_load['config']
 
 
 class MutationInjectorAddLayer(MutationInjector):
@@ -204,7 +244,7 @@ class MutationInjectorRemoveLayer(MutationInjector):
 
     def _choose_parameters(self, matrix, layers_types):
         layer_indexes = list(layers_types.keys())
-        layer_to_remove = np.random.choice(layer_indexes, size=1)[0]
+        layer_to_remove = int(np.random.choice(layer_indexes, size=1)[0])
         self._layer = layer_to_remove
 
 

@@ -14,12 +14,14 @@
 import copy
 import numpy as np
 
+from ...mutation import MutationInjector
+from ...layer import Layer
 from ...utils import parameters_copy
 
 
 class Structure:
     #TODO: structure freeze - apply all stable mutations and keep as a new base structure
-    def __init__(self, root, finisher):
+    def __init__(self, root, finisher, data_load=None, distribution=None):
         """
         Class of individ architecture
         Growing steps is applied to the origin matrix
@@ -46,6 +48,9 @@ class Structure:
         self._layers_index_reverse_updated = False
 
         self.mutations_pool = []  # list of all mutations, which will be applied for initialization
+
+        if data_load is not None:
+            self.load(data_load, distribution)
 
     @parameters_copy
     def _register_new_layer(self, matrix, layers_index_reverse, new_layer):
@@ -162,12 +167,15 @@ class Structure:
             return matrix, layers_index_reverse, branchs_end, branchs_counter
 
         if after_layer_indexes is not None and len(after_layer_indexes) != 0:
-            matrix[before_layer_indexes, after_layer_indexes] = 1
-            matrix[before_layer_indexes, layer_index] = 0
-            matrix[layer_index, after_layer_indexes] = 0
+            for i in after_layer_indexes:
+                for j in before_layer_indexes:
+                    matrix[j, i] = 1
+                    matrix[j, layer_index] = 0
+                    matrix[layer_index, i] = 0
 
         else:
-            matrix[before_layer_indexes, layer_index] = 0
+            for j in before_layer_indexes:
+                matrix[j, layer_index] = 0
 
         branchs_end_reverse = {value: key for key, value in branchs_end.items()}
         branch_to_remove = branchs_end_reverse.get(layer_index, None)
@@ -175,7 +183,7 @@ class Structure:
             branchs_counter = [i for i in branchs_counter if i != branch_to_remove]
             del branchs_end[branch_to_remove]
 
-        del layers_index_reverse[layer_index]
+        # del layers_index_reverse[layer_index]
 
         return matrix, layers_index_reverse, branchs_end, branchs_counter
 
@@ -192,13 +200,12 @@ class Structure:
         Return:
             np.array(N, N) - new matrix of connections
         """
-        print(matrix.shape)
         matrix[after_layer_index, before_layer_index] = 1
 
         return matrix
 
     @parameters_copy
-    def _remove_connection(self, matrix, before_layer_index, after_layer_index):
+    def _remove_connection(self, matrix, branchs_end, branchs_counter, before_layer_index, after_layer_index):
         """
         Remove connection between layers in the structure
 
@@ -212,7 +219,13 @@ class Structure:
         """
         matrix[after_layer_index, before_layer_index] = 0
         matrix[before_layer_index, after_layer_index] = 0
-        return matrix
+
+        # removed connection assumes new branch
+        branch_new = [i for i in range(1, (1 + len(branchs_counter) + 1)) if i not in branchs_counter][0]
+        branchs_counter.append(branch_new)
+        branchs_end[branch_new] = after_layer_index
+
+        return matrix, branchs_end, branchs_counter
 
     @parameters_copy
     def _merge_branchs(self, matrix, layers_index_reverse, branchs_end, branchs_counter, layer, branchs):
@@ -233,6 +246,7 @@ class Structure:
             dict - new map of branchs and their last layers indexes
             list - new array of branchs indexes
         """
+
         adds_to = [branchs_end[branch] for branch in branchs]
         matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
 
@@ -240,11 +254,21 @@ class Structure:
             matrix[branch, index] = 1
 
         for branch in branchs:
-            del branchs_end[branch]
+            try:
+                del branchs_end[branch]
+            except:
+                pass
 
             # remove branches, which will be concatenated
-            tmp_index = branchs_counter.index(branch)
-            branchs_counter.pop(tmp_index)
+            try:
+                tmp_index = branchs_counter.index(branch)
+            except:
+                pass
+
+            try:
+                branchs_counter.pop(tmp_index)
+            except:
+                pass
 
         branch_new = [i for i in range(1, (1 + len(branchs_counter) + 1)) if i not in branchs_counter][0]
         branchs_counter.append(branch_new)
@@ -377,50 +401,6 @@ class Structure:
         self._matrix_updated = False
         self._layers_index_reverse_updated = False
 
-    # def _cyclic_check_dict(self, tree):
-    #     """
-    #     Check if tree in form of dict is cyclic or not
-
-    #     Args:
-    #         tree {dict} - tree to check
-
-    #     Return:
-    #         boolean - is cyclic or not
-    #     """
-    #     path = set()
-
-    #     def visit(vertex):
-    #         path.add(vertex)
-    #         for neighbour in tree.get(vertex, ()):
-    #             if neighbour in path or visit(neighbour):
-    #                 return True
-    #         path.remove(vertex)
-    #         return False
-
-    #     return any(visit(v) for v in tree)
-
-    # def _cyclic_check(self, matrix):
-    #     """
-    #     Check if the architecture is cyclic of not
-    #     Neural network should acyclic
-
-    #     Args:
-    #         matrix {np.array{int}} - matrix of layer connections
-
-    #     Return:
-    #         boolean - is cyclic or not
-    #     """
-    #     # generate tree (dict) first
-    #     tree = {}
-    #     for i, row in enumerate(matrix):
-    #         for j, element in enumerate(row):
-    #             if element == 1:
-    #                 if tree.get(i, None) is None:
-    #                     tree[i] = []
-    #                 tree[i].append(j)
-
-    #     return self._cyclic_check_dict(tree)
-
     def _cyclic_check(self, matrix):
         """
         Check if the architecture is cyclic of not
@@ -439,7 +419,6 @@ class Structure:
                 return True
 
         return False
-
 
     def finisher_applier(self, matrix, layers_index_reverse, branchs_end, branchs_counter):
         """
@@ -549,12 +528,13 @@ class Structure:
                         layer_index)
 
                 elif mutation.mutation_type == 'remove_connection':
+                    pass
                     before_layer_index = mutation.config['before_layer_index']
                     after_layer_index = mutation.config['after_layer_index']
-                    matrix_copy_tmp = self._remove_connection(matrix_copy, before_layer_index, after_layer_index)
+                    matrix_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_connection(
+                        matrix_copy, branchs_end_copy, branchs_counter_copy,
+                        before_layer_index, after_layer_index)
                     layers_index_reverse_copy_tmp = None
-                    branchs_end_copy_tmp = None
-                    branchs_counter_copy_tmp = None
 
                 # its should be False
                 if not self._cyclic_check(matrix_copy_tmp):
@@ -579,8 +559,9 @@ class Structure:
         """
         Update architecture using new mutations
         """
-        # for mutation in self.mutations_pool:
-        #     mutation.config['state'] = None
+        for mutation in self.mutations_pool:
+            if mutation.config.get('state', None) == 'broken':
+                mutation.config['state'] = None
         # apply mutations
         matrix, layers_index_reverse, branchs_end, branchs_counter = self.mutations_applier(
             self._matrix, self._layers_index_reverse,
@@ -615,6 +596,47 @@ class Structure:
             self._update_mutated()
 
         return self._layers_index_reverse_mutated
+
+    def dump(self):
+        matrix = copy.deepcopy(self._matrix)
+        matrix_mutated = copy.deepcopy(self._matrix_mutated)
+
+        layers_index_reverse = {key: value.dump() for key, value in self._layers_index_reverse.items()}
+        layers_index_reverse_mutated = {key: value.dump() for key, value in self._layers_index_reverse_mutated.items()}
+
+        mutations_list = [i.dump() for i in self.mutations_pool]
+
+        finisher = self._finisher.dump()
+        branchs_end = self.branchs_end
+        branchs_count = self.branchs_counter
+
+        buffer = {}
+        buffer['matrix'] = matrix
+        buffer['matrix_mutated'] = matrix_mutated
+        buffer['layers_index_reverse'] = layers_index_reverse
+        buffer['layers_index_reverse_mutated'] = layers_index_reverse_mutated
+        buffer['mutations_list'] = mutations_list
+        buffer['finisher'] = finisher
+        buffer['branchs_end'] = branchs_end
+        buffer['branchs_count'] = branchs_count
+
+        return buffer
+
+    def load(self, data_load, distribution):
+        self._matrix = data_load['matrix']
+        self._matrix_mutated = data_load['matrix_mutated']
+        self._layers_index_reverse = {key: Layer(value['layer_type'], distribution, None, None, None, value) for key, value in data_load['layers_index_reverse'].items()}
+        self._layers_index_reverse_mutated = {key: Layer(value['layer_type'], distribution, None, None, None, value) for key, value in data_load['layers_index_reverse_mutated'].items()}
+
+        self._layers_index_reverse = {int(key): value for key, value in self._layers_index_reverse.items()}
+        self._layers_index_reverse_mutated = {int(key): value for key, value in self._layers_index_reverse_mutated.items()}
+
+        self.mutations_pool = [MutationInjector(None, None, None, distribution, None, None, i) for i in data_load['mutations_list']]
+        self._finisher = Layer(data_load['finisher']['layer_type'], distribution, None, None, None, data_load['finisher'])
+        self.branchs_end = data_load['branchs_end']
+        self.branchs_end = {int(key): value for key, value in self.branchs_end.items()}
+
+        self.branchs_count = data_load['branchs_count']
 
 
 class StructureText(Structure):

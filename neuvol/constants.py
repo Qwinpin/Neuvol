@@ -24,11 +24,11 @@ FLOAT32 = np.float32
 # General parameters
 GENERAL = {
     'layers_number': [i for i in range(1, 10)],
-    'mutation_type': ['add_layer', 'add_connection', 'remove_connection'],
+    'mutation_type': ['add_layer', 'add_connection', 'remove_connection', 'remove_layer'],
     'mutation_rate_splitting': 1.5,
     'mutation_rate_merge': 1.5,
     'mutation_splitting': {
-        'rates': [0.8, 0.1, 0.07, 0.03],
+        'rates': [0.7, 0.2, 0.07, 0.03],
         'number_of_splits': [2, 3, 4, 5]
     },
     'graph_parser': {
@@ -68,7 +68,7 @@ SPECIAL = {
 LAYERS_POOL = {
     'bi': {
         'input_rank': [3],
-        'units': [i for i in range(1, 32, 1)],
+        'units': [i for i in range(1, 32, 4)],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
         'activation': ['tanh', 'relu', None],
         'implementation': [1, 2],
@@ -84,38 +84,45 @@ LAYERS_POOL = {
 
     'cnn': {
         'input_rank': [3],
-        'filters': [i for i in range(4, 128, 2)],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
         'kernel_size': [i for i in range(1, 11, 2)],
+        # 'strides': [1],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same', 'causal'],
+        'padding': ['same'],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'cnn2': {
         'input_rank': [4],
-        'filters': [i for i in range(1, 128, 1)],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
         'kernel_size': [i for i in range(1, 11, 2)],
+        # 'strides': [1],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same'],
+        # 'padding': ['same'],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'max_pool': {
         'input_rank': [3],
-        'pool_size': [i for i in range(1, 16, 2)],
+        'pool_size': [i for i in range(0, 16, 2)][1:],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same']},
+        'padding': ['valid', 'same'],
+        # 'padding': ['same'],
+        },
 
     'max_pool2': {
         'input_rank': [4],
-        'pool_size': [i for i in range(1, 16, 2)],
+        'pool_size': [i for i in range(0, 16, 2)][1:],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same']},
+        #'padding': ['valid', 'same'],
+        'padding': ['same'],},
 
     'dense': {
         'input_rank': [],
-        'units': [i for i in range(4, 512, 2)],
-        'activation': ['softmax', 'sigmoid', None]},
+        'units': [i for i in range(0, 512, 16)][1:] + [1],
+        'activation': ['relu', 'softmax', 'sigmoid', None]},
 
     'dropout': {
         'input_rank': [],
@@ -127,28 +134,34 @@ LAYERS_POOL = {
 
     'separablecnn': {
         'input_rank': [3],
-        'filters': [i for i in range(1, 128, 1)],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
         'kernel_size': [i for i in range(1, 11, 2)],
-        'strides': [1, 2, 3],
-        'padding': ['valid', 'same'],
+        'strides': [1],
+        # 'strides': [1, 2, 3],
+        # 'padding': ['valid', 'same'],
+        'padding': ['same'],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'separablecnn2': {
         'input_rank': [4],
-        'filters': [i for i in range(1, 128, 1)],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
         'kernel_size': [i for i in range(1, 11, 2)],
-        'strides': [1, 2, 3],
-        'padding': ['valid', 'same'],
+        'strides': [1],
+        # 'strides': [1, 2, 3],
+        # 'padding': ['valid', 'same'],
+        'padding': ['same'],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'decnn2': {
         'input_rank': [4],
-        'filters': [i for i in range(1, 128, 1)],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
         'kernel_size': [i for i in range(1, 11, 2)],
-        'strides': [1, 2, 3],
-        'padding': ['valid', 'same'],
+        'strides': [1],
+        # 'strides': [1, 2, 3],
+        # 'padding': ['valid', 'same'],
+        'padding': ['same'],
         'output_padding': [i for i in range(1, )] + [None],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]}, }

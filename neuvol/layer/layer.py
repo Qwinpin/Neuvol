@@ -16,25 +16,27 @@ from keras.layers import (Bidirectional, concatenate, Conv1D, Conv2D, Dense, Dro
                           Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape, RepeatVector,
                           SeparableConv1D, SeparableConv2D, Conv2DTranspose)
 from keras.layers.recurrent import LSTM
+import math
 import numpy as np
 
 from ..constants import LAYERS_POOL, SPECIAL
 from ..utils import dump
 
 # TODO: layers serialisation
-def Layer(layer_type, distribution, options=None, previous_layer=None, next_layer=None, load=False, buffer=None):
+# TODO: shape calculation recursion error while net initializing
+def Layer(layer_type, distribution, options=None, previous_layer=None, next_layer=None, data_load=None):
     """
     Factory for the Layers instances
     """
     if layer_type in LAYERS_MAP:
-        layer = LAYERS_MAP[layer_type](layer_type=layer_type, distribution=distribution, previous_layer=previous_layer, next_layer=next_layer, options=options)
+        layer = LAYERS_MAP[layer_type](layer_type=layer_type, distribution=distribution, previous_layer=previous_layer, next_layer=next_layer, options=options, data_load=data_load)
     elif layer_type in distribution.CUSTOM_LAYERS_MAP.keys():
         layer = copy.deepcopy(distribution.CUSTOM_LAYERS_MAP[layer_type])
     else:
         raise TypeError()
 
-    if load:
-        layer.config = buffer['config']
+    # if data_load is not None:
+    #     layer.config = data_load['config']
 
     return layer
 
@@ -48,7 +50,7 @@ class LayerBase:
     of rank add reshape layer.
     """
 
-    def __init__(self, layer_type, distribution, previous_layer=None, next_layer=None, options=None):
+    def __init__(self, layer_type, distribution, previous_layer=None, next_layer=None, options=None, data_load=None):
         self.config = {}
         self.layer_type = layer_type
         self.distribution = distribution
@@ -56,7 +58,9 @@ class LayerBase:
         self.previous_layer = previous_layer
         self.next_layer = next_layer
 
-        if layer_type is not None:
+        if data_load is not None:
+            self.load(data_load)
+        elif layer_type is not None:
             self._init_parameters()
             self._check_compatibility()
 
@@ -69,6 +73,7 @@ class LayerBase:
         if isinstance(net, list):
             concat_layer = Layer('concat', self.distribution)
             net = concat_layer(net, previous_layer)
+
             previous_layer = concat_layer
 
         reshape_layer = self._init_reshape_layer(previous_layer)
@@ -80,13 +85,20 @@ class LayerBase:
             self.config['rank'] = self.calculate_rank(reshape_layer)
             self.config['shape'] = self.calculate_shape(reshape_layer)
 
+        if self.config['shape'] is None:
+            self.config['state'] = 'broken'
+            return net
+
         if reshape_layer is not None:
             new_new = reshape_layer(net, previous_layer)
         else:
             new_new = net
 
         layer_instance = self.init_layer(previous_layer)
-        new_net = layer_instance(new_new)
+        try:
+            new_net = layer_instance(new_new)
+        except:
+            raise
 
         return new_net
 
@@ -163,6 +175,11 @@ class LayerBase:
 
         return buffer
 
+    def load(self, data_load):
+        self.config = data_load['config']
+        self.options = data_load['options']
+        self.layer_type = data_load['layer_type']
+
 
 class LayerSpecialBase(LayerBase):
     def _init_parameters(self):
@@ -172,11 +189,12 @@ class LayerSpecialBase(LayerBase):
 
 
 class LayerComplex(LayerBase):
-    def __init__(self, layer_matrix, initiated_layers):
+    # TODO: saver/loader
+    def __init__(self, layer_matrix, initiated_layers, width=None):
         self.matrix = layer_matrix
         self.layers_index_reverse = initiated_layers
         self.size = len(layer_matrix)
-        self.width = len(initiated_layers)
+        self.width = width or len(initiated_layers)
 
         self.config = {}
 
@@ -320,9 +338,9 @@ class LayerCNN1D(LayerBase):
         previous_shape = previous_layer.shape
         filters = self.config['filters']
         kernel_size = self.config['kernel_size']
-
+        # keep this hack, need to valid
         if kernel_size % 2 == 0:
-            align = 1
+            align = 0
         else:
             align = 0
 
@@ -338,7 +356,8 @@ class LayerCNN1D(LayerBase):
                 out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
 
         elif padding == 'same':
-            out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in previous_shape[1:-1]]
+            # out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in previous_shape[1:-1]]
+            out = [math.ceil(i / strides) for i in previous_shape[1:-1]]
 
         elif padding == 'causal':
             out = [i for i in previous_shape[1:-1]]
@@ -387,22 +406,25 @@ class LayerMaxPool1D(LayerBase):
         kernel_size = self.config['pool_size']
         strides = self.config['strides']
         padding = self.config['padding']
-        if kernel_size % 2 == 0:
-            align = 1
+        if kernel_size % 2 != 0:
+            align = 0
         else:
             align = 0
 
         if padding == 'same':
-            out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
+            # out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
+            out = [math.ceil(i / strides) for i in previous_shape[1:-1]]
         else:
             out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
 
         for i in out:
             # if some of the layer too small - change the padding
-            if i <= 0:
+            if i <= 0 and padding != 'same':
                 self.config['padding'] = 'same'
                 shape = self.calculate_shape(previous_layer)
                 return shape
+            elif i <= 0:
+                return None
 
         shape = (None, *out, previous_shape[-1])
 
@@ -507,8 +529,8 @@ class LayerConcat(LayerSpecialBase):
         else:
             new_nets = nets
         # new_nets = [reshape_layer(nets[i], previous_layers[i]) for i, reshape_layer in enumerate(reshape_layers)]
-        new_net = concatenate(new_nets, axis)
 
+        new_net = concatenate(new_nets, axis)
         return new_net
 
     def merger_mass(self, layers):

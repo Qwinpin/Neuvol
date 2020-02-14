@@ -26,10 +26,7 @@ class IndividBase:
     """
     Individ class
     """
-    # TODO: add support for different data types
-    # TODO: add support for different task types
-
-    def __init__(self, stage, options, finisher, distribution, task_type='classification', parents=None, freeze=None):
+    def __init__(self, stage, options, finisher, distribution, task_type='classification', parents=None, freeze=None, load_data=None):
         """Create individ randomly or with its parents
 
         Attributes:
@@ -49,26 +46,21 @@ class IndividBase:
         self._history = []
         self._name = FAKE.name().replace(' ', '_') + '_' + str(stage)
         self._architecture = None
-        self._data_processing = None or self.options.get('data_processing', None)
-        self._training_parameters = None or self.options.get('training_parameters', None)
         self._layers_number = 0
-        self._result = -1.0
+        self._result = None
+        self._parameters_number = None
 
-        # skip initialization, if this is tempory individ, that will be used only for load method
-        if stage is not None:
-            if self._parents is None:
-                self._random_init()
-                self._history.append(EVENT('Init', stage))
-            else:
-                self._history.append(EVENT('Birth', self._stage))
+        if load_data is not None:
+            self.load(load_data)
+        else:
+            self._random_init()
+
 
     def __str__(self):
         return self.name
 
     def _random_init(self):
         self._architecture = self._random_init_architecture()
-        self._data_processing = self._random_init_data_processing()
-        self._training_parameters = self._random_init_training()
 
     def _random_init_architecture(self):
         """
@@ -79,79 +71,6 @@ class IndividBase:
 
         return architecture
 
-    def _random_init_training(self):
-        """
-        Initialize training parameters
-        """
-        if not self._architecture:
-            self._architecture = self._random_init_architecture()
-
-        variables = list(TRAINING)
-        training_tmp = {}
-        for i in variables:
-            training_tmp[i] = self._distribution.training_parameters(i)
-
-        return training_tmp
-
-    def _random_init_data_processing(self):
-        """
-        Initialize data processing parameters
-        """
-        return ...
-
-    # def layer_imposer(self):
-    #     tails_map = {}
-    #     _, columns_number = self.matrix.shape
-    #     last_non_zero = 0
-    #     for column in range(columns_number):
-    #         column_values = self.matrix[:, column]
-
-    #         connections = np.where(column_values == 1)[0]
-    #         if not connections.size > 0:
-    #             if column == 0:
-    #                 tails_map[column] = self.layers_index_reverse[column].init_layer(None)
-
-    #         elif connections.size > 1:
-    #             tails_to_call = [tails_map[i] for i in connections]
-    #             layers_to_call = [self.layers_index_reverse[i] for i in connections]
-
-    #             tails_map[column] = self.layers_index_reverse[column](tails_to_call, layers_to_call)
-    #             last_non_zero = column
-    #         else:
-    #             tails_map[column] = self.layers_index_reverse[column](tails_map[connections[0]], self.layers_index_reverse[connections[0]])
-    #             last_non_zero = column
-
-    #     return tails_map[0], tails_map[last_non_zero]
-    # TODO: replace with a cycle
-    def rec_imposer(self, column, tails_map):
-        if tails_map.get(column, None) is not None:
-            return None
-
-        column_values = self.matrix[:, column]
-        connections = np.where(column_values == 1)[0]
-
-        for index in connections:
-            if tails_map.get(index, None) is None:
-                self.rec_imposer(index, tails_map)
-
-        if not connections.size > 0:
-            if column == 0:
-                tails_map[column] = self.layers_index_reverse[column].init_layer(None)
-            last_non_zero = column
-
-        elif connections.size > 1:
-            tails_to_call = [tails_map[i] for i in connections]
-            layers_to_call = [self.layers_index_reverse[i] for i in connections]
-
-            tails_map[column] = self.layers_index_reverse[column](tails_to_call, layers_to_call)
-            last_non_zero = column
-
-        else:
-            tails_map[column] = self.layers_index_reverse[column](tails_map[connections[0]], self.layers_index_reverse[connections[0]])
-            last_non_zero = column
-
-        return last_non_zero
-
     def cycle_imposer(self, structure):
         layers_pool = [0]
         layers_pool_inited = {}
@@ -161,7 +80,7 @@ class IndividBase:
             layer_index = layers_pool[0]
             enter_layers = set(np.where(structure.matrix[:, layer_index] == 1)[0])
             # check if one of previous layers was not initialized
-            not_inited_layers = enter_layers - set(layers_pool_inited.keys())
+            not_inited_layers = [i for i in enter_layers if i not in (layers_pool_inited.keys())]
             not_inited_layers_selected = [layer for layer in not_inited_layers if layer not in layers_pool_removed]
 
             if not_inited_layers_selected:
@@ -173,7 +92,7 @@ class IndividBase:
 
             input_layers = [structure.layers_index_reverse[layer] for layer in enter_layers]
             input_layers = [layer for layer in input_layers if layer.config.get('rank', False)]
-            enter_layers = enter_layers - set(layers_pool_removed)
+            enter_layers = [i for i in enter_layers if i not in layers_pool_removed]
 
             if not input_layers and structure.layers_index_reverse[layer_index].layer_type == 'input':
                 inited_layer = structure.layers_index_reverse[layer_index].init_layer(None)
@@ -200,9 +119,8 @@ class IndividBase:
         return layers_pool_inited
 
     def init_tf_graph_cycle(self):
-        # TODO: finisher at the of the network
         """
-        Return tensorflow graph, configurated optimizer and loss type of this individ
+        Return tensorflow graph
         """
         if not self._architecture:
             raise Exception('Non initialized net')
@@ -216,63 +134,30 @@ class IndividBase:
 
         model = Model(inputs=[network_head], outputs=[network_tail])
 
-        if self._training_parameters['optimizer'] == 'adam':
-            optimizer = adam(
-                lr=self._training_parameters['optimizer_lr'],
-                decay=self._training_parameters['optimizer_decay'])
-        else:
-            optimizer = RMSprop(
-                lr=self._training_parameters['optimizer_lr'],
-                decay=self._training_parameters['optimizer_decay'])
+        return model
 
-        if self._task_type == 'classification':
-            if self.options['classes'] == 2:
-                loss = 'binary_crossentropy'
-            else:
-                loss = 'categorical_crossentropy'
-        else:
-            raise TypeError('{} value not supported'.format(self._task_type))
+    def dump(self):
+        buffer = {}
+        structure = self._architecture.dump()
+        name = self._name
+        stage = self.stage
+        options = self.options
+        history = self.history
 
-        return model, optimizer, loss
+        buffer['structure'] = structure
+        buffer['name'] = name
+        buffer['stage'] = stage
+        buffer['options'] = options
+        buffer['history'] = history
 
-    def init_tf_graph(self):
-        # TODO: finisher at the of the network
-        """
-        Return tensorflow graph, configurated optimizer and loss type of this individ
-        """
-        if not self._architecture:
-            raise Exception('Non initialized net')
+        return buffer
 
-        tails_map = {}
-        last_layer = None
-
-        # walk over all layers and connect them between each other
-        for column in range(len(self.layers_index_reverse)):
-            last_layer = self.rec_imposer(column, tails_map) or last_layer
-
-        network_head = tails_map[0]
-        network_tail = tails_map[last_layer]
-
-        model = Model(inputs=[network_head], outputs=[network_tail])
-
-        if self._training_parameters['optimizer'] == 'adam':
-            optimizer = adam(
-                lr=self._training_parameters['optimizer_lr'],
-                decay=self._training_parameters['optimizer_decay'])
-        else:
-            optimizer = RMSprop(
-                lr=self._training_parameters['optimizer_lr'],
-                decay=self._training_parameters['optimizer_decay'])
-
-        if self._task_type == 'classification':
-            if self.options['classes'] == 2:
-                loss = 'binary_crossentropy'
-            else:
-                loss = 'categorical_crossentropy'
-        else:
-            raise TypeError('{} value not supported'.format(self._task_type))
-
-        return model, optimizer, loss
+    def load(self, data_load):
+        self._architecture = Structure(None, None, data_load=data_load['structure'], distribution=self._distribution)
+        self._name = data_load['name']
+        self.stage = data_load['stage']
+        self.options = data_load['options']
+        self.history =  data_load['history']
 
     @property
     def layers_number(self):
