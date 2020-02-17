@@ -235,20 +235,6 @@ class IndividBase:
         return schema
 
     @property
-    def data_processing(self):
-        """
-        Get the data processing parameters
-        """
-        return self._data_processing
-
-    @property
-    def training_parameters(self):
-        """
-        Get the training parameters
-        """
-        return self._training_parameters
-
-    @property
     def result(self):
         """
         Get the result of the efficiency (f1 or AUC)
@@ -287,32 +273,6 @@ class IndividBase:
         Public method for calling the random architecture initialisation
         """
         self._random_init_architecture()
-
-    def random_init_data_processing(self):
-        """
-        Public method for calling the random data processing initialisation
-        """
-        return self._random_init_data_processing()
-
-    def random_init_training(self):
-        """
-        Public method for calling the random training initialisation
-        """
-        return self._random_init_training()
-
-    @data_processing.setter
-    def data_processing(self, data_processing):
-        """
-        Set a new data processing config
-        """
-        self._data_processing = data_processing
-
-    @training_parameters.setter
-    def training_parameters(self, training_parameters):
-        """
-        Set a new training parameters
-        """
-        self._training_parameters = training_parameters
 
     @architecture.setter
     def architecture(self, architecture):

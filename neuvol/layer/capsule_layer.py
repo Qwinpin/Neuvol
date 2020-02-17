@@ -41,7 +41,6 @@ def generate_complex_layers(structure, distribution, number_to_generate=5):
 def structure_parser(structure, number_to_generate):
     # remove first two layer - Input and embedder (in case of text)
     layer_indexes = list(structure.layers_index_reverse.keys())[1:-2]
-    print(layer_indexes)
     layer_indexes_random_sampled = np.random.choice(layer_indexes, number_to_generate, replace=False if len(layer_indexes) >= number_to_generate else True)
 
     sublayers_chains = []

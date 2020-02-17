@@ -14,6 +14,8 @@
 import copy
 from functools import wraps
 import json
+from IPython.display import SVG
+from keras.utils.vis_utils import model_to_dot
 
 import numpy as np
 
@@ -24,18 +26,19 @@ class Custom_Encoder(json.JSONEncoder):
     Custom encoder with numpy handling
     """
     def default(self, obj):
-        if isinstance(obj, np.integer):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+            np.int16, np.int32, np.int64, np.uint8,
+            np.uint16, np.uint32, np.uint64)):
             return int(obj)
 
-        elif isinstance(obj, np.floating):
+        elif isinstance(obj, (np.float_, np.float16, np.float32,
+            np.float64)):
             return float(obj)
 
-        # i. dont. know. how. this. happened.
-        elif isinstance(obj, np.bool_):
-            return bool(obj)
+        elif isinstance(obj,(np.ndarray,)):
+            return obj.tolist()
 
-        else:
-            return super(Custom_Encoder, self).default(obj)
+        return json.JSONEncoder.default(self, obj)
 
 
 def dump(data, file_name):
@@ -66,3 +69,12 @@ def parameters_copy(func):
         return func(*copies)
 
     return wrapper
+
+
+def visualize_graph(model, file=None):
+    if file is None:
+        return model_to_dot(model.init_tf_graph_cycle()).create(prog='dot', format='png')
+
+    else:
+        with open('{}.png'.format(file), 'wb') as f:
+            f.write(model_to_dot(model.init_tf_graph_cycle()).create(prog='dot', format='png'))

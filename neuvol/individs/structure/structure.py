@@ -623,8 +623,8 @@ class Structure:
         return buffer
 
     def load(self, data_load, distribution):
-        self._matrix = data_load['matrix']
-        self._matrix_mutated = data_load['matrix_mutated']
+        self._matrix = np.array(data_load['matrix'])
+        self._matrix_mutated = np.array(data_load['matrix_mutated'])
         self._layers_index_reverse = {key: Layer(value['layer_type'], distribution, None, None, None, value) for key, value in data_load['layers_index_reverse'].items()}
         self._layers_index_reverse_mutated = {key: Layer(value['layer_type'], distribution, None, None, None, value) for key, value in data_load['layers_index_reverse_mutated'].items()}
 
@@ -633,6 +633,7 @@ class Structure:
 
         self.mutations_pool = [MutationInjector(None, None, None, distribution, None, None, i) for i in data_load['mutations_list']]
         self._finisher = Layer(data_load['finisher']['layer_type'], distribution, None, None, None, data_load['finisher'])
+
         self.branchs_end = data_load['branchs_end']
         self.branchs_end = {int(key): value for key, value in self.branchs_end.items()}
 
