@@ -8,12 +8,17 @@ Neuvol is a genetic algorithm API for generating neural networks based on Keras.
 
 - Data in -> Neural Network Architecture out
 - A large number of allowed layers types
+- Complex crossing approaches
+- Modular structure
+- Keep the whole mutation history, resolve "dead" mutations such as cycling connections
+- All possible architecture manipulations: add/remove layer/connection
+- All possible structures: branches, skip-connections, combination of layers with different dimensions
+- On the fly shape analysis: add reshape for concatenations or for connecting layer with 3 output dimensions and layer with 1 input (like dense after convolution)
 
 ### Features:
 
 - Supported data types: texts, images
-- CNN, Dense, LSTM, Max polling are available
-- Dropout and reshape sub-layers (Flattern) are available too
+- The list of supported layers is constantly expanding and contains most popular of them
 
 ### TODO
 
@@ -21,7 +26,8 @@ Neuvol is a genetic algorithm API for generating neural networks based on Keras.
 - [x] Images support
 - [x] More available layers
 - [x] Logo
-- [ ] Serialiser
+- [x] Serialiser
 - [x] Complex layer generation
 - [ ] Experimental study
 - [ ] Visualization
+- [ ] Pytorch support
