@@ -11,4 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .cradle import cradle
+from .pairing_modules_interface import peform_pairing
+
+__all__ = ['peform_pairing']

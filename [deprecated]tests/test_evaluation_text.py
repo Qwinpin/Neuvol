@@ -31,7 +31,7 @@ class TestEvaluationText(unittest.TestCase):
         self.individ = cradle(0, **options)
         self.individ.architecture = build_test_architecture(options)
 
-        self.x = [' '.join([''.join(random.sample(string.ascii_lowercase, k=15)) for _ in range(25)]) for _ in range(1000)] 
+        self.x = [' '.join([''.join(random.sample(string.ascii_lowercase, k=15)) for _ in range(25)]) for _ in range(1000)]
         self.y = np.random.randint(0, 2, size=(1000)).tolist()
 
         self.evaluator = Evaluator(self.x, self.y, kfold_number=1)

@@ -17,9 +17,9 @@ from .base_mutation import MutatorBase
 from .mutation_modules import perform_mutation
 
 
-class MutatorImage(MutatorBase):
+class MutatorText(MutatorBase):
     """
-    Mutator class for visual data
+    Mutator class for textual data
     """
 
     @staticmethod
@@ -27,15 +27,18 @@ class MutatorImage(MutatorBase):
         """
         Mutate individ
         """
+        super(MutatorText, MutatorText).mutate(individ)
+
         mutation_type = np.random.choice([
             'architecture_part',
             'architecture_parameters',
-            'training_all',
-            'training_part',
             'architecture_add',
-            'architecture_remove'
+            'architecture_remove',
+            'training_all',
+            'training_part'
         ])
 
         individ = perform_mutation(individ, mutation_type)
+        individ.data_processing['sentences_length'] = individ.architecture[1].config['sentences_length']
 
         return individ

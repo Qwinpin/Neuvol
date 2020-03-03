@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .crossing import Crosser
-from .evaluation import Evaluator
-from .evolution import Evolution
-from .mutation import Mutator
+from .mutation import MutatorBase
 from .probabilty_pool import Distribution
+from .layer import layer, capsule_layer
+from .individs import cradle
+
+__all__ = ['Crosser', 'MutatorBase', 'Distribution', 'block', 'layer', 'cradle', 'capsule_layer']

@@ -15,12 +15,12 @@ import numpy as np
 
 from .base_pairing import CrosserBase
 from .pairing_modules import peform_pairing
-from ..architecture.individ_text import IndividText
+from ..individs.individ_image import IndividImage
 
 
-class CrosserText(CrosserBase):
+class CrosserImage(CrosserBase):
     """
-    Crossing class for textual data
+    Crossing class for visual data
     """
     @staticmethod
     def cross(father, mother, stage):
@@ -34,13 +34,12 @@ class CrosserText(CrosserBase):
         # and replace parameters from the first architecture
         # with parameters from the second
 
-        individ = IndividText(stage, parents=[father, mother], **father.options)
+        individ = IndividImage(stage, parents=[father, mother], **father.options)
         pairing_type = np.random.choice([
             'father_architecture',
             'father_training',
             'father_architecture_layers',
-            'father_architecture_parameter',
             'father_architecture_slice_mother',
-            'father_data_processing'])
+            'father_architecture_parameter'])
 
         return peform_pairing(individ, father, mother, pairing_type)

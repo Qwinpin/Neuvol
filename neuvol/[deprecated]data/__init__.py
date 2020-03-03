@@ -11,4 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .data import Data, DataGenerator
+from .data import Data
+
+__all__ = ['Data']

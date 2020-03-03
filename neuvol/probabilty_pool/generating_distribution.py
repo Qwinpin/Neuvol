@@ -11,20 +11,38 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import numpy as np
 
-from ..constants import GENERAL, LAYERS_POOL, SPECIAL, TRAINING
+from ..constants import FAKE, GENERAL, LAYERS_POOL, SPECIAL, TRAINING
 
 
-def parse_layer_const():
+def parse_mutation_const():
+    tmp_probability = 1
+    mutations_probability = {mutation: tmp_probability for mutation in GENERAL['mutation_type']}
+    # TODO: hm, some base?
+    mutations_probability['remove_connection'] = 0.2
+    mutations_probability['remove_layer'] = 0.15
+
+    return mutations_probability
+
+
+def parse_layer_const(probability_to_modify=None):
     """
     Parse all available layers and set initial probability
     """
-    # uniform distribution
-    tmp_probability = 1  # / len(LAYERS_POOL)
+    if probability_to_modify is not None:
+        layers_probability = dict(probability_to_modify)
 
-    # probability of each layer type
-    layers_probability = {layer: tmp_probability for layer in LAYERS_POOL}
+        # for special_layers in CUSTOM_LAYERS_MAP:
+        #     layers_probability[special_layers] = 1
+
+    else:
+        # uniform
+        tmp_probability = 1
+
+        # probability of each layer type
+        layers_probability = {layer: tmp_probability for layer in LAYERS_POOL}
 
     return layers_probability
 
@@ -41,7 +59,8 @@ def parse_layer_parameter_const():
         # for each layer's parameter we set probability of its value
         for parameter in LAYERS_POOL[layer]:
             tmp_probability = 1  # / len(LAYERS_POOL[layer][parameter])
-            layers_parameters_probability[layer][parameter] = {value: tmp_probability for value in LAYERS_POOL[layer][parameter]}
+            layers_parameters_probability[layer][parameter] = {value: tmp_probability
+                                                               for value in LAYERS_POOL[layer][parameter]}
 
     for layer in SPECIAL:
         layers_parameters_probability[layer] = {}
@@ -49,7 +68,8 @@ def parse_layer_parameter_const():
         # for each layer's parameter we set probability of its value
         for parameter in SPECIAL[layer]:
             tmp_probability = 1  # / len(SPECIAL[layer][parameter])
-            layers_parameters_probability[layer][parameter] = {value: tmp_probability for value in SPECIAL[layer][parameter]}
+            layers_parameters_probability[layer][parameter] = {value: tmp_probability
+                                                               for value in SPECIAL[layer][parameter]}
 
     return layers_parameters_probability
 
@@ -58,7 +78,7 @@ def parse_layers_number():
     """
     Parse all available number of layers and set initial probability
     """
-    tmp_probability = 1  # / len(GENERAL['layers_number'])
+    tmp_probability = 1
     layers_number_probability = {value: tmp_probability for value in GENERAL['layers_number']}
 
     return layers_number_probability
@@ -71,10 +91,25 @@ def parse_training_const():
     training_parameters_probability = {}
 
     for parameter in TRAINING:
-        tmp_probability = 1  # / len(TRAINING[parameter])
+        tmp_probability = 1
         training_parameters_probability[parameter] = {value: tmp_probability for value in TRAINING[parameter]}
 
     return training_parameters_probability
+
+
+def kernel(x, index_of_selected_value, coef=0.423):
+    """
+    Allows to change the distribution of the element according to the
+    distance to selected element
+
+    Arguments:
+        x {int} -- index of element in the distribution
+        index_of_selected_value {int} -- index of element, which is selected in the distribution
+
+    Returns:
+        float -- coefficient for the x element probability
+    """
+    return 1 - coef ** (1 / (1 + abs(index_of_selected_value - x)))
 
 
 class Distribution():
@@ -82,43 +117,104 @@ class Distribution():
     Here we evolve our own distribution for all population. At the end of the evolution
     it is possible to generate individs from this distribution
     """
-    _layers_probability = parse_layer_const()
-    _layers_parameters_probability = parse_layer_parameter_const()
-    _layers_number_probability = parse_layers_number()
-    _training_parameters_probability = parse_training_const()
-    _appeareance_increases_probability = True
-    _diactivated_layers = []
+    def __init__(self):
+        self._mutations_probability = parse_mutation_const()
+        self._layers_probability = parse_layer_const()
+        self._layers_parameters_probability = parse_layer_parameter_const()
+        self._layers_number_probability = parse_layers_number()
+        self._training_parameters_probability = parse_training_const()
+
+        # True value of this parameter leads to fast convergence
+        # TODO: options
+        self._appeareance_increases_probability = False
+        self._diactivated_layers = []
+        self._GENERAL = dict(GENERAL)
+        self._LAYERS_POOL = dict(LAYERS_POOL)
+        self.CUSTOM_LAYERS_MAP = dict()
+        self._SPECIAL = dict(SPECIAL)
+        self._TRAINING = dict(TRAINING)
+
+    def reset(self):
+        self._mutations_probability = parse_mutation_const()
+        self._layers_probability = parse_layer_const()
+        self._layers_parameters_probability = parse_layer_parameter_const()
+        self._layers_number_probability = parse_layers_number()
+        self._training_parameters_probability = parse_training_const()
+        self._appeareance_increases_probability = False
+        self._diactivated_layers = []
+        self.CUSTOM_LAYERS_MAP = {}
 
     def _increase_layer_probability(self, layer):
-        self._layers_probability[layer] += 1
+        #self._layers_probability[layer] += 0.1
+
+        a = list(self._layers_probability)
+
+        # stupid hack to solve None ordering
+        if isinstance(a[0], str):
+            gag = '0'
+        else:
+            gag = 0
+
+        a = sorted(a, key=lambda x: x if x else gag)
+        index_of_selected_value = a.index(layer)
+
+        for i, layer in enumerate(a):
+            self._layers_probability[layer] += kernel(i, index_of_selected_value, 0.95)
+
+    def _update_layer_probability_pool(self):
+        self._layers_probability = parse_layer_const(self._layers_probability)
 
     def _increase_layer_parameters_probability(self, layer, parameter, value):
         a = list(self._layers_parameters_probability[layer][parameter])
 
-        a.sort()
+        # stupid hack to solve None ordering
+        if isinstance(a[0], str):
+            gag = '0'
+        else:
+            gag = 0
+
+        a = sorted(a, key=lambda x: x if x else gag)
         index_of_selected_value = a.index(value)
-        kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
 
         for i, value in enumerate(a):
-            self._layers_parameters_probability[layer][parameter][value] += kernel(i)
+            self._layers_parameters_probability[layer][parameter][value] += kernel(i, index_of_selected_value)
 
     def _increase_training_parameters(self, parameter, value):
         a = list(self._training_parameters_probability[parameter])
 
-        a.sort()
+        # stupid hack to solve None ordering
+        if isinstance(a[0], str):
+            gag = '0'
+        else:
+            gag = 0
+
+        a = sorted(a, key=lambda x: x if x else gag)
         index_of_selected_value = a.index(value)
-        kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
 
         for i, value in enumerate(a):
-            self._training_parameters_probability[parameter][value] += kernel(i)
+            self._training_parameters_probability[parameter][value] += kernel(i, index_of_selected_value)
 
-    @classmethod
-    def layer(cls):
+    def mutation(self):
+        """
+        Get random mutation type
+        """
+        tmp = {key: value for key, value in self._mutations_probability.items()}
+        a = list(tmp)
+
+        # we should normalize list of probabilities
+        p = np.array(list(tmp.values()))
+        p = p / p.sum()
+
+        choice = np.random.choice(a, p=p)
+
+        return choice
+
+    def layer(self):
         """
         Get the random layer's type
         """
         # We use dictionary of probabilities and exclude disactivated layers
-        tmp = {key: value for key, value in cls._layers_probability.items() if key not in cls._diactivated_layers}
+        tmp = {key: value for key, value in self._layers_probability.items() if key not in self._diactivated_layers}
         a = list(tmp)
 
         # we should normalize list of probabilities
@@ -128,120 +224,119 @@ class Distribution():
 
         choice = np.random.choice(a, p=p)
 
-        if cls._appeareance_increases_probability:
+        if self._appeareance_increases_probability:
             # now we increase the probability of this layer to be appear
-            cls._layers_probability[choice] += 1
+            self._increase_layer_probability(choice)
 
         return choice
 
-    @classmethod
-    def layer_parameters(cls, layer, parameter):
+    def layer_parameters(self, layer, parameter):
         """
         Get random parameters for the layer
         """
-        a = list(cls._layers_parameters_probability[layer][parameter])
+        a = list(self._layers_parameters_probability[layer][parameter])
+        if not a:
+            return None
 
         # we should normalize list of probabilities
-        p = np.array(list(cls._layers_parameters_probability[layer][parameter].values()))
+        p = np.array(list(self._layers_parameters_probability[layer][parameter].values()))
         p = p / p.sum()
 
         choice = np.random.choice(a, p=p)
 
-        if cls._appeareance_increases_probability:
+        if self._appeareance_increases_probability:
             # now one important thing - imagine parameters as a field of values
             # we chose one value, and now we want to increase the probability of this value
             # but we also should increase probabilities of near values
-            a.sort()
-            index_of_selected_value = a.index(choice)
-            kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
-
-            for i, value in enumerate(a):
-                cls._layers_parameters_probability[layer][parameter][value] += kernel(i)
+            self._increase_layer_parameters_probability(layer, parameter, choice)
 
         return choice
 
-    @classmethod
-    def layers_number(cls):
+    def layers_number(self):
         """
         Get the number of layers
         """
-        a = list(cls._layers_number_probability)
+        a = list(self._layers_number_probability)
 
         # we should normalize list of probabilities
-        p = np.array(list(cls._layers_number_probability.values()))
+        p = np.array(list(self._layers_number_probability.values()))
         p = p / p.sum()
 
         choice = np.random.choice(a, p=p)
 
-        if cls._appeareance_increases_probability:
+        if self._appeareance_increases_probability:
             # now one important thing - imagine parameters as a field of values
             # we chose one value, and now we want to increase the probability of this value
             # but we also should increase probabilities of near values
-            a.sort()
+            # stupid hack to solve None ordering
+            if isinstance(a[0], str):
+                gag = '0'
+            else:
+                gag = 0
+
+            a = sorted(a, key=lambda x: x if x else gag)
             index_of_selected_value = a.index(choice)
-            kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
 
             for i, value in enumerate(a):
-                cls._layers_number_probability[value] += kernel(i)
+                self._layers_number_probability[value] += kernel(i, index_of_selected_value)
 
         return choice
 
-    @classmethod
-    def training_parameters(cls, parameter):
+    def training_parameters(self, parameter):
         """
         Get the training parameter
         """
-        a = list(cls._training_parameters_probability[parameter])
+        a = list(self._training_parameters_probability[parameter])
 
         # we should normalize list of probabilities
-        p = np.array(list(cls._training_parameters_probability[parameter].values()))
+        p = np.array(list(self._training_parameters_probability[parameter].values()))
         p = p / p.sum()
 
         choice = np.random.choice(a, p=p)
 
-        if cls._appeareance_increases_probability:
+        if self._appeareance_increases_probability:
             # now one important thing - imagine parameters as a field of values
             # we chose one value, and now we want to increase the probability of this value
             # but we also should increase probabilities of near values
-            a.sort()
-            index_of_selected_value = a.index(choice)
-            kernel = lambda x: 2.71 ** (1 / (1 + abs(index_of_selected_value - x)))
-
-            for i, value in enumerate(a):
-                cls._training_parameters_probability[parameter][value] += kernel(i)
+            self._increase_training_parameters(parameter, choice)
 
         return choice
 
-    @classmethod
-    def parse_architecture(cls, individ):
+    def parse_architecture(self, individ):
         """
         Parse architecture and increase the probability of its elements
         """
         for block in individ.architecture:
-            if block.type != 'input' and block.type != 'embedding' and block.type != 'last_dense' and block.type != 'flatten':
-                cls._increase_layer_probability(cls, block.type)
+            if block.type != 'input' and \
+               block.type != 'embedding' and \
+               block.type != 'last_dense' and \
+               block.type != 'flatten':
+                self._increase_layer_probability(block.type)
 
                 for layer in block.layers:
                     for parameter in layer.config:
-                        cls._increase_layer_parameters_probability(cls, block.type, parameter, layer.config[parameter])
+                        self._increase_layer_parameters_probability(block.type, parameter, layer.config[parameter])
 
         for parameter in individ.training_parameters:
-            cls._increase_training_parameters(cls, parameter, individ.training_parameters[parameter])
+            self._increase_training_parameters(parameter, individ.training_parameters[parameter])
 
-    @classmethod
-    def get_probability(cls):
+    def get_probability(self):
         """
         Get dictionary of probabilities
         """
-        return cls._layers_parameters_probability, cls._layers_probability
+        return self._layers_parameters_probability, self._layers_probability
 
-    @classmethod
-    def set_layer_status(cls, layer, active=True):
+    def set_layer_status(self, layer, active=True):
         """
         Activate or disactivate one type of layer in case of incompatibilities this data type or task
         """
-        if layer in cls._diactivated_layers and active is True:
-            cls._diactivated_layers.remove(layer)
+        if layer in self._diactivated_layers and active is True:
+            self._diactivated_layers.remove(layer)
 
-        elif layer not in cls._diactivated_layers and active is False:
-            cls._diactivated_layers.append(layer)
+        elif layer not in self._diactivated_layers and active is False:
+            self._diactivated_layers.append(layer)
+
+    def register_new_layer(self, new_layer):
+        new_name = 'CUSTOM_{}_{}_{}'.format(FAKE.name().replace(' ', '_'), new_layer.size, new_layer.width)
+        self._LAYERS_POOL[new_name] = {}
+        self.CUSTOM_LAYERS_MAP[new_name] = copy.deepcopy(new_layer)

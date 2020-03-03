@@ -23,70 +23,148 @@ FLOAT32 = np.float32
 
 # General parameters
 GENERAL = {
-    'layers_number': [i for i in range(1, 10)]
+    'layers_number': [i for i in range(1, 10)],
+    'mutation_type': ['add_layer', 'add_connection', 'remove_connection', 'remove_layer'],
+    'mutation_rate_splitting': 1.5,
+    'mutation_rate_merge': 1.5,
+    'mutation_splitting': {
+        'rates': [0.7, 0.2, 0.07, 0.03],
+        'number_of_splits': [2, 3, 4, 5]
+    },
+    'graph_parser': {
+        'depth': 5,
+        'min_size': 1
+    }
 }
 
 # Training parameters
 TRAINING = {
-    'batchs': [i for i in range(8, 512, 32)],
-    'epochs': [i for i in range(1, 100) if i % 2],
-    'optimizer': ['adam', 'RMSprop'],
+    'batchs': [4],  # [i for i in range(8, 512, 32)],
+    'epochs': [200],  # [i for i in range(1, 100) if i % 2],
+    'optimizer': ['adam'],  # ['adam', 'RMSprop'],
     'optimizer_decay': [FLOAT32(i / 10000) for i in range(1, 500, 1)],
     'optimizer_lr': [FLOAT32(i / 10000) for i in range(1, 500, 1)]}
 
 # Specific parameters
 SPECIAL = {
     'embedding': {
+        'input_rank': [2],
         'vocabular': [30000],
         'sentences_length': [i for i in range(1, 150, 1)],
         'embedding_dim': [i for i in range(32, 300, 2)],
-        'trainable': [False, True]}}
+        'trainable': [False, True]},
+    'zeropadding1D': {
+        'input_rank': [],  # set manually
+        'padding': []},
+    'reshape': {  # set manually
+        'input_rank': [],
+        'target_shape': []},
+    'flatten': {
+        'input_rank': [], },
+    'concat': {
+        'input_rank': [],
+    }}
 
 LAYERS_POOL = {
     'bi': {
-        'units': [i for i in range(1, 32, 1)],
+        'input_rank': [3],
+        'units': [i for i in range(1, 32, 4)],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
-        'activation': ['tanh', 'relu'],
+        'activation': ['tanh', 'relu', None],
         'implementation': [1, 2],
         'return_sequences': [True, False]},
 
     'lstm': {
+        'input_rank': [3],
         'units': [i for i in range(1, 32, 1)],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
-        'activation': ['tanh', 'relu'],
+        'activation': ['tanh', 'relu', None],
         'implementation': [1, 2],
         'return_sequences': [True, False]},
 
     'cnn': {
-        'filters': [i for i in range(4, 128, 2)],
-        'kernel_size': [i for i in range(1, 9, 1)],
+        'input_rank': [3],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        # 'strides': [1],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same', 'causal'],
-        'activation': ['tanh', 'relu'],
+        'padding': ['same'],
+        'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'cnn2': {
-        'filters': [i for i in range(4, 128, 2)],
-        'kernel_size': [i for i in range(1, 9, 1)],
+        'input_rank': [4],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        # 'strides': [1],
         'strides': [1, 2, 3],
         'padding': ['valid', 'same'],
-        'activation': ['tanh', 'relu'],
+        # 'padding': ['same'],
+        'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'max_pool': {
-        'pool_size': [i for i in range(2, 16)],
+        'input_rank': [3],
+        'pool_size': [i for i in range(0, 16, 2)][1:],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same']},
+        'padding': ['valid', 'same'],
+        # 'padding': ['same'],
+        },
 
     'max_pool2': {
-        'pool_size': [i for i in range(2, 16)],
+        'input_rank': [4],
+        'pool_size': [i for i in range(0, 16, 2)][1:],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same']},
+        'padding': ['valid', 'same'],
+        'padding': ['same'],},
 
     'dense': {
-        'units': [i for i in range(4, 512, 2)],
-        'activation': ['softmax', 'sigmoid']},
+        'input_rank': [],
+        'units': [i for i in range(0, 512, 16)][1:] + [1],
+        'activation': ['relu', 'softmax', 'sigmoid', None]},
 
-    'dropout': {'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]}}
+    'dropout': {
+        'input_rank': [],
+        'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]},
+
+    'repeatvector': {
+        'input_rank': [2],
+        'n': [i for i in range(1, 5)]},
+
+    'separablecnn': {
+        'input_rank': [3],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        'strides': [1],
+        # 'strides': [1, 2, 3],
+        # 'padding': ['valid', 'same'],
+        'padding': ['same'],
+        'activation': ['tanh', 'relu', None],
+        'dilation_rate': [1, 2, 3]},
+
+    'separablecnn2': {
+        'input_rank': [4],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        'strides': [1],
+        # 'strides': [1, 2, 3],
+        'padding': ['valid', 'same'],
+        'padding': ['same'],
+        'activation': ['tanh', 'relu', None],
+        'dilation_rate': [1, 2, 3]},
+
+    'decnn2': {
+        'input_rank': [4],
+        'filters': [i for i in range(0, 128, 16)][1:] + [1],
+        'kernel_size': [i for i in range(1, 11, 2)],
+        'strides': [1],
+        # 'strides': [1, 2, 3],
+        'padding': ['valid', 'same'],
+        'padding': ['same'],
+        'output_padding': [i for i in range(1, )] + [None],
+        'activation': ['tanh', 'relu', None],
+        'dilation_rate': [1, 2, 3]}, }
+
 
 POOL_SIZE = len(LAYERS_POOL)
