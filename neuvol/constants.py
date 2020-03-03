@@ -32,8 +32,8 @@ GENERAL = {
         'number_of_splits': [2, 3, 4, 5]
     },
     'graph_parser': {
-        'depth': 7,
-        'min_size': 3
+        'depth': 5,
+        'min_size': 1
     }
 }
 
@@ -116,7 +116,7 @@ LAYERS_POOL = {
         'input_rank': [4],
         'pool_size': [i for i in range(0, 16, 2)][1:],
         'strides': [i for i in range(2, 8)],
-        #'padding': ['valid', 'same'],
+        'padding': ['valid', 'same'],
         'padding': ['same'],},
 
     'dense': {
@@ -149,7 +149,7 @@ LAYERS_POOL = {
         'kernel_size': [i for i in range(1, 11, 2)],
         'strides': [1],
         # 'strides': [1, 2, 3],
-        # 'padding': ['valid', 'same'],
+        'padding': ['valid', 'same'],
         'padding': ['same'],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
@@ -160,7 +160,7 @@ LAYERS_POOL = {
         'kernel_size': [i for i in range(1, 11, 2)],
         'strides': [1],
         # 'strides': [1, 2, 3],
-        # 'padding': ['valid', 'same'],
+        'padding': ['valid', 'same'],
         'padding': ['same'],
         'output_padding': [i for i in range(1, )] + [None],
         'activation': ['tanh', 'relu', None],

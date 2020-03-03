@@ -38,15 +38,16 @@ def generate_complex_layers(structure, distribution, number_to_generate=5):
         distribution.register_new_layer(new_layer)
 
 
-def structure_parser(structure, number_to_generate):
+def structure_parser(structure, number_to_generate, start_point=None, depth=None):
+    depth = depth or GENERAL['graph_parser']['depth']
     # remove first two layer - Input and embedder (in case of text)
-    layer_indexes = list(structure.layers_index_reverse.keys())[1:-2]
-    layer_indexes_random_sampled = np.random.choice(layer_indexes, number_to_generate, replace=False if len(layer_indexes) >= number_to_generate else True)
+    layer_indexes = list(structure.layers_index_reverse.keys())[1:-1]
+    layer_indexes_random_sampled = [start_point] if start_point else np.random.choice(layer_indexes, number_to_generate, replace=False if len(layer_indexes) >= number_to_generate else True)
 
     sublayers_chains = []
 
     for index in layer_indexes_random_sampled:
-        sublayers_chain = sublayer_parser(index, structure.matrix[:-2, :-2], None)
+        sublayers_chain = sublayer_parser(index, structure.matrix[:-2, :-2], depth, None, 0)
 
         flatten_sublayers_chain = flatten(sublayers_chain)
 
@@ -67,10 +68,10 @@ def flatten(chain):
     return f
 
 
-def sublayer_parser(start_point, matrix, sub_layer=None, level=0):
+def sublayer_parser(start_point, matrix, depth, sub_layer=None, level=0):
     level += 1
-
-    if level >= GENERAL['graph_parser']['depth']:
+    
+    if level >= depth:
         return [sub_layer]
 
     if sub_layer is None:
@@ -79,14 +80,14 @@ def sublayer_parser(start_point, matrix, sub_layer=None, level=0):
     sub_layer.append(start_point)
     next_step = np.where(matrix[start_point] == 1)[0]
 
-    if level >= GENERAL['graph_parser']['depth']:
+    if level >= depth:
         return sub_layer
 
     elif len(next_step) == 1:
-        new_chains = sublayer_parser(next_step[0], matrix, list(sub_layer))
+        new_chains = sublayer_parser(next_step[0], matrix, depth, list(sub_layer), level)
 
     elif len(next_step) > 1:
-        new_chains = [sublayer_parser(step, matrix, list(sub_layer)) for step in next_step]
+        new_chains = [sublayer_parser(step, matrix, depth, list(sub_layer), level) for step in next_step]
 
     else:
         return sub_layer
@@ -94,8 +95,15 @@ def sublayer_parser(start_point, matrix, sub_layer=None, level=0):
     return new_chains
 
 
-def detect_best_combination(new_chains):
-    if max([len(chain) for chain in new_chains]) < GENERAL['graph_parser']['min_size']:
+def detect_best_combination(new_chains, min_size=None):
+    min_size = min_size or GENERAL['graph_parser']['min_size']
+    
+    new_chains = [chain for chain in new_chains if len(chain) >= min_size]
+    # if max([len(chain) for chain in new_chains]) < min_size:
+    #     return None
+    if len(new_chains) == 1:
+        return new_chains
+    elif len(new_chains) == 0:
         return None
 
     last_indexes = [i[-1] for i in new_chains]

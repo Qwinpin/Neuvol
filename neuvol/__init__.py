@@ -11,11 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .config import SESSION
 from .crossing import Crosser
 from .mutation import MutatorBase
 from .probabilty_pool import Distribution
 from .layer import layer, capsule_layer
 from .individs import cradle
 
-__all__ = ['SESSION', 'Crosser', 'MutatorBase', 'Distribution', 'block', 'layer', 'cradle', 'capsule_layer']
+__all__ = ['Crosser', 'MutatorBase', 'Distribution', 'block', 'layer', 'cradle', 'capsule_layer']

@@ -240,6 +240,10 @@ class IndividBase:
         Get the result of the efficiency (f1 or AUC)
         """
         return self._result
+    
+    @name.setter
+    def name(self, value):
+        self._name = value
 
     @result.setter
     def result(self, value):
