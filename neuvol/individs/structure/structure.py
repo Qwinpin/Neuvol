@@ -577,7 +577,7 @@ class Structure:
 
         self._layers_index_reverse_updated = True
         self._layers_index_reverse_mutated = layers_index_reverse
-    
+
     def freeze_state(self):
         for mutation in self.mutations_pool:
             if mutation.config.get('state', None) == 'broken':
@@ -586,10 +586,10 @@ class Structure:
         self._matrix, self._layers_index_reverse, self.branchs_end, self.branchs_counter = self.mutations_applier(
             self._matrix, self._layers_index_reverse,
             self.branchs_end, self.branchs_counter)
-        
+
         self.mutations_pool = []
-        
-        
+
+
     @property
     def matrix(self):
         """
@@ -649,7 +649,7 @@ class Structure:
         self.branchs_end = data_load['branchs_end']
         self.branchs_end = {int(key): value for key, value in self.branchs_end.items()}
 
-        self.branchs_count = data_load['branchs_count']
+        self.branchs_counter = data_load['branchs_count']
 
 
 class StructureText(Structure):
