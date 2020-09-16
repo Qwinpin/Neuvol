@@ -117,6 +117,9 @@ def _probability_from_branchs(individ, prior_rate, delimeter=1):
 
 
 class MutationInjector:
+    """
+    Inject mutation based on selected mutation type
+    """
     def __init__(self, mutation_type, matrix, layers_types, distribution, config=None, layer=None, data_load=None):
         if data_load is not None:
             self.load(data_load, distribution)
@@ -199,7 +202,7 @@ class MutationInjector:
         buffer['mutation_type'] = self.mutation_type
         if self._layer is None:
             buffer['layer'] = ''
-        elif type(self._layer) == int:
+        elif type(self._layer) == int or type(self._layer) == str:
             buffer['layer'] = self._layer
         else:
             buffer['layer'] = self._layer.dump()

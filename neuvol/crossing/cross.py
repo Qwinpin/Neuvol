@@ -20,77 +20,107 @@ from ..utils import parameters_copy
 
 class Crosser:
     def cross(self, individ1, individ2, start_point=1, depth=1000):
-        # detect branch in individ1, which will replace branch in individ2
-        ind1_complex = structure_parser(individ1.architecture, 1, start_point, depth)
-        # detect complete path
-        ind1_complex = [detect_best_combination(i) for i in ind1_complex]
-        ind1_complex = [remove_duplicated_branches(new_chain) for new_chain in ind1_complex if new_chain][0]
-        if len(ind1_complex) == 0:
+        """
+        We asssume that individ2 has high fit measure and individ1 has small number of parameters
+
+        Args:
+            individ1 {IndividBase} - donor for the crossing - is used to find the less complex structure
+            individ2 {IndividBase} - recepient of the new structure
+            start_point {int} - the number of the node from which we search for the subgraphs
+            depth {int} - the length of the subgraphs we are looking for
+
+        Return:
+            {IndividBase} - new individ
+        """
+        # detect subgraph in individ1, which will replace subgraph in individ2
+        ind1_subgraph = structure_parser(individ1.architecture, 1, start_point, depth)
+        # detect complete paths with the same start and end points
+        ind1_subgraph = [detect_best_combination(i) for i in ind1_subgraph]
+        ind1_subgraph = [remove_duplicated_branches(new_chain) for new_chain in ind1_subgraph if new_chain][0]
+        if len(ind1_subgraph) == 0:
             return None
-        # select the first detected path
-        ind1_complex = [i for i in ind1_complex if i]
-        ind1_complex = [(i, self.calculate_complexity(individ1, i)) for i in ind1_complex]
-        # select the most complex branch to cut
-        
-        max_complexity = max([i[1] for i in ind1_complex])
-        ind1_complex = [i[0] for i in ind1_complex if i[1] == max_complexity][0]
+
+        # remove empty paths
+        ind1_subgraph = [i for i in ind1_subgraph if i]
+        ind1_subgraph = [(i, self.calculate_complexity(individ1, i)) for i in ind1_subgraph]
+
+        # select the less complex branch to inject
+        min_complexity = min([i[1] for i in ind1_subgraph])
+        ind1_branch = [i[0] for i in ind1_subgraph if i[1] == min_complexity][0]
 
         # detect branch in individ2, which will be dropped in invidid2
-        ind2_complex = structure_parser(individ2.architecture, 1, start_point, depth)
-        ind2_complex = [detect_best_combination(i) for i in ind2_complex]
-        ind2_complex = [remove_duplicated_branches(new_chain) for new_chain in ind2_complex if new_chain][0]
-        if len(ind2_complex) == 0:
+        ind2_subgraph = structure_parser(individ2.architecture, 1, start_point, depth)
+        ind2_subgraph = [detect_best_combination(i) for i in ind2_subgraph]
+        ind2_subgraph = [remove_duplicated_branches(new_chain) for new_chain in ind2_subgraph if new_chain][0]
+        if len(ind2_subgraph) == 0:
             return None
-        ind2_complex = [i for i in ind2_complex if i]
-        ind2_complex = [(i, self.calculate_complexity(individ2, i)) for i in ind2_complex]
-        # select the less complex branch to inject
-        
-        min_complexity = max([i[1] for i in ind2_complex])
-        ind2_complex = [i[0] for i in ind2_complex if i[1] == min_complexity][0]
-        
+        ind2_subgraph = [i for i in ind2_subgraph if i]
+        ind2_subgraph = [(i, self.calculate_complexity(individ2, i)) for i in ind2_subgraph]
+        # select the most complex branch to cut
+
+        max_complexity = max([i[1] for i in ind2_subgraph])
+        ind2_branch = [i[0] for i in ind2_subgraph if i[1] == max_complexity][0]
+
         # select start node - from which cut the selected graph
         # select target node - the end of the selected graph
-        from_index = np.where(individ2.matrix[:, ind2_complex[0]] == 1)[0]
+        from_index = np.where(individ2.matrix[:, ind2_branch[0]] == 1)[0]
         if len(from_index) == 0:
             from_index = None
         else:
             from_index = from_index[0]
 
-        to_index = np.where(individ2.matrix[ind2_complex[-1]] == 1)[0]
+        to_index = np.where(individ2.matrix[ind2_branch[-1]] == 1)[0]
         if len(to_index) == 0:
             to_index = None
         else:
             to_index = to_index[0]
-        
+
         if from_index is not None:
-            ind2_complex.insert(0, from_index)
+            ind2_branch.insert(0, from_index)
         else:
-            from_index = ind2_complex[0]
-                
+            from_index = ind2_branch[0]
+
         if to_index is not None:
-            ind2_complex.insert(-1, to_index)
+            ind2_branch.insert(-1, to_index)
         else:
-            to_index = ind2_complex[-1]
-        
+            to_index = ind2_branch[-1]
+
         # if the target node - finisher layer, replace by the last node in the selected graph
         # finisher layer is calculated on the fly and that can break mutations
         if to_index == list(individ2.layers_index_reverse.keys())[-1]:
-            to_index = ind2_complex[-1]
-        
-        self.cut_branch(individ2, ind2_complex)
-        self.inject_branch(individ2, individ1, ind1_complex, from_index, to_index)
+            to_index = ind2_branch[-1]
+
+        self.cut_branch(individ2, ind2_branch)
+        self.inject_branch(individ2, individ1, ind1_branch, from_index, to_index)
 
         return individ2
-    
+
     def calculate_complexity(self, individ, branch):
+        """
+        Calculate summary number of parameters of the individ
+
+        Args:
+            individ {IndividBase}
+            branch {list{int}} - list of subgraph layers, which complexity is calculated
+
+        Return:
+            {int} - number of parameters inside selected branch
+        """
         complexity = 0
         for layer in branch:
             if individ.layers_index_reverse[layer].config.get('shape', None) is not None:
                 complexity += np.prod(individ.layers_index_reverse[layer].shape[1:])
-                
+
         return complexity
 
     def cut_branch(self, individ, branch):
+        """
+        Remove selected branch from the structure using mutation mechanism
+
+        Args:
+            individ {IndividBase}
+            branch {list{int}} - list of subgraph layers, which should be cut
+        """
         for index in [branch[i: i + 2] for i in range(len(branch[::2]) + 1)]:
             if len(index) != 2:
                 return False
@@ -102,6 +132,16 @@ class Crosser:
             individ.add_mutation(remove_connection_mutation)
 
     def inject_branch(self, individ, individ_donor, branch, from_index, to_index):
+        """
+        Remove selected branch from the structure using mutation mechanism
+
+        Args:
+            individ {IndividBase} - individ for the injection
+            individ_donor {IndividBase} - individ from which we select the layers to inject
+            branch {list{int}} - list of subgraph layers, which should be injected
+            from_index {int} - the node, from which we start the injection
+            to_index {int} - the node, to which we inject the branch
+        """
         tmp_map = {}
         # layers_reverse is used to get new layer index after mutation
         # [:-1] - because of last layer, which is temporary finisher
@@ -110,12 +150,6 @@ class Crosser:
         for index in branch[::-1]:
             # if this index was added before - just add required connection withour layer duplication
             if tmp_map.get(index, None) is None:
-#                 remove_connection_mutation = MutationInjector(None, None, None, None)
-#                 remove_connection_mutation.mutation_type = 'remove_connection'
-#                 remove_connection_mutation.after_layer_index = from_index
-#                 remove_connection_mutation.before_layer_index = to_index
-
-#                 individ.add_mutation(remove_connection_mutation)
                 inject_layer_mutation = MutationInjector(None, None, None, None)
                 inject_layer_mutation.mutation_type = 'inject_layer'
                 inject_layer_mutation.layer = individ_donor.layers_index_reverse[index]
