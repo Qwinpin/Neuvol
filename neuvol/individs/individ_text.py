@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .individ_base import IndividBase
-from ..layer.block import Layer
+from ..layer import Layer
 from .structure import StructureText
 
 

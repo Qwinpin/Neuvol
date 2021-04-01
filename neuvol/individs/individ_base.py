@@ -16,7 +16,7 @@ from keras.optimizers import adam, RMSprop
 import numpy as np
 
 from ..constants import EVENT, FAKE, TRAINING
-from ..layer.block import Layer
+from ..layer import Layer
 from ..probabilty_pool import Distribution
 from .structure import Structure
 from ..utils import dump

@@ -16,5 +16,6 @@ from .mutation import MutatorBase
 from .probabilty_pool import Distribution
 from .layer import layer, capsule_layer
 from .individs import cradle
+from .individs import IndividText, IndividImage
 
-__all__ = ['Crosser', 'MutatorBase', 'Distribution', 'block', 'layer', 'cradle', 'capsule_layer']
+__all__ = ['Crosser', 'MutatorBase', 'Distribution', 'layer', 'cradle', 'capsule_layer',  'IndividText', 'IndividImage']

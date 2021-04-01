@@ -13,5 +13,7 @@
 # limitations under the License.
 from .cradle import cradle
 from .structure import StructureImage, StructureText
+from .individ_image import IndividImage
+from .individ_text import IndividText
 
-__all__ = ['cradle', 'StructureText', 'StructureImage']
+__all__ = ['cradle', 'StructureText', 'StructureImage', 'IndividImage', 'IndividText']
