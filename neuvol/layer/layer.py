@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
-from keras.layers import (Bidirectional, concatenate, Conv1D, Conv2D, Dense, Dropout,
-                          Embedding, Flatten, Input, MaxPool1D, MaxPool2D, Reshape, RepeatVector,
-                          SeparableConv1D, SeparableConv2D, Conv2DTranspose)
-from keras.layers.recurrent import LSTM
+import torch
 import math
 import numpy as np
 
@@ -72,12 +69,16 @@ class LayerBase:
         # in case of concatenation
         if isinstance(net, list):
             concat_layer = Layer('concat', self.distribution)
-            net = concat_layer(net, previous_layer)
+            concat_layer_instance, axis = concat_layer(net, previous_layer)
+            # print(concat_layer_instance)
 
             previous_layer = concat_layer
+            net = None
+        else:
+            concat_layer_instance = None,
+            axis = None
 
         reshape_layer = self._init_reshape_layer(previous_layer)
-
         if reshape_layer is None:
             self.config['rank'] = self.calculate_rank(previous_layer)
             self.config['shape'] = self.calculate_shape(previous_layer)
@@ -87,20 +88,24 @@ class LayerBase:
 
         if self.config['shape'] is None:
             self.config['state'] = 'broken'
-            return net
+            return None  # net
+        
+        print(concat_layer_instance, axis)
 
         if reshape_layer is not None:
-            new_new = reshape_layer(net, previous_layer)
+            reshape_layer_instance = reshape_layer(net, previous_layer)[-1]
+            previous_layer = reshape_layer
         else:
-            new_new = net
+            reshape_layer_instance = None
+            # new_new = net
 
         layer_instance = self.init_layer(previous_layer)
-        try:
-            new_net = layer_instance(new_new)
-        except:
-            raise
+        # try:
+        #     new_net = layer_instance(new_new)
+        # except:
+        #     raise
 
-        return new_net
+        return [concat_layer_instance, axis], reshape_layer_instance, layer_instance
 
     def init_layer(self, previous_layer):
         """
@@ -260,79 +265,55 @@ class LayerLSTM(LayerBase):
             self.config['return_sequences'] = False
 
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = LSTM(
-            units=self.config['units'],
-            recurrent_dropout=self.config['recurrent_dropout'],
-            activation=self.config['activation'],
-            implementation=self.config['implementation'],
-            return_sequences=self.config['return_sequences'])
+        # super().init_layer(previous_layer)
+        input_channels = previous_layer.shape[-1]
 
-        return layer_tf
+        return torch.nn.LSTM(
+            input_size=input_channels,
+            hidden_size=self.config['hidden_size'],
+            num_layers=self.config['units'],
+            bias=True,
+            batch_first=True,
+            # dropout=self.config['recurrent_dropout'],
+            bidirectional=bool(self.config['bidirectional'])
+        )
 
     def calculate_rank(self, previous_layer):
-        if self.config['return_sequences']:
-            rank = 3
-        else:
-            rank = 2
+        rank = 3
 
         return rank
 
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
 
-        if self.config['return_sequences']:
-            shape = (None, previous_shape[1:-1], self.config['units'])
-        else:
-            shape = (None, self.config['units'])
-
-        return shape
-
-
-class LayerBiLSTM(LayerLSTM):
-    def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Bidirectional(
-            LSTM(
-                units=self.config['units'],
-                recurrent_dropout=self.config['recurrent_dropout'],
-                activation=self.config['activation'],
-                implementation=self.config['implementation'],
-                return_sequences=self.config['return_sequences']))
-
-        return layer_tf
-
-    def calculate_shape(self, previous_layer):
-        previous_shape = previous_layer.shape
-
-        if self.config['return_sequences']:
-            shape = (None, previous_shape[1:-1], 2*self.config['units'])
-        else:
-            shape = (None, 2*self.config['units'])
-
+        bidirectional_multiplier = 2 if self.config['bidirectional'] else 1
+        shape = (None, previous_shape[1], bidirectional_multiplier * self.config['hidden_size'])
         return shape
 
 
 class LayerCNN1D(LayerBase):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Conv1D(
-            filters=self.config['filters'],
-            kernel_size=[self.config['kernel_size']],
-            strides=[self.config['strides']],
-            padding=self.config['padding'],
-            dilation_rate=tuple([self.config['dilation_rate']]),
-            activation=self.config['activation'])
+        # super().init_layer(previous_layer)
+        input_channels = previous_layer.shape[1]
+        padding_mode = 'zeros'
 
-        return layer_tf
+        return torch.nn.Conv1d(
+            in_channels=input_channels,
+            out_channels=self.config['filters'],
+            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
+            stride=[self.config['strides'], self.config['strides']],
+            padding=tuple(self.config['padding']),
+            padding_mode=padding_mode,
+            dilation=tuple([self.config['dilation_rate'], self.config['dilation_rate']])
+        )
 
     def _check_compatibility(self):
         super()._check_compatibility()
-        if self.config['dilation_rate'] > 1:
-            self.config['strides'] = 1
+        # if self.config['dilation_rate'] > 1:
+        #     self.config['strides'] = 1
 
-        elif self.config['dilation_rate'] == 1 and self.config['padding'] == 'causal':
-            self.config['padding'] = 'same'
+        # elif self.config['dilation_rate'] == 1 and self.config['padding'] == 'causal':
+        #     self.config['padding'] = 'same'
 
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
@@ -344,102 +325,123 @@ class LayerCNN1D(LayerBase):
         else:
             align = 0
 
-        padding = self.config['padding']
+        padding_mode = self.config['padding_mode']
         strides = self.config['strides']
         dilation_rate = self.config['dilation_rate']
 
-        if padding == 'valid':
-            if dilation_rate != 1:
-                out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
-                       for i in previous_shape[1:-1]]
-            else:
-                out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
+        if padding_mode == 'valid':
+            padding = (0, 0)
+            self.config['padding'] = padding
+            out = [(side + 2*padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
+        
+        elif padding_mode == 'same':
+            # there is no padding same in torch, but we can emulate this behaviour
+            padding = [(strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2 for side in previous_shape[2:]]
+            self.config['padding'] = padding
+            out = [(side + 2*padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
+        # if padding == 'valid':
+        #     if dilation_rate != 1:
+        #         out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
+        #                for i in previous_shape[1:-1]]
+        #     else:
+        #         out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
 
-        elif padding == 'same':
-            # out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in previous_shape[1:-1]]
-            out = [math.ceil(i / strides) for i in previous_shape[1:-1]]
+        # elif padding == 'same':
+        #     # out = [((i - kernel_size + (2 * (kernel_size // 2))) // strides + 1 - align) for i in previous_shape[1:-1]]
+        #     out = [math.ceil(i / strides) for i in previous_shape[1:-1]]
 
-        elif padding == 'causal':
-            out = [i for i in previous_shape[1:-1]]
-            # out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
-            #        for i in previous_shape[1:-1]]
+        # elif padding == 'causal':
+        #     out = [i for i in previous_shape[1:-1]]
+        #     # out = [(i - kernel_size - (kernel_size - 1) * (dilation_rate - 1)) // strides + 1 - align
+        #     #        for i in previous_shape[1:-1]]
 
         for i in out:
             # if some of the layer too small - change the padding
             if i <= 0:
-                self.config['padding'] = 'same'
+                self.config['padding_mode'] = 'same'
                 shape = self.calculate_shape(previous_layer)
                 return shape
 
-        shape = (None, *out, filters)
-
+        shape = (None, filters, *out)
         return shape
 
 
 class LayerCNN2D(LayerCNN1D):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Conv2D(
-            filters=self.config['filters'],
-            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
-            strides=[self.config['strides'], self.config['strides']],
-            padding=self.config['padding'],
-            dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
-            activation=self.config['activation'])
+        # super().init_layer(previous_layer)
+        input_channels = previous_layer.shape[1]
+        padding_mode = 'zeros'
 
-        return layer_tf
+        return torch.nn.Conv2d(
+            in_channels=input_channels,
+            out_channels=self.config['filters'],
+            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
+            stride=[self.config['strides'], self.config['strides']],
+            padding=tuple(self.config['padding']),
+            padding_mode=padding_mode,
+            dilation=tuple([self.config['dilation_rate'], self.config['dilation_rate']])
+        )
 
 
 class LayerMaxPool1D(LayerBase):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = MaxPool1D(
-            pool_size=[self.config['pool_size']],
-            strides=[self.config['strides']],
-            padding=self.config['padding'])
+        # super().init_layer(previous_layer)
 
-        return layer_tf
+        return torch.nn.MaxPool1d(
+            kernel_size=self.config['pool_size'],
+            stride=self.config['strides'],
+            padding=self.config['padding'],
+            dilation=self.config['dilation_rate'],
+            ceil_mode=False
+        )
 
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
 
         kernel_size = self.config['pool_size']
         strides = self.config['strides']
-        padding = self.config['padding']
+        padding_mode = self.config['padding_mode']
+        dilation_rate = self.config['dilation_rate']
+
         if kernel_size % 2 != 0:
             align = 0
         else:
             align = 0
 
-        if padding == 'same':
-            # out = [((i + 2*(kernel_size // 2) - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
-            out = [math.ceil(i / strides) for i in previous_shape[1:-1]]
-        else:
-            out = [((i - kernel_size) // strides + 1 - align) for i in previous_shape[1:-1]]
+        if padding_mode is None:
+            padding = (0, 0)
+            self.config['padding'] = padding
+            out = [(side + 2 * padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
+        elif padding_mode == 'expand':
+            padding = [(strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2 for side in previous_shape[2:]]
+            self.config['padding'] = padding
+            out = [(side + 2 * padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
 
         for i in out:
             # if some of the layer too small - change the padding
-            if i <= 0 and padding != 'same':
-                self.config['padding'] = 'same'
+            if i <= 0:
+                self.config['padding'] = 'expand'
                 shape = self.calculate_shape(previous_layer)
                 return shape
             elif i <= 0:
                 return None
 
-        shape = (None, *out, previous_shape[-1])
+        shape = (None, previous_shape[1], *out)
 
         return shape
 
 
 class LayerMaxPool2D(LayerMaxPool1D):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = MaxPool2D(
-            pool_size=[self.config['pool_size'], self.config['pool_size']],
-            strides=[self.config['strides'], self.config['strides']],
-            padding=self.config['padding'])
+        # super().init_layer(previous_layer)
 
-        return layer_tf
+        return torch.nn.MaxPool2d(
+            kernel_size=self.config['pool_size'],
+            stride=self.config['strides'],
+            padding=self.config['padding'],
+            dilation=self.config['dilation_rate'],
+            ceil_mode=False
+        )
 
 
 class LayerDense(LayerBase):
@@ -453,11 +455,13 @@ class LayerDense(LayerBase):
 
     def init_layer(self, previous_layer):
         super().init_layer(previous_layer)
-        layer_tf = Dense(
-            units=self.config['units'],
-            activation=self.config['activation'])
 
-        return layer_tf
+        input_channels = previous_layer.shape[-1]
+
+        return torch.nn.Linear(
+            in_features=input_channels,
+            out_features=self.config['units']
+        )
 
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
@@ -472,10 +476,9 @@ class LayerInput(LayerBase):
         self.config['rank'] = len(self.options['shape'])
 
     def init_layer(self, previous_layer):
-        layer_tf = Input(
-            shape=self.config['shape'][1:])  # all except first None, related to batch size
+        layer = torch.nn.Identity()
 
-        return layer_tf
+        return torch.nn.Identity()
 
 
 class LayerEmbedding(LayerSpecialBase):
@@ -484,14 +487,13 @@ class LayerEmbedding(LayerSpecialBase):
         self.config['sentences_length'] = self.options['shape'][0]
 
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Embedding(
-            input_dim=self.config['vocabular'],
-            output_dim=self.config['embedding_dim'],
-            input_length=self.config['sentences_length'],
-            trainable=self.config['trainable'])
+        # super().init_layer(previous_layer)
 
-        return layer_tf
+        return torch.nn.Embedding(
+            num_embeddings=self.config['vocabular'],
+            embedding_dim=self.config['embedding_dim'],
+            padding_idx=0
+        )
 
     def calculate_rank(self, previous_layer):
         rank = 3
@@ -506,10 +508,11 @@ class LayerEmbedding(LayerSpecialBase):
 
 class LayerFlatten(LayerSpecialBase):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Flatten()
+        # super().init_layer(previous_layer)
+        def layer(x):
+            return torch.flatten(x, start_dim=1)
 
-        return layer_tf
+        return layer
 
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
@@ -523,20 +526,20 @@ class LayerConcat(LayerSpecialBase):
     def __call__(self, nets, previous_layers):
         reshape_layers, axis = self.merger_mass(previous_layers)
         new_nets = []
-        if axis == -1:
+        # print(axis)
+        if axis == -1 and reshape_layers is not None:
             for i, reshape_layer in enumerate(reshape_layers):
                 new_nets.append(reshape_layer(nets[i], previous_layers[i]))
         else:
             new_nets = nets
         # new_nets = [reshape_layer(nets[i], previous_layers[i]) for i, reshape_layer in enumerate(reshape_layers)]
 
-        new_net = concatenate(new_nets, axis)
-        return new_net
+        # new_net = concatenate(new_nets, axis)
+        return reshape_layers, axis
 
     def merger_mass(self, layers):
         shape_modifiers = []
         shapes = [layer.shape for layer in layers]
-
         # if all shapes are equal in.. shape
         for i in range(1, max([len(shape) for shape in shapes])):
             # check equality
@@ -559,8 +562,8 @@ class LayerConcat(LayerSpecialBase):
                 new_shape[axis] = np.sum(np.array(shapes)[:, axis])
                 self.config['shape'] = new_shape
                 self.config['rank'] = len(new_shape)
-                return layers, axis
-
+                return None, axis
+        
         for layer in layers:
             new_shape = (None, np.prod(layer.config['shape'][1:]))
 
@@ -581,105 +584,96 @@ class LayerConcat(LayerSpecialBase):
 
 class LayerReshape(LayerSpecialBase):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Reshape(
-            target_shape=self.config['target_shape'],)
+        # super().init_layer(previous_layer)
 
-        return layer_tf
+        def layer(x):
+            shape = (x.shape[0], *self.config['target_shape'])
+            return torch.reshape(x, shape)
+
+        return layer
+
+    def calculate_rank(self, previous_layer):
+        return self.config['rank']
+
+    def calculate_shape(self, previous_layer):
+        return self.config['shape']
 
 
 class LayerDropout(LayerBase):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Dropout(rate=self.config['rate'])
+        # super().init_layer(previous_layer)
 
-        return layer_tf
-
-
-class LayerRepeatVector(LayerBase):
-    def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = RepeatVector(n=self.config['n'])
-
-        return layer_tf
-
-    def calculate_shape(self, previous_layer):
-        previous_shape = previous_layer.shape
-        shape = (None, self.config['n'], *previous_shape[1:])
-
-        return shape
-
-    def calculate_rank(self, previous_layer):
-        previous_rank = previous_layer.rank
-        rank = previous_rank + 1
-
-        return rank
+        return torch.nn.Dropout(
+            p=self.config['rate']
+        )
 
 
-class LayerSepCNN1D(LayerCNN1D):
-    def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = SeparableConv1D(
-            filters=self.config['filters'],
-            kernel_size=[self.config['kernel_size']],
-            strides=[self.config['strides']],
-            padding=self.config['padding'],
-            dilation_rate=tuple([self.config['dilation_rate']]),
-            activation=self.config['activation'])
+# class LayerSepCNN1D(LayerCNN1D):
+#     def init_layer(self, previous_layer):
+#         # super().init_layer(previous_layer)
+#         layer_tf = SeparableConv1D(
+#             filters=self.config['filters'],
+#             kernel_size=[self.config['kernel_size']],
+#             strides=[self.config['strides']],
+#             padding=self.config['padding'],
+#             dilation_rate=tuple([self.config['dilation_rate']]),
+#             activation=self.config['activation'])
 
-        return layer_tf
+#         return layer_tf
 
 
-class LayerSepCNN2D(LayerCNN2D):
-    def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = SeparableConv2D(
-            filters=self.config['filters'],
-            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
-            strides=[self.config['strides'], self.config['strides']],
-            padding=self.config['padding'],
-            dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
-            activation=self.config['activation'])
+# class LayerSepCNN2D(LayerCNN2D):
+#     def init_layer(self, previous_layer):
+#         # super().init_layer(previous_layer)
+#         layer_tf = SeparableConv2D(
+#             filters=self.config['filters'],
+#             kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
+#             strides=[self.config['strides'], self.config['strides']],
+#             padding=self.config['padding'],
+#             dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
+#             activation=self.config['activation'])
 
-        return layer_tf
+#         return layer_tf
 
 
 class LayerDeCNN2D(LayerCNN2D):
     def init_layer(self, previous_layer):
-        super().init_layer(previous_layer)
-        layer_tf = Conv2DTranspose(
-            filters=self.config['filters'],
-            kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
-            strides=[self.config['strides'], self.config['strides']],
+        # super().init_layer(previous_layer)
+
+        input_channels = previous_layer.shape[1]
+
+        return torch.nn.ConvTranspose2d(
+            in_channels=input_channels,
+            out_channels=self.config['filters'],
+            kernel_size=self.config['kernel_size'],
+            stride=self.config['strides'],
             padding=self.config['padding'],
             output_padding=self.config['output_padding'],
-            dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
-            activation=self.config['activation'])
-
-        return layer_tf
+            dilation=self.config['dilation_rate']
+        )
 
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
         filters = self.config['filters']
         kernel_size = self.config['kernel_size']
 
-        padding = self.config['padding']
+        padding_mode = self.config['padding_mode']
         output_padding = self.config['output_padding']
         strides = self.config['strides']
         dilation_rate = self.config['dilation_rate']
 
-        if padding == 'valid':
-            if output_padding is None:
-                output_padding = 0
-            out = [(i - 1) * strides + kernel_size + (kernel_size - 1) * (dilation_rate - 1) + output_padding for i in previous_shape[1:-1]]
+        padding = (0, 0)
+        self.config['padding'] = padding
+        if padding_mode == None:
+            out = [(side - 1) * strides - 2 * padding[i] + dilation_rate * (kernel_size - 1) + output_padding + 1 for i, side in enumerate(previous_shape[2:])]
+        
+        # elif padding_mode == 'same':
+        #     if output_padding is None:
+        #         out = [i * strides for i in previous_shape[1:-1]]
+        #     else:
+        #         out = [(i - 1) * strides + kernel_size - 2 * (kernel_size // 2) + output_padding for i in previous_shape[1:-1]]
 
-        elif padding == 'same':
-            if output_padding is None:
-                out = [i * strides for i in previous_shape[1:-1]]
-            else:
-                out = [(i - 1) * strides + kernel_size - 2 * (kernel_size // 2) + output_padding for i in previous_shape[1:-1]]
-
-        shape = (None, *out, filters)
+        shape = (None, filters, *out)
 
         return shape
 
@@ -687,7 +681,7 @@ class LayerDeCNN2D(LayerCNN2D):
 LAYERS_MAP = {
     'input': LayerInput,
     'lstm': LayerLSTM,
-    'bi': LayerBiLSTM,
+    # 'bi': LayerBiLSTM,
     'cnn': LayerCNN1D,
     'cnn2': LayerCNN2D,
     'max_pool': LayerMaxPool1D,
@@ -698,9 +692,9 @@ LAYERS_MAP = {
     'concat': LayerConcat,
     'reshape': LayerReshape,
     'dropout': LayerDropout,
-    'repeatvector': LayerRepeatVector,
-    'separablecnn': LayerSepCNN1D,
-    'separablecnn2': LayerSepCNN2D,
+    # 'repeatvector': LayerRepeatVector,
+    # 'separablecnn': LayerSepCNN1D,
+    # 'separablecnn2': LayerSepCNN2D,
     'decnn2': LayerDeCNN2D
 }
 
