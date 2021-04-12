@@ -610,34 +610,6 @@ class LayerDropout(LayerBase):
         )
 
 
-# class LayerSepCNN1D(LayerCNN1D):
-#     def init_layer(self, previous_layer):
-#         # super().init_layer(previous_layer)
-#         layer_tf = SeparableConv1D(
-#             filters=self.config['filters'],
-#             kernel_size=[self.config['kernel_size']],
-#             strides=[self.config['strides']],
-#             padding=self.config['padding'],
-#             dilation_rate=tuple([self.config['dilation_rate']]),
-#             activation=self.config['activation'])
-
-#         return layer_tf
-
-
-# class LayerSepCNN2D(LayerCNN2D):
-#     def init_layer(self, previous_layer):
-#         # super().init_layer(previous_layer)
-#         layer_tf = SeparableConv2D(
-#             filters=self.config['filters'],
-#             kernel_size=[self.config['kernel_size'], self.config['kernel_size']],
-#             strides=[self.config['strides'], self.config['strides']],
-#             padding=self.config['padding'],
-#             dilation_rate=tuple([self.config['dilation_rate'], self.config['dilation_rate']]),
-#             activation=self.config['activation'])
-
-#         return layer_tf
-
-
 class LayerDeCNN2D(LayerCNN2D):
     def init_layer(self, previous_layer):
         # super().init_layer(previous_layer)
