@@ -88,15 +88,12 @@ class MutatorBase:
         split_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_splitting'], delimeter=1.5)
 
         if split_dice and not merger_dice:
-            print('FFF')
             number_of_splits = np.random.choice(GENERAL['mutation_splitting']['number_of_splits'], p=GENERAL['mutation_splitting']['rates'])
             new_tails = [Layer(distribution.layer(), distribution) for _ in range(number_of_splits)]
 
             individ.split_branch(new_tails, branch=selected_branch)
 
         else:
-            print('FFF2')
-            print(selected_branch)
             new_tail = Layer(distribution.layer(), distribution)
 
             individ.add_layer(new_tail, selected_branch)

@@ -6,7 +6,7 @@ class Network(torch.nn.Module):
     def __init__(self, structure):
         super(Network, self).__init__()
         self.structure = structure
-        self.init_layers(self.structure)
+        self.layers_pool_inited = self.init_layers(self.structure)
         
     def init_layers(self, structure):
         # pool of layers, which should be initialised and connected
@@ -71,6 +71,7 @@ class Network(torch.nn.Module):
 
             # add new initialised layer
             layers_pool_inited[layer_index] = inited_layer
+            setattr(self, 'layer_{}'.format(layer_index), inited_layer[2])
 
             # find outgoing connections and add them to the pool
             output_layers = [layer for layer in np.where(self.structure.matrix[layer_index] == 1)[0]
@@ -81,8 +82,8 @@ class Network(torch.nn.Module):
             # remove current layer from the pool
             layers_pool.pop(layers_pool.index(layer_index))
             
-        self.layers_pool_inited = layers_pool_inited
         self.layers_pool_removed = layers_pool_removed
+        return layers_pool_inited
         
     def forward(self, x):
         # pool of layers, which should be initialised and connected

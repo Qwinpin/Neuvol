@@ -94,9 +94,6 @@ class Structure:
             dict - new map of branchs and their last layers indexes
         """
         # index of the layer to add to
-        print('M', matrix)
-        print('B', branchs_end)
-        print('B', branch)
         add_to = branchs_end[branch]
 
         matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
@@ -132,14 +129,12 @@ class Structure:
         """
         matrix, layers_index_reverse, index = self._register_new_layer(matrix, layers_index_reverse, layer)
         if before_layer_index is None:
-            print('WW', after_layer_index, before_layer_index, after_layer_index)
             # generate new branch index, which was not used
             branch_to_create = [i for i in range(1, (1 + len(branchs_counter) + 1))
                                 if i not in branchs_counter][0]
             branchs_counter.append(branch_to_create)
             branchs_end[branch_to_create] = index
         else:
-            print('WW', after_layer_index, before_layer_index, after_layer_index)
             matrix[after_layer_index, before_layer_index] = 0  # remove old direct connection
             matrix[index, before_layer_index] = 1
 
@@ -451,7 +446,6 @@ class Structure:
 
         # current number of branches
         branchs_number = len(branchs_counter)
-        print('BBB', branchs_number)
 
         branchs_to_merge = list(branchs_end_copy.keys())
         if branchs_number > 1:
