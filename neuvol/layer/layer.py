@@ -90,7 +90,6 @@ class LayerBase:
             self.config['state'] = 'broken'
             return None  # net
         
-        print(concat_layer_instance, axis)
 
         if reshape_layer is not None:
             reshape_layer_instance = reshape_layer(net, previous_layer)[-1]
@@ -104,8 +103,11 @@ class LayerBase:
         #     new_net = layer_instance(new_new)
         # except:
         #     raise
-
-        return [concat_layer_instance, axis], reshape_layer_instance, layer_instance
+        if axis is not None:
+            return [concat_layer_instance, axis], reshape_layer_instance, layer_instance
+        else:
+            return None, reshape_layer_instance, layer_instance
+            
 
     def init_layer(self, previous_layer):
         """

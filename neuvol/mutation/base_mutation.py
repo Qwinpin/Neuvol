@@ -60,15 +60,12 @@ class MutatorBase:
 
         # branches, which was merged should not be splitted or grown after
         branchs_exception = []
-        if merger_dice:
+        if merger_dice and len(individ.branchs_end.keys()) > 1:
             # TODO: generate distribution according to results of epochs
-            if len(individ.branchs_end.keys()) >= 2:
-                # branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
-                number_of_branches = len(individ.branchs_end.keys()) + 1
-                branchs_to_merge_number_distribution = np.array(range(2, number_of_branches)) / np.sum(range(2, number_of_branches))
-                branchs_to_merge_number = np.random.choice(list(range(2, number_of_branches)), p=branchs_to_merge_number_distribution)
-            else:
-                branchs_to_merge_number = 0
+            # branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
+            number_of_branches = len(individ.branchs_end.keys()) + 1
+            branchs_to_merge_number_distribution = np.array(range(2, number_of_branches)) / np.sum(range(2, number_of_branches))
+            branchs_to_merge_number = np.random.choice(list(range(2, number_of_branches)), p=branchs_to_merge_number_distribution)
 
             branchs_to_merge = np.random.choice(list(individ.branchs_end.keys()), branchs_to_merge_number, replace=False)
             branchs_to_merge = [i for i in branchs_to_merge if i not in branchs_exception]
@@ -82,6 +79,7 @@ class MutatorBase:
 
         # for branch now we need decide split or not
         free_branches = [i for i in individ.branchs_end.keys() if i not in branchs_exception]
+
         if len(free_branches) == 0:
             return True
 
@@ -90,12 +88,15 @@ class MutatorBase:
         split_dice = _probability_from_branchs(individ, prior_rate=GENERAL['mutation_rate_splitting'], delimeter=1.5)
 
         if split_dice and not merger_dice:
+            print('FFF')
             number_of_splits = np.random.choice(GENERAL['mutation_splitting']['number_of_splits'], p=GENERAL['mutation_splitting']['rates'])
             new_tails = [Layer(distribution.layer(), distribution) for _ in range(number_of_splits)]
 
             individ.split_branch(new_tails, branch=selected_branch)
 
         else:
+            print('FFF2')
+            print(selected_branch)
             new_tail = Layer(distribution.layer(), distribution)
 
             individ.add_layer(new_tail, selected_branch)
