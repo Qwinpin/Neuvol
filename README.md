@@ -30,4 +30,4 @@ Neuvol is a genetic algorithm API for generating neural networks based on Keras.
 - [x] Complex layer generation
 - [ ] Experimental study
 - [ ] Visualization
-- [ ] Pytorch support
+- [x] Pytorch support
