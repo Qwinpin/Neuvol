@@ -226,7 +226,7 @@ def recalculate_shapes(structure):
 
         # if curent layer is the Input - initialise without any input connections
         if not input_layers and structure.layers_index_reverse[layer_index].layer_type == 'input':
-            inited_layer = (None, None, structure.layers_index_reverse[layer_index].init_layer(None))
+            inited_layer = (None, None, None)
 
         # detect hanging node - some of mutations could remove connection to the layer
         elif not input_layers:
@@ -238,10 +238,10 @@ def recalculate_shapes(structure):
 
             # this case does not require additional processing - all logic is inside Layer instance,
             # which handles multiple connections
-            inited_layer = structure.layers_index_reverse[layer_index]([None for _ in range(len(input_layers))], input_layers)
+            inited_layer = structure.layers_index_reverse[layer_index]([None for _ in range(len(input_layers))], input_layers, init=False)
         else:
             input_layers_inited = [layers_pool_inited[layer] for layer in enter_layers][0]
-            inited_layer = structure.layers_index_reverse[layer_index](None, input_layers[0])
+            inited_layer = structure.layers_index_reverse[layer_index](None, input_layers[0], init=False)
 
         # add new initialised layer
         layers_pool_inited[layer_index] = inited_layer

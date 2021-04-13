@@ -92,7 +92,7 @@ class IndividBase:
         acc = acc * 4 / 1024 / 1024
 
         if self.options['memory_limit'] is not None and acc > self.options['memory_limit']:
-            raise "Memory limit exceeded by this graph"
+            raise MemoryError("Memory limit exceeded by this graph: {}MB occupied and {}MB available".format(round(acc), self.options['memory_limit']))
 
         return acc
 

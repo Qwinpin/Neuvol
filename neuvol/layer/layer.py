@@ -61,7 +61,7 @@ class LayerBase:
             self._init_parameters()
             self._check_compatibility()
 
-    def __call__(self, net, previous_layer):
+    def __call__(self, net, previous_layer, init=True):
         """
         Add layer to a network tail, previous layer is required for shape and rank check
         In case of multiple layers concatenation layer is injected
@@ -98,7 +98,10 @@ class LayerBase:
             reshape_layer_instance = None
             # new_new = net
 
-        layer_instance = self.init_layer(previous_layer)
+        if init:
+            layer_instance = self.init_layer(previous_layer)
+        else:
+            layer_instance = None
         # try:
         #     new_net = layer_instance(new_new)
         # except:
@@ -159,8 +162,6 @@ class LayerBase:
         return new_rank
 
     def calculate_parameters(self):
-        if self.config['shape'] is None:
-            raise "Not initialized shape graph"
         return 0
 
     @property
@@ -384,9 +385,7 @@ class LayerCNN1D(LayerBase):
         return shape
 
     def calculate_parameters(self):
-        super().calculate_parameters()
-
-        return self.config['filters'] * (self.config['kernel_size'] * self.config['input_filters'] + 1)
+        return self.config['filters'] * (self.config['kernel_size'] * self.config.get('input_filters', 0) + 1)
 
 
 class LayerCNN2D(LayerCNN1D):
@@ -406,9 +405,8 @@ class LayerCNN2D(LayerCNN1D):
         )
 
     def calculate_parameters(self):
-        super().calculate_parameters()
 
-        return self.config['filters'] * (self.config['kernel_size'] * self.config['kernel_size'] * self.config['input_filters'] + 1)
+        return self.config['filters'] * (self.config['kernel_size'] * self.config['kernel_size'] * self.config.get('input_filters', 0) + 1)
 
 
 class LayerMaxPool1D(LayerBase):
@@ -499,7 +497,6 @@ class LayerDense(LayerBase):
         return shape
     
     def calculate_parameters(self):
-        super().calculate_parameters()
 
         return self.config['input_units'] * self.config['units']
 
@@ -538,7 +535,6 @@ class LayerEmbedding(LayerSpecialBase):
         return shape
 
     def calculate_parameters(self):
-        super().calculate_parameters()
         
         return self.config['vocabular'] * self.config['embedding_dim']
 
@@ -691,8 +687,6 @@ class LayerDeCNN2D(LayerCNN2D):
         return shape
 
     def calculate_parameters(self):
-        super().calculate_parameters()
-
         return self.config['input_filters'] * self.config['filters'] * (self.config['kernel_size'] ** 2) + self.config['filters']
 
 
