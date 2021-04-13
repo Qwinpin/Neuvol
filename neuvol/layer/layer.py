@@ -158,6 +158,11 @@ class LayerBase:
 
         return new_rank
 
+    def calculate_parameters(self):
+        if self.config['shape'] is None:
+            raise "Not initialized shape graph"
+        return 0
+
     @property
     def shape(self):
         return self.config['shape']
@@ -288,9 +293,18 @@ class LayerLSTM(LayerBase):
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
 
+        self.config['input_seq'] = previous_shape[-1]
+
         bidirectional_multiplier = 2 if self.config['bidirectional'] else 1
         shape = (None, previous_shape[1], bidirectional_multiplier * self.config['hidden_size'])
         return shape
+
+    def calculate_parameters(self):
+        super().calculate_parameters()
+        b = 1 if self.config['bidirectional'] == False else 2
+        return 4 * self.config['hidden_size'] ** 2 * b * (self.config['units'] * b + self.config['units'] - b)\
+               + 8 * self.config['hidden_size'] * self.config['units'] * b\
+               + 4 * self.config['hidden_size'] * b * self.config['input_seq']
 
 
 class LayerCNN1D(LayerBase):
@@ -321,6 +335,8 @@ class LayerCNN1D(LayerBase):
         previous_shape = previous_layer.shape
         filters = self.config['filters']
         kernel_size = self.config['kernel_size']
+
+        self.config['input_filters'] = previous_shape[1]
         # keep this hack, need to valid
         if kernel_size % 2 == 0:
             align = 0
@@ -367,6 +383,11 @@ class LayerCNN1D(LayerBase):
         shape = (None, filters, *out)
         return shape
 
+    def calculate_parameters(self):
+        super().calculate_parameters()
+
+        return self.config['filters'] * (self.config['kernel_size'] * self.config['input_filters'] + 1)
+
 
 class LayerCNN2D(LayerCNN1D):
     def init_layer(self, previous_layer):
@@ -383,6 +404,11 @@ class LayerCNN2D(LayerCNN1D):
             padding_mode=padding_mode,
             dilation=tuple([self.config['dilation_rate'], self.config['dilation_rate']])
         )
+
+    def calculate_parameters(self):
+        super().calculate_parameters()
+
+        return self.config['filters'] * (self.config['kernel_size'] * self.config['kernel_size'] * self.config['input_filters'] + 1)
 
 
 class LayerMaxPool1D(LayerBase):
@@ -415,14 +441,14 @@ class LayerMaxPool1D(LayerBase):
             self.config['padding'] = padding
             out = [(side + 2 * padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
         elif padding_mode == 'expand':
-            padding = [(strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2 for side in previous_shape[2:]]
+            padding = [(strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2 + 1 for side in previous_shape[2:]]
             self.config['padding'] = padding
             out = [(side + 2 * padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
 
         for i in out:
             # if some of the layer too small - change the padding
             if i <= 0:
-                self.config['padding'] = 'expand'
+                self.config['padding_mode'] = 'expand'
                 shape = self.calculate_shape(previous_layer)
                 return shape
             elif i <= 0:
@@ -468,8 +494,14 @@ class LayerDense(LayerBase):
     def calculate_shape(self, previous_layer):
         previous_shape = previous_layer.shape
         shape = (*previous_shape[:-1], self.config['units'])
+        self.config['input_units'] = previous_shape[-1]
 
         return shape
+    
+    def calculate_parameters(self):
+        super().calculate_parameters()
+
+        return self.config['input_units'] * self.config['units']
 
 
 class LayerInput(LayerBase):
@@ -478,8 +510,6 @@ class LayerInput(LayerBase):
         self.config['rank'] = len(self.options['shape'])
 
     def init_layer(self, previous_layer):
-        layer = torch.nn.Identity()
-
         return torch.nn.Identity()
 
 
@@ -506,6 +536,11 @@ class LayerEmbedding(LayerSpecialBase):
         shape = (None, self.config['sentences_length'], self.config['embedding_dim'])
 
         return shape
+
+    def calculate_parameters(self):
+        super().calculate_parameters()
+        
+        return self.config['vocabular'] * self.config['embedding_dim']
 
 
 class LayerFlatten(LayerSpecialBase):
@@ -631,6 +666,8 @@ class LayerDeCNN2D(LayerCNN2D):
         filters = self.config['filters']
         kernel_size = self.config['kernel_size']
 
+        self.config['input_filters'] = previous_shape[1]
+
         padding_mode = self.config['padding_mode']
         output_padding = self.config['output_padding']
         strides = self.config['strides']
@@ -639,6 +676,8 @@ class LayerDeCNN2D(LayerCNN2D):
         padding = (0, 0)
         self.config['padding'] = padding
         if padding_mode == None:
+            out = [(side - 1) * strides - 2 * padding[i] + dilation_rate * (kernel_size - 1) + output_padding + 1 for i, side in enumerate(previous_shape[2:])]
+        else:
             out = [(side - 1) * strides - 2 * padding[i] + dilation_rate * (kernel_size - 1) + output_padding + 1 for i, side in enumerate(previous_shape[2:])]
         
         # elif padding_mode == 'same':
@@ -650,6 +689,11 @@ class LayerDeCNN2D(LayerCNN2D):
         shape = (None, filters, *out)
 
         return shape
+
+    def calculate_parameters(self):
+        super().calculate_parameters()
+
+        return self.config['input_filters'] * self.config['filters'] * (self.config['kernel_size'] ** 2) + self.config['filters']
 
 
 LAYERS_MAP = {
@@ -715,8 +759,8 @@ def reshaper_shape(difference, prev_layer):
         # add new dims to remove the difference
         new_shape = (
             None,
-            *prev_layer.config['shape'][1:],
-            *([1] * abs(difference)))
+            *([1] * abs(difference)),
+            *prev_layer.config['shape'][1:])
 
     else:
         new_shape = prev_layer.config['shape']

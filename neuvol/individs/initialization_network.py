@@ -181,3 +181,76 @@ class Network(torch.nn.Module):
 
         else:
             return x
+
+def recalculate_shapes(structure):
+    # pool of layers, which should be initialised and connected
+    layers_pool = [0]
+
+    # pool of initialised layers
+    layers_pool_inited = {}
+
+    # pool of broken (invalid) layers) such as inconsistent number of dimensions
+    layers_pool_removed = []
+
+    while layers_pool:
+        # take first layer in a pool
+        layer_index = layers_pool[0]
+
+        # find all connections before this layer
+        enter_layers = set(np.where(structure.matrix[:, layer_index] == 1)[0])
+
+        # check if some of previous layers were not initialized
+        # that means - we should initialise them first
+        not_inited_layers = [i for i in enter_layers if i not in (layers_pool_inited.keys())]
+        not_inited_layers_selected = [layer for layer in not_inited_layers if layer not in layers_pool_removed]
+
+        if not_inited_layers_selected:
+            # remove layers, which are in pool already
+            # this is possible due to complex connections with different orders
+            not_inited_layers_selected = [layer for layer in not_inited_layers_selected if layer not in layers_pool]
+
+            # add not initialised layers to the pool
+            layers_pool.extend(not_inited_layers_selected)
+
+            # current layer should be shift to the end of the queue
+            acc = layers_pool.pop(0)
+            layers_pool.append(acc)
+            continue
+
+        # take Layer instance of the previous layers
+        input_layers = [structure.layers_index_reverse[layer] for layer in enter_layers]
+
+        # layer without rank is broken and we ignore that
+        input_layers = [layer for layer in input_layers if layer.config.get('rank', False)]
+        enter_layers = [i for i in enter_layers if i not in layers_pool_removed]
+
+        # if curent layer is the Input - initialise without any input connections
+        if not input_layers and structure.layers_index_reverse[layer_index].layer_type == 'input':
+            inited_layer = (None, None, structure.layers_index_reverse[layer_index].init_layer(None))
+
+        # detect hanging node - some of mutations could remove connection to the layer
+        elif not input_layers:
+            layers_pool_removed.append(layers_pool.pop(0))
+            continue
+
+        # if there are multiple input connections
+        elif len(input_layers) > 1:
+
+            # this case does not require additional processing - all logic is inside Layer instance,
+            # which handles multiple connections
+            inited_layer = structure.layers_index_reverse[layer_index]([None for _ in range(len(input_layers))], input_layers)
+        else:
+            input_layers_inited = [layers_pool_inited[layer] for layer in enter_layers][0]
+            inited_layer = structure.layers_index_reverse[layer_index](None, input_layers[0])
+
+        # add new initialised layer
+        layers_pool_inited[layer_index] = inited_layer
+
+        # find outgoing connections and add them to the pool
+        output_layers = [layer for layer in np.where(structure.matrix[layer_index] == 1)[0]
+                            if layer not in layers_pool and layer not in layers_pool_inited.keys()]
+
+        layers_pool.extend(output_layers)
+
+        # remove current layer from the pool
+        layers_pool.pop(layers_pool.index(layer_index))

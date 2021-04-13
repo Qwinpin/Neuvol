@@ -97,7 +97,7 @@ def sublayer_parser(start_point, matrix, depth, sub_layer=None, level=0):
 
 def detect_best_combination(new_chains, min_size=None):
     min_size = min_size or GENERAL['graph_parser']['min_size']
-    
+    print(min_size)
     new_chains = [chain for chain in new_chains if len(chain) >= min_size]
     # if max([len(chain) for chain in new_chains]) < min_size:
     #     return None

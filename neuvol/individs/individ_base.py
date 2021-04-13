@@ -18,7 +18,7 @@ from ..layer import Layer
 from ..probabilty_pool import Distribution
 from .structure import Structure
 from ..utils import dump
-from .initialization_network import Network
+from .initialization_network import Network, recalculate_shapes
 
 
 class IndividBase:
@@ -75,9 +75,26 @@ class IndividBase:
         if not self._architecture:
             raise Exception('Non initialized net')
 
+        self.recalculate_shapes()
+        self.calculate_parameters_number()
+
         network = Network(self.architecture)
 
         return network
+
+    def recalculate_shapes(self):
+        recalculate_shapes(self.architecture)
+
+    def calculate_parameters_number(self):
+        acc = 0
+        for i, layer in self.architecture.layers_index_reverse.items():
+            acc += layer.calculate_parameters()
+        acc = acc * 4 / 1024 / 1024
+
+        if self.options['memory_limit'] is not None and acc > self.options['memory_limit']:
+            raise "Memory limit exceeded by this graph"
+
+        return acc
 
     def dump(self):
         # serialise the whole individ
@@ -264,9 +281,6 @@ class IndividBase:
             mutation {instance of MutationInjector} - mutation
         """
         self._architecture._add_mutation(mutation)
-
-    def recalculate_shapes(self):
-        self._architecture.recalculate_shapes()
 
     @property
     def matrix(self):

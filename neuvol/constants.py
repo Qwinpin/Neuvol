@@ -66,14 +66,6 @@ SPECIAL = {
     }}
 
 LAYERS_POOL = {
-    'bi': {
-        'input_rank': [3],
-        'units': [i for i in range(1, 32, 4)],
-        'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
-        'activation': ['tanh', 'relu', None],
-        'implementation': [1, 2],
-        'return_sequences': [True, False]},
-
     'lstm': {
         'input_rank': [3],
         'units': [i for i in range(1, 32, 1)],
@@ -87,7 +79,7 @@ LAYERS_POOL = {
     'cnn': {
         'input_rank': [3],
         'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
+        'kernel_size': [i for i in range(1, 32, 2)],
         # 'strides': [1],
         'strides': [1, 2, 3],
         'padding_mode': ['valid'],
@@ -97,7 +89,7 @@ LAYERS_POOL = {
     'cnn2': {
         'input_rank': [4],
         'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
+        'kernel_size': [i for i in range(1, 32, 2)],
         # 'strides': [1],
         'strides': [1, 2, 3],
         'padding_mode': ['valid'],
@@ -128,32 +120,7 @@ LAYERS_POOL = {
 
     'dropout': {
         'input_rank': [],
-        'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]},
-
-    'repeatvector': {
-        'input_rank': [2],
-        'n': [i for i in range(1, 5)]},
-
-    'separablecnn': {
-        'input_rank': [3],
-        'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
-        'strides': [1],
-        # 'strides': [1, 2, 3],
-        # 'padding': ['valid', 'same'],
-        'padding_mode': ['valid'],
-        'activation': ['tanh', 'relu', None],
-        'dilation_rate': [1, 2, 3]},
-
-    'separablecnn2': {
-        'input_rank': [4],
-        'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
-        'strides': [1],
-        # 'strides': [1, 2, 3],
-        'padding_mode': ['valid'],
-        'activation': ['tanh', 'relu', None],
-        'dilation_rate': [1, 2, 3]},
+        'rate': [FLOAT32(i / 100) for i in range(0, 50, 5)]},
 
     'decnn2': {
         'input_rank': [4],
@@ -162,7 +129,7 @@ LAYERS_POOL = {
         'strides': [1],
         # 'strides': [1, 2, 3],
         'padding_mode': ['valid'],
-        'output_padding': [i for i in range(1, )] + [None],
+        'output_padding': [i for i in range(0, 5)],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]}, }
 
