@@ -332,7 +332,7 @@ class LayerCNN1D(LayerBase):
         # elif self.config['dilation_rate'] == 1 and self.config['padding'] == 'causal':
         #     self.config['padding'] = 'same'
 
-    def calculate_shape(self, previous_layer):
+    def calculate_shape(self, previous_layer, r=0):
         previous_shape = previous_layer.shape
         filters = self.config['filters']
         kernel_size = self.config['kernel_size']
@@ -355,7 +355,7 @@ class LayerCNN1D(LayerBase):
         
         elif padding_mode == 'same':
             # there is no padding same in torch, but we can emulate this behaviour
-            padding = [(strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2 for side in previous_shape[2:]]
+            padding = [min(kernel_size//2, (strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2) for side in previous_shape[2:]]
             self.config['padding'] = padding
             out = [(side + 2*padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
         # if padding == 'valid':
@@ -376,10 +376,20 @@ class LayerCNN1D(LayerBase):
 
         for i in out:
             # if some of the layer too small - change the padding
-            if i <= 0:
+            if i <= 0 and r == 0:
                 self.config['padding_mode'] = 'same'
-                shape = self.calculate_shape(previous_layer)
+                shape = self.calculate_shape(previous_layer, 1)
                 return shape
+            elif i <= 0 and r == 1:
+                self.config['padding_mode'] = 'valid'
+                self.config['strides'] = 1
+                self.config['kernel_size'] = 1
+                self.config['dilation_rate'] = 1
+                shape = self.calculate_shape(previous_layer, 2)
+                return shape
+            elif i <= 0 and r == 2:
+                self.config['rank'] = False
+
 
         shape = (None, filters, *out)
         return shape
@@ -410,7 +420,7 @@ class LayerCNN2D(LayerCNN1D):
 
 
 class LayerMaxPool1D(LayerBase):
-    def init_layer(self, previous_layer):
+    def init_layer(self, previous_layer, r=0):
         # super().init_layer(previous_layer)
 
         return torch.nn.MaxPool1d(
@@ -421,7 +431,7 @@ class LayerMaxPool1D(LayerBase):
             ceil_mode=False
         )
 
-    def calculate_shape(self, previous_layer):
+    def calculate_shape(self, previous_layer, r=0):
         previous_shape = previous_layer.shape
 
         kernel_size = self.config['pool_size']
@@ -439,18 +449,25 @@ class LayerMaxPool1D(LayerBase):
             self.config['padding'] = padding
             out = [(side + 2 * padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
         elif padding_mode == 'expand':
-            padding = [(strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2 + 1 for side in previous_shape[2:]]
+            padding = [min(kernel_size//2, (strides * (side - 1) - side + dilation_rate * (kernel_size - 1) + 1)//2 + 1) for side in previous_shape[2:]]
             self.config['padding'] = padding
             out = [(side + 2 * padding[i] - dilation_rate * (kernel_size - 1) - 1) // strides + 1 for i, side in enumerate(previous_shape[2:])]
 
         for i in out:
             # if some of the layer too small - change the padding
-            if i <= 0:
+            if i <= 0 and r == 0:
                 self.config['padding_mode'] = 'expand'
-                shape = self.calculate_shape(previous_layer)
+                shape = self.calculate_shape(previous_layer, 1)
                 return shape
-            elif i <= 0:
-                return None
+            elif i <= 0 and r == 1:
+                self.config['padding_mode'] = None
+                self.config['strides'] = 1
+                self.config['pool_size'] = 1
+                self.config['dilation_rate'] = 1
+                shape = self.calculate_shape(previous_layer, 2)
+                return shape
+            elif i <= 0 and r == 2:
+                self.config['rank'] = False
 
         shape = (None, previous_shape[1], *out)
 
@@ -687,7 +704,7 @@ class LayerDeCNN2D(LayerCNN2D):
         return shape
 
     def calculate_parameters(self):
-        return self.config['input_filters'] * self.config['filters'] * (self.config['kernel_size'] ** 2) + self.config['filters']
+        return self.config.get('input_filters', 0) * self.config['filters'] * (self.config['kernel_size'] ** 2) + self.config['filters']
 
 
 LAYERS_MAP = {

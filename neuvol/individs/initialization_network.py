@@ -96,6 +96,7 @@ class Network(torch.nn.Module):
             layer_index = layers_pool[0]
             # find all connections before this layer
             enter_layers = set(np.where(self.structure.matrix[:, layer_index] == 1)[0])
+            enter_layers = [i for i in enter_layers if i not in self.layers_pool_removed]
 
             # check if some of previous layers were not initialized
             # that means - we should initialise them first
