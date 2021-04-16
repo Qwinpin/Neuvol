@@ -153,7 +153,7 @@ class MutationInjector:
 
     def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
         size = matrix.shape[0]
-        self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(1, size - 3)
+        self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(1, size - 1)
 
         self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]
 
@@ -163,7 +163,7 @@ class MutationInjector:
 
         else:
             if self.config.get('before_layer_index', None) is None:
-                self.config['before_layer_index'] = np.random.randint(self.config['after_layer_index'], size - 3)
+                self.config['before_layer_index'] = np.random.randint(self.config['after_layer_index'], size - 1)
 
             if self.config['before_layer_index'] == self.config['after_layer_index']:
                 self.config['before_layer_index'] = None

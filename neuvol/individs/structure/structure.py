@@ -528,7 +528,6 @@ class Structure:
                         layer_index)
 
                 elif mutation.mutation_type == 'remove_connection':
-                    pass
                     before_layer_index = mutation.config['before_layer_index']
                     after_layer_index = mutation.config['after_layer_index']
                     matrix_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_connection(
