@@ -60,15 +60,12 @@ class MutatorBase:
 
         # branches, which was merged should not be splitted or grown after
         branchs_exception = []
-        if merger_dice:
+        if merger_dice and len(individ.branchs_end.keys()) > 1:
             # TODO: generate distribution according to results of epochs
-            if len(individ.branchs_end.keys()) >= 2:
-                # branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
-                number_of_branches = len(individ.branchs_end.keys()) + 1
-                branchs_to_merge_number_distribution = np.array(range(2, number_of_branches)) / np.sum(range(2, number_of_branches))
-                branchs_to_merge_number = np.random.choice(list(range(2, number_of_branches)), p=branchs_to_merge_number_distribution)
-            else:
-                branchs_to_merge_number = 0
+            # branchs_to_merge_number = np.random.randint(2, len(individ.branchs_end.keys()) + 1)
+            number_of_branches = len(individ.branchs_end.keys()) + 1
+            branchs_to_merge_number_distribution = np.array(range(2, number_of_branches)) / np.sum(range(2, number_of_branches))
+            branchs_to_merge_number = np.random.choice(list(range(2, number_of_branches)), p=branchs_to_merge_number_distribution)
 
             branchs_to_merge = np.random.choice(list(individ.branchs_end.keys()), branchs_to_merge_number, replace=False)
             branchs_to_merge = [i for i in branchs_to_merge if i not in branchs_exception]
@@ -82,6 +79,7 @@ class MutatorBase:
 
         # for branch now we need decide split or not
         free_branches = [i for i in individ.branchs_end.keys() if i not in branchs_exception]
+
         if len(free_branches) == 0:
             return True
 
@@ -155,7 +153,7 @@ class MutationInjector:
 
     def _choose_parameters(self, matrix, layers_types, is_add_layer=False):
         size = matrix.shape[0]
-        self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(1, size - 3)
+        self.config['after_layer_index'] = self.config.get('after_layer_index', None) or np.random.randint(1, size - 1)
 
         self.config['after_layer_type'] = layers_types[self.config['after_layer_index']]
 
@@ -165,7 +163,7 @@ class MutationInjector:
 
         else:
             if self.config.get('before_layer_index', None) is None:
-                self.config['before_layer_index'] = np.random.randint(self.config['after_layer_index'], size - 3)
+                self.config['before_layer_index'] = np.random.randint(self.config['after_layer_index'], size - 1)
 
             if self.config['before_layer_index'] == self.config['after_layer_index']:
                 self.config['before_layer_index'] = None

@@ -528,7 +528,6 @@ class Structure:
                         layer_index)
 
                 elif mutation.mutation_type == 'remove_connection':
-                    pass
                     before_layer_index = mutation.config['before_layer_index']
                     after_layer_index = mutation.config['after_layer_index']
                     matrix_copy_tmp, branchs_end_copy_tmp, branchs_counter_copy_tmp = self._remove_connection(
@@ -689,7 +688,7 @@ class StructureImage(Structure):
     def __init__(self, root, finisher):
         super().__init__(root, finisher)
 
-        self._matrix = np.zeros((1, 1))
+        self._matrix = np.zeros((0, 0))
         self._matrix_pure = self._matrix[:]
         self._matrix, self._layers_index_reverse, root_index = self._register_new_layer(
             self._matrix,

@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from keras.models import Model
-from keras.optimizers import adam, RMSprop
 import numpy as np
 
 from ..constants import EVENT, FAKE, TRAINING
@@ -20,6 +18,7 @@ from ..layer import Layer
 from ..probabilty_pool import Distribution
 from .structure import Structure
 from ..utils import dump
+from .initialization_network import Network, recalculate_shapes
 
 
 class IndividBase:
@@ -69,105 +68,33 @@ class IndividBase:
 
         return architecture
 
-    def cycle_imposer(self, structure):
+    def init_net(self):
         """
-        Pass through a graph of layers of a neural network with sequential initialization
-        """
-
-        # pool of layers, which should be initialised and connected
-        layers_pool = [0]
-
-        # pool of initialised layers
-        layers_pool_inited = {}
-
-        # pool of broken (invalid) layers) such as inconsistent number of dimensions
-        layers_pool_removed = []
-
-        while layers_pool:
-            # take first layer in a pool
-            layer_index = layers_pool[0]
-
-            # find all connections before this layer
-            enter_layers = set(np.where(structure.matrix[:, layer_index] == 1)[0])
-
-            # check if some of previous layers were not initialized
-            # that means - we should initialise them first
-            not_inited_layers = [i for i in enter_layers if i not in (layers_pool_inited.keys())]
-            not_inited_layers_selected = [layer for layer in not_inited_layers if layer not in layers_pool_removed]
-
-            if not_inited_layers_selected:
-                # remove layers, which are in pool already
-                # this is possible due to complex connections with different orders
-                not_inited_layers_selected = [layer for layer in not_inited_layers_selected if layer not in layers_pool]
-
-                # add not initialised layers to the pool
-                layers_pool.extend(not_inited_layers_selected)
-
-                # current layer should be shift to the end of the queue
-                acc = layers_pool.pop(0)
-                layers_pool.append(acc)
-                continue
-
-            # take Layer instance of the previous layers
-            input_layers = [structure.layers_index_reverse[layer] for layer in enter_layers]
-
-            # layer without rank is broken and we ignore that
-            input_layers = [layer for layer in input_layers if layer.config.get('rank', False)]
-            enter_layers = [i for i in enter_layers if i not in layers_pool_removed]
-
-            # if curent layer is the Input - initialise without any input connections
-            if not input_layers and structure.layers_index_reverse[layer_index].layer_type == 'input':
-                inited_layer = structure.layers_index_reverse[layer_index].init_layer(None)
-
-            # detect hanging node - some of mutations could remove connection to the layer
-            elif not input_layers:
-                layers_pool_removed.append(layers_pool.pop(0))
-                continue
-
-            # if there are multiple input connections
-            elif len(input_layers) > 1:
-                # take initialised instances
-                input_layers_inited = [layers_pool_inited[layer] for layer in enter_layers]
-
-                # this case does not require additional processing - all logic is inside Layer instance,
-                # which handles multiple connections
-                inited_layer = structure.layers_index_reverse[layer_index](input_layers_inited, input_layers)
-
-            else:
-                input_layers_inited = [layers_pool_inited[layer] for layer in enter_layers][0]
-                inited_layer = structure.layers_index_reverse[layer_index](input_layers_inited, input_layers[0])
-
-            # add new initialised layer
-            layers_pool_inited[layer_index] = inited_layer
-
-            # find outgoing connections and add them to the pool
-            output_layers = [layer for layer in np.where(structure.matrix[layer_index] == 1)[0]
-                                if layer not in layers_pool and layer not in layers_pool_inited.keys()]
-
-            layers_pool.extend(output_layers)
-
-            # remove current layer from the pool
-            layers_pool.pop(layers_pool.index(layer_index))
-
-        return layers_pool_inited
-
-    def init_tf_graph_cycle(self):
-        """
-        Return keras graph
+        Return torch Module
         """
         if not self._architecture:
             raise Exception('Non initialized net')
 
-        # walk over all layers and connect them between each other
-        layers_pool = self.cycle_imposer(self._architecture)
-        last_layer = max(list(layers_pool.keys()))
+        self.recalculate_shapes()
+        self.calculate_parameters_number()
 
-        network_head = layers_pool[0]
-        network_tail = layers_pool[last_layer]
+        network = Network(self.architecture)
 
-        model = Model(inputs=[network_head], outputs=[network_tail])
+        return network
 
-        return model
+    def recalculate_shapes(self):
+        recalculate_shapes(self.architecture)
+
+    def calculate_parameters_number(self):
+        acc = 0
+        for i, layer in self.architecture.layers_index_reverse.items():
+            acc += layer.calculate_parameters()
+        acc = acc * 4 / 1024 / 1024
+
+        if self.options['memory_limit'] is not None and acc > self.options['memory_limit']:
+            raise MemoryError("Memory limit exceeded by this graph: {}MB occupied and {}MB available".format(round(acc), self.options['memory_limit']))
+
+        return acc
 
     def dump(self):
         # serialise the whole individ
@@ -354,9 +281,6 @@ class IndividBase:
             mutation {instance of MutationInjector} - mutation
         """
         self._architecture._add_mutation(mutation)
-
-    def recalculate_shapes(self):
-        self._architecture.recalculate_shapes()
 
     @property
     def matrix(self):

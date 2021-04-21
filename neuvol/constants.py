@@ -66,40 +66,33 @@ SPECIAL = {
     }}
 
 LAYERS_POOL = {
-    'bi': {
-        'input_rank': [3],
-        'units': [i for i in range(1, 32, 4)],
-        'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
-        'activation': ['tanh', 'relu', None],
-        'implementation': [1, 2],
-        'return_sequences': [True, False]},
-
     'lstm': {
         'input_rank': [3],
         'units': [i for i in range(1, 32, 1)],
+        'hidden_size': [32, 64, 128, 256, 512, 768, 1024],
         'recurrent_dropout': [FLOAT32(i / 100) for i in range(5, 95, 1)],
         'activation': ['tanh', 'relu', None],
         'implementation': [1, 2],
+        'bidirectional': [False, True],
         'return_sequences': [True, False]},
 
     'cnn': {
         'input_rank': [3],
         'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
+        'kernel_size': [i for i in range(1, 32, 2)],
         # 'strides': [1],
         'strides': [1, 2, 3],
-        'padding': ['valid', 'same', 'causal'],
-        'padding': ['same'],
+        'padding_mode': ['valid'],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
 
     'cnn2': {
         'input_rank': [4],
         'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
+        'kernel_size': [i for i in range(1, 32, 2)],
         # 'strides': [1],
         'strides': [1, 2, 3],
-        'padding': ['valid', 'same'],
+        'padding_mode': ['valid'],
         # 'padding': ['same'],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]},
@@ -108,16 +101,17 @@ LAYERS_POOL = {
         'input_rank': [3],
         'pool_size': [i for i in range(0, 16, 2)][1:],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same'],
+        'dilation_rate': [1, 2, 3],
+        'padding_mode': [None],
         # 'padding': ['same'],
         },
 
     'max_pool2': {
         'input_rank': [4],
         'pool_size': [i for i in range(0, 16, 2)][1:],
+        'dilation_rate': [1, 2, 3],
         'strides': [i for i in range(2, 8)],
-        'padding': ['valid', 'same'],
-        'padding': ['same'],},
+        'padding_mode': [None]},
 
     'dense': {
         'input_rank': [],
@@ -126,33 +120,7 @@ LAYERS_POOL = {
 
     'dropout': {
         'input_rank': [],
-        'rate': [FLOAT32(i / 100) for i in range(5, 95, 1)]},
-
-    'repeatvector': {
-        'input_rank': [2],
-        'n': [i for i in range(1, 5)]},
-
-    'separablecnn': {
-        'input_rank': [3],
-        'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
-        'strides': [1],
-        # 'strides': [1, 2, 3],
-        # 'padding': ['valid', 'same'],
-        'padding': ['same'],
-        'activation': ['tanh', 'relu', None],
-        'dilation_rate': [1, 2, 3]},
-
-    'separablecnn2': {
-        'input_rank': [4],
-        'filters': [i for i in range(0, 128, 16)][1:] + [1],
-        'kernel_size': [i for i in range(1, 11, 2)],
-        'strides': [1],
-        # 'strides': [1, 2, 3],
-        'padding': ['valid', 'same'],
-        'padding': ['same'],
-        'activation': ['tanh', 'relu', None],
-        'dilation_rate': [1, 2, 3]},
+        'rate': [FLOAT32(i / 100) for i in range(0, 50, 5)]},
 
     'decnn2': {
         'input_rank': [4],
@@ -160,9 +128,8 @@ LAYERS_POOL = {
         'kernel_size': [i for i in range(1, 11, 2)],
         'strides': [1],
         # 'strides': [1, 2, 3],
-        'padding': ['valid', 'same'],
-        'padding': ['same'],
-        'output_padding': [i for i in range(1, )] + [None],
+        'padding_mode': ['valid'],
+        'output_padding': [i for i in range(0, 5)],
         'activation': ['tanh', 'relu', None],
         'dilation_rate': [1, 2, 3]}, }
 

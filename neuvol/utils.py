@@ -15,7 +15,6 @@ import copy
 from functools import wraps
 import json
 from IPython.display import SVG
-from keras.utils.vis_utils import model_to_dot
 
 import numpy as np
 
@@ -69,12 +68,3 @@ def parameters_copy(func):
         return func(*copies)
 
     return wrapper
-
-
-def visualize_graph(model, file=None):
-    if file is None:
-        return model_to_dot(model.init_tf_graph_cycle()).create(prog='dot', format='png')
-
-    else:
-        with open('{}.png'.format(file), 'wb') as f:
-            f.write(model_to_dot(model.init_tf_graph_cycle()).create(prog='dot', format='png'))
