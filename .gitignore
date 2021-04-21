@@ -3,57 +3,14 @@ __pycache__/
 
 *.pyc
 
-example\.csv
-
 \.vscode/
 
 log\.log
 
-train\.csv
-
-extend_prerpoc\.csv
-
-lstm_pop\.txt
-
-*.ipynb
-
 *.p
-
-\.coverage
-
 
 docs/build
 
-data/
-
-data_transorm\.py
-
-tmp\.json
-
-viz/
-
-x_genres\.npy
-
-y_genres\.npy
-
-viz_data\.json
-
-viz_data2\.json
-
-*.zip
-
-viz_data\(7\)\.json
-
-viz_data_imdb_2\.json
-
-*.png
-
-*.json
-
-\.VSCodeCounter/
-
-neuvol/individs/structure/structure_old\.py
-
 log\.txt
 
-stop\.txt
+\.VSCodeCounter/*
